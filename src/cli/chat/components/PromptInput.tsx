@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
+import { canNavigatePromptHistory, usePromptHistoryNavigation } from '../hooks/usePromptHistory.js';
+import { usePromptUndoRedo, type PromptDraftState } from '../hooks/usePromptUndoRedo.js';
 
 const DEFAULT_MAX_VISIBLE_INPUT_LINES = 8;
 const FALLBACK_WRAP_WIDTH = 80;
@@ -30,6 +32,7 @@ export function PromptInput({
   isDisabled,
   placeholder,
   width,
+  promptHistory = [],
   maxVisibleLines = DEFAULT_MAX_VISIBLE_INPUT_LINES,
   cursor,
   onChange,
@@ -41,6 +44,7 @@ export function PromptInput({
   isDisabled: boolean;
   placeholder: string;
   width?: number;
+  promptHistory?: string[];
   maxVisibleLines?: number;
   cursor: number;
   onChange: (value: string) => void;
@@ -50,18 +54,42 @@ export function PromptInput({
 }) {
   const valueRef = useRef(value);
   const cursorRef = useRef(cursor);
+  const {
+    resetUndoRedo,
+    recordUndoState,
+    undoPromptEdit,
+    redoPromptEdit,
+  } = usePromptUndoRedo();
+  const {
+    resetPromptHistoryNavigation,
+    navigatePromptHistory,
+  } = usePromptHistoryNavigation(promptHistory);
   const { stdout } = useStdout();
   const renderWidth = resolvePromptInputRenderWidth(width, stdout.columns);
 
   useEffect(() => {
+    if (valueRef.current !== value) {
+      resetUndoRedo();
+      resetPromptHistoryNavigation();
+    }
     valueRef.current = value;
-  }, [value]);
+  }, [resetPromptHistoryNavigation, resetUndoRedo, value]);
 
   useEffect(() => {
     cursorRef.current = cursor;
   }, [cursor]);
 
-  const applyDraft = (nextValue: string, nextCursor: number) => {
+  const applyDraft = (nextValue: string, nextCursor: number, options: { recordUndo?: boolean } = {}) => {
+    const current = {
+      value: valueRef.current,
+      cursor: Math.min(cursorRef.current, valueRef.current.length),
+    };
+    const next = { value: nextValue, cursor: nextCursor };
+    if (options.recordUndo !== false) {
+      recordUndoState(current, next);
+      resetPromptHistoryNavigation();
+    }
+
     valueRef.current = nextValue;
     cursorRef.current = nextCursor;
     onChange(nextValue);
@@ -77,13 +105,37 @@ export function PromptInput({
       value: valueRef.current,
       cursor: Math.min(cursorRef.current, valueRef.current.length),
     };
+    const applyState = (nextState: PromptDraftState, options?: { recordUndo?: boolean }) =>
+      applyDraft(nextState.value, nextState.cursor, options);
     const actions: PromptInputActions = {
-      applyDraft,
+      applyDraft: applyState,
       moveCursor: (nextCursor) => {
         cursorRef.current = nextCursor;
         onCursorChange(nextCursor);
       },
       onSubmit,
+      undo: () => {
+        const previous = undoPromptEdit(state);
+        if (!previous) {
+          return;
+        }
+        applyState(previous, { recordUndo: false });
+      },
+      redo: () => {
+        const next = redoPromptEdit(state);
+        if (!next) {
+          return;
+        }
+        applyState(next, { recordUndo: false });
+      },
+      navigateHistory: (direction) => {
+        const next = navigatePromptHistory(direction, state);
+        if (!next) {
+          return;
+        }
+
+        applyState(next, { recordUndo: false });
+      },
     };
 
     if (onSpecialKey?.({ input, key })) {
@@ -137,14 +189,12 @@ export function resolvePromptInputRenderWidth(width?: number, stdoutColumns?: nu
   return Math.max(PROMPT_INPUT_PREFIX_WIDTH + 1, Math.floor(candidate));
 }
 
-export type PromptDraftState = {
-  value: string;
-  cursor: number;
-};
-
 type PromptInputCommand =
   | { kind: 'submit' }
   | { kind: 'insert'; input: string }
+  | { kind: 'undo' }
+  | { kind: 'redo' }
+  | { kind: 'history'; direction: 'previous' | 'next' }
   | { kind: 'deletePreviousChar' }
   | { kind: 'deletePreviousWord' }
   | { kind: 'deleteBeforeCursor' }
@@ -152,9 +202,12 @@ type PromptInputCommand =
   | { kind: 'move'; direction: 'start' | 'end' | 'previousChar' | 'nextChar' | 'previousWord' | 'nextWord' };
 
 type PromptInputActions = {
-  applyDraft: (value: string, cursor: number) => void;
+  applyDraft: (state: PromptDraftState, options?: { recordUndo?: boolean }) => void;
   moveCursor: (cursor: number) => void;
   onSubmit: (value: string) => void;
+  undo: () => void;
+  redo: () => void;
+  navigateHistory: (direction: 'previous' | 'next') => void;
 };
 
 const CTRL_COMMANDS = new Map<string, PromptInputCommand>([
@@ -163,6 +216,8 @@ const CTRL_COMMANDS = new Map<string, PromptInputCommand>([
   ['k', { kind: 'deleteAfterCursor' }],
   ['u', { kind: 'deleteBeforeCursor' }],
   ['w', { kind: 'deletePreviousWord' }],
+  ['y', { kind: 'redo' }],
+  ['z', { kind: 'undo' }],
 ]);
 
 const META_TEXT_COMMANDS = new Map<string, PromptInputCommand>([
@@ -214,6 +269,14 @@ function resolvePromptInputCommand(input: string, key: PromptKeyInput['key']): P
     return { kind: 'move', direction: 'nextChar' };
   }
 
+  if (key.upArrow) {
+    return { kind: 'history', direction: 'previous' };
+  }
+
+  if (key.downArrow) {
+    return { kind: 'history', direction: 'next' };
+  }
+
   if (key.home) {
     return { kind: 'move', direction: 'start' };
   }
@@ -234,30 +297,39 @@ function handlePromptInputCommand(
   state: PromptDraftState,
   actions: PromptInputActions,
 ): void {
-  const applyState = (next: PromptDraftState) => actions.applyDraft(next.value, next.cursor);
-
   switch (command.kind) {
     case 'submit':
       actions.onSubmit(state.value);
       return;
     case 'insert':
-      applyState(insertPromptText(state, command.input));
+      actions.applyDraft(insertPromptText(state, command.input));
+      return;
+    case 'undo':
+      actions.undo();
+      return;
+    case 'redo':
+      actions.redo();
+      return;
+    case 'history':
+      if (canNavigatePromptHistory(command.direction, state)) {
+        actions.navigateHistory(command.direction);
+      }
       return;
     case 'deletePreviousChar':
       if (state.cursor > 0) {
-        applyState({ value: removeRange(state.value, state.cursor - 1, state.cursor), cursor: state.cursor - 1 });
+        actions.applyDraft({ value: removeRange(state.value, state.cursor - 1, state.cursor), cursor: state.cursor - 1 });
       }
       return;
     case 'deletePreviousWord': {
       const nextCursor = findPreviousWordBoundary(state.value, state.cursor);
-      applyState({ value: removeRange(state.value, nextCursor, state.cursor), cursor: nextCursor });
+      actions.applyDraft({ value: removeRange(state.value, nextCursor, state.cursor), cursor: nextCursor });
       return;
     }
     case 'deleteBeforeCursor':
-      applyState({ value: state.value.slice(state.cursor), cursor: 0 });
+      actions.applyDraft({ value: state.value.slice(state.cursor), cursor: 0 });
       return;
     case 'deleteAfterCursor':
-      applyState({ value: state.value.slice(0, state.cursor), cursor: state.cursor });
+      actions.applyDraft({ value: state.value.slice(0, state.cursor), cursor: state.cursor });
       return;
     case 'move':
       actions.moveCursor(resolvePromptCursorMove(state, command.direction));
