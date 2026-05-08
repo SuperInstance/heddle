@@ -108,6 +108,29 @@ export function createOpenAiAdapter(options: OpenAiAdapterOptions = {}): LlmAdap
           continue;
         }
 
+        if (event.type === 'response.reasoning_summary_text.delta' && event.delta) {
+          onStreamEvent?.({ type: 'reasoning_summary.delta', delta: event.delta });
+          continue;
+        }
+
+        if (event.type === 'response.reasoning_summary_text.done') {
+          onStreamEvent?.({ type: 'reasoning_summary.done', text: event.text });
+          continue;
+        }
+
+        if (event.type === 'response.reasoning_summary.delta') {
+          const delta = readReasoningSummaryDeltaText(event.delta);
+          if (delta) {
+            onStreamEvent?.({ type: 'reasoning_summary.delta', delta });
+          }
+          continue;
+        }
+
+        if (event.type === 'response.reasoning_summary.done') {
+          onStreamEvent?.({ type: 'reasoning_summary.done', text: event.text });
+          continue;
+        }
+
         if (event.type === 'response.output_item.added' || event.type === 'response.output_item.done') {
           const item = event.item;
           if (
@@ -198,6 +221,19 @@ function parseStreamedToolCalls(
   }
 
   return toolCalls;
+}
+
+function readReasoningSummaryDeltaText(delta: unknown): string | undefined {
+  if (typeof delta === 'string') {
+    return delta;
+  }
+
+  if (!delta || typeof delta !== 'object' || Array.isArray(delta)) {
+    return undefined;
+  }
+
+  const text = (delta as { text?: unknown }).text;
+  return typeof text === 'string' ? text : undefined;
 }
 
 function firstDefinedNonEmpty(...values: Array<string | undefined>): string | undefined {

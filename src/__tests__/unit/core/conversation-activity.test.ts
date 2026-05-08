@@ -72,7 +72,14 @@ describe('conversation activity projection', () => {
     };
 
     expect(projectAgentLoopEventToConversationActivities(calling)).toEqual([
-      expect.objectContaining({ type: 'tool.calling', tool: 'read_file', step: 2, runId: 'run-1' }),
+      expect.objectContaining({
+        type: 'tool.calling',
+        tool: 'read_file',
+        toolSummary: 'read_file (README.md)',
+        requiresApproval: false,
+        step: 2,
+        runId: 'run-1',
+      }),
     ]);
     expect(projectAgentLoopEventToConversationActivities(completed)).toEqual([
       expect.objectContaining({ type: 'tool.completed', tool: 'read_file', durationMs: 12.4, step: 2, runId: 'run-1' }),

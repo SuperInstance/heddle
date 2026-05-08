@@ -15,7 +15,7 @@ export type ConversationActivity = ConversationActivityCorrelation & (
   | { type: 'loop.finished' }
   | { type: 'assistant.stream'; text: string; done: boolean }
   | { type: 'assistant.turn'; requestedTools: boolean; rationale?: string }
-  | { type: 'tool.calling'; tool: string }
+  | { type: 'tool.calling'; tool: string; toolSummary: string; requiresApproval: boolean }
   | { type: 'tool.completed'; tool: string; durationMs?: number }
   | { type: 'run.started' }
   | { type: 'run.finished'; outcome: string }
@@ -157,7 +157,13 @@ const agentLoopProjectors: AgentLoopProjectorMap = {
     done: event.done,
     ...agentLoopCorrelation(event),
   }],
-  'tool.calling': (event) => [{ type: 'tool.calling', tool: event.tool, ...agentLoopCorrelation(event) }],
+  'tool.calling': (event) => [{
+    type: 'tool.calling',
+    tool: event.tool,
+    toolSummary: summarizeToolCall(event.tool, event.input),
+    requiresApproval: event.requiresApproval,
+    ...agentLoopCorrelation(event),
+  }],
   'tool.completed': (event) => [{
     type: 'tool.completed',
     tool: event.tool,

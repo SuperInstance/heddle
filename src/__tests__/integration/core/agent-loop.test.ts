@@ -151,6 +151,44 @@ describe('runAgentLoop', () => {
     }));
   });
 
+  it('emits streamed reasoning summaries as assistant progress events', async () => {
+    const events: AgentLoopEvent[] = [];
+    const fakeLlm: LlmAdapter = {
+      info: {
+        provider: 'openai',
+        model: 'gpt-test',
+        capabilities: {
+          toolCalls: true,
+          systemMessages: true,
+          reasoningSummaries: true,
+          parallelToolCalls: true,
+        },
+      },
+      async chat(_messages, _tools, _signal, onStreamEvent): Promise<LlmResponse> {
+        onStreamEvent?.({ type: 'reasoning_summary.delta', delta: 'Inspecting the request' });
+        onStreamEvent?.({ type: 'reasoning_summary.done', text: 'Inspecting the request before choosing tools.' });
+        return { content: 'Done.' };
+      },
+    };
+
+    await runAgentLoop({
+      goal: 'Say hello.',
+      llm: fakeLlm,
+      tools: [],
+      includeDefaultTools: false,
+      maxSteps: 1,
+      logger: silentLogger,
+      onEvent: (event) => events.push(event),
+    });
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'assistant.stream',
+      step: 1,
+      text: 'Reasoning: Inspecting the request before choosing tools.',
+      done: false,
+    }));
+  });
+
   it('does not treat the workspace state directory as the OAuth credential store', async () => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), 'heddle-loop-state-dir-'));
     await mkdir(join(workspaceRoot, '.heddle'));

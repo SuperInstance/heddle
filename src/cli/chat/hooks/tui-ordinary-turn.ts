@@ -85,6 +85,7 @@ export async function executeTuiOrdinaryTurn(args: {
       events: {
         onAgentLoopEvent: (event) => {
           driftObserver?.observer.handleEvent(event);
+          runLoopEvents.onAgentLoopEvent(event);
         },
       },
       compaction: compactionPort,
