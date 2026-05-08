@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { CredentialAwareModelOption } from '../../../core/llm/model-policy.js';
 import type { ReasoningEffort } from '../../../core/llm/types.js';
+import type { ReasoningEffortPickerOption } from './useChatPickers.js';
 import type { ConversationLine, ChatSession } from '../state/types.js';
 import { submitChatPrompt } from '../submit.js';
 import { buildPromptWithFileMentions } from '../utils/file-mentions.js';
@@ -39,6 +40,7 @@ export function usePromptSubmission({
   pendingApproval,
   mentionableFiles,
   modelPicker,
+  reasoningPicker,
   sessionPicker,
   fileMentionPicker,
   resetPickerIndexes,
@@ -74,6 +76,11 @@ export function usePromptSubmission({
   modelPicker: {
     visible: boolean;
     highlighted?: CredentialAwareModelOption;
+    resetIndex: () => void;
+  };
+  reasoningPicker: {
+    visible: boolean;
+    highlighted?: ReasoningEffortPickerOption;
     resetIndex: () => void;
   };
   sessionPicker: {
@@ -195,6 +202,18 @@ export function usePromptSubmission({
       return;
     }
 
+    if (reasoningPicker.visible && reasoningPicker.highlighted) {
+      reasoningPicker.resetIndex();
+      if (reasoningPicker.highlighted.disabled) {
+        return;
+      }
+      await submitChatPrompt({
+        ...submitArgs,
+        value: reasoningPicker.highlighted.id === 'default' ? '/reasoning default' : `/reasoning ${reasoningPicker.highlighted.id}`,
+      });
+      return;
+    }
+
     if (sessionPicker.visible && sessionPicker.highlighted) {
       sessionPicker.resetIndex();
       await submitChatPrompt({
@@ -221,6 +240,7 @@ export function usePromptSubmission({
     activeModel,
     activeReasoningEffort,
     setActiveModel,
+    setActiveReasoningEffort,
     sessions,
     recentSessions,
     activeSessionId,
@@ -247,6 +267,7 @@ export function usePromptSubmission({
     executeDirectShellCommand,
     saveTuiSnapshot,
     modelPicker,
+    reasoningPicker,
     sessionPicker,
     fileMentionPicker,
     resetPickerIndexes,

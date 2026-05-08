@@ -521,6 +521,7 @@ describe('runLocalCommand', () => {
     expect(autocompleteLocalCommand('/m', 'session-1', [])).toBe('/model ');
     expect(autocompleteLocalCommand('/model s', 'session-1', [])).toBe('/model set ');
     expect(autocompleteLocalCommand('/rea', 'session-1', [])).toBe('/reasoning ');
+    expect(autocompleteLocalCommand('/reasoning s', 'session-1', [])).toBe('/reasoning set ');
     expect(autocompleteLocalCommand('/session sw', 'session-1', [])).toBe('/session switch ');
   });
 
@@ -538,6 +539,32 @@ describe('runLocalCommand', () => {
     expect(result.message).toContain('Current model: gpt-5.4');
     expect(result.message).toContain('Configured effort: high');
     expect(result.message).toContain('Effective effort: high');
+    expect(result.message).toContain('Use /reasoning set to choose an effort');
+  });
+
+  it('shows picker help for reasoning set', async () => {
+    await expect(runLocalCommand(createCommandArgs({
+      prompt: '/reasoning set',
+      activeModel: 'gpt-5.4',
+    }))).resolves.toEqual({
+      handled: true,
+      kind: 'message',
+      message: 'Use /reasoning set <query> to filter reasoning efforts, then use arrows and Enter to choose one.',
+    });
+  });
+
+  it('accepts direct reasoning set values for compatibility with picker submissions', async () => {
+    const setActiveReasoningEffort = vi.fn();
+    await expect(runLocalCommand(createCommandArgs({
+      prompt: '/reasoning set medium',
+      activeModel: 'gpt-5.4',
+      setActiveReasoningEffort,
+    }))).resolves.toEqual({
+      handled: true,
+      kind: 'message',
+      message: 'Set reasoning effort to medium for gpt-5.4.',
+    });
+    expect(setActiveReasoningEffort).toHaveBeenCalledWith('medium');
   });
 
   it('rejects reserved ultrahigh reasoning effort before a run starts', async () => {

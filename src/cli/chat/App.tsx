@@ -7,6 +7,7 @@ import {
   FileMentionPickerPanel,
   ModelPickerPanel,
   PromptInput,
+  ReasoningEffortPickerPanel,
   SessionPickerPanel,
   shouldShowCommandHint,
   shouldShowSlashHints,
@@ -87,6 +88,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     clearDraft,
     replaceDraft,
     providerCredentialSource: resolveProviderCredentialSourceForModel(activeModel, runtime),
+    activeModel,
   });
   const drift = useChatDrift({
     activeSession,
@@ -283,6 +285,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
         showSlashHints: shouldShowSlashHints(draft),
         showCommandHint: shouldShowCommandHint(draft),
         modelPicker: pickers.model,
+        reasoningPicker: pickers.reasoning,
         sessionPicker: pickers.session,
         fileMentionPicker: pickers.fileMention,
       }),
@@ -311,6 +314,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     draft,
     draftCursor,
     pickers.model,
+    pickers.reasoning,
     pickers.session,
     pickers.fileMention,
     renderedStatus,
@@ -406,6 +410,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     executeDirectShellCommand,
     mentionableFiles,
     modelPicker: pickers.model,
+    reasoningPicker: pickers.reasoning,
     sessionPicker: pickers.session,
     fileMentionPicker: pickers.fileMention,
     resetPickerIndexes: pickers.resetPickerIndexes,
@@ -473,6 +478,14 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
                   models={pickers.model.items}
                   activeModel={activeModel}
                   highlightedIndex={pickers.model.highlightedIndex}
+                />
+              : null}
+              {pickers.reasoning.visible ?
+                <ReasoningEffortPickerPanel
+                  query={pickers.reasoning.query ?? ''}
+                  options={pickers.reasoning.items}
+                  activeReasoningEffort={activeReasoningEffort}
+                  highlightedIndex={pickers.reasoning.highlightedIndex}
                 />
               : null}
               {pickers.session.visible ?
