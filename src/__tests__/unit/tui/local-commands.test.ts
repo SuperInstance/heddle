@@ -540,6 +540,22 @@ describe('runLocalCommand', () => {
     expect(result.message).toContain('Effective effort: high');
   });
 
+  it('rejects reserved ultrahigh reasoning effort before a run starts', async () => {
+    const setActiveReasoningEffort = vi.fn();
+    const result = await runLocalCommand(createCommandArgs({
+      prompt: '/reasoning ultrahigh',
+      activeModel: 'gpt-5.4',
+      setActiveReasoningEffort,
+    }));
+
+    expect(result).toMatchObject({
+      handled: true,
+      kind: 'message',
+      message: expect.stringContaining('ultrahigh'),
+    });
+    expect(setActiveReasoningEffort).not.toHaveBeenCalled();
+  });
+
   it('autocompletes shared prefixes while preserving leading whitespace', () => {
     expect(autocompleteLocalCommand('  /sess', 'session-1', [])).toBe('  /session ');
     expect(autocompleteLocalCommand('/hea', 'session-1', [])).toBe('/heartbeat ');

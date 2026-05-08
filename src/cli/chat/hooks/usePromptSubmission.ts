@@ -219,6 +219,7 @@ export function usePromptSubmission({
     pendingApproval,
     pendingSubmittedPrompt,
     activeModel,
+    activeReasoningEffort,
     setActiveModel,
     sessions,
     recentSessions,

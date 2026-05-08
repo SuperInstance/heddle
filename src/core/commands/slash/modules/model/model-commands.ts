@@ -7,6 +7,7 @@ import { COMMON_BUILT_IN_MODELS, formatBuiltInModelGroups } from '../../../../ll
 import {
   credentialModeFromSource,
   resolveDefaultReasoningEffort,
+  supportsOpenAiRequestReasoningEffort,
   supportsReasoningEffort,
   validateModelCredentialCompatibility,
 } from '../../../../llm/model-policy.js';
@@ -71,7 +72,6 @@ export function createReasoningSlashCommandModule(): SlashCommandModule<SlashCom
       { command: '/reasoning low', description: 'set reasoning effort to low' },
       { command: '/reasoning medium', description: 'set reasoning effort to medium' },
       { command: '/reasoning high', description: 'set reasoning effort to high' },
-      { command: '/reasoning ultrahigh', description: 'set reasoning effort to ultrahigh' },
       { command: '/reasoning default', description: 'clear explicit reasoning effort and use the model default' },
     ],
     commands: [
@@ -145,6 +145,14 @@ function setReasoningEffort(
 
   if (!supportsReasoningEffort(context.model.active())) {
     return slashMessageResult(`Reasoning effort is not supported for model ${context.model.active()}.`);
+  }
+
+  if (normalized === 'ultrahigh') {
+    return slashMessageResult('Reasoning effort "ultrahigh" is reserved but is not supported by the current OpenAI request path. Use low, medium, high, or default.');
+  }
+
+  if (!supportsOpenAiRequestReasoningEffort(context.model.active())) {
+    return slashMessageResult(`Reasoning effort settings are not supported by the OpenAI request path for model ${context.model.active()}.`);
   }
 
   context.model.setReasoningEffort(normalized);

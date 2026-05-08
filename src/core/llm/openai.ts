@@ -421,10 +421,10 @@ function buildOpenAiResponsesRequest(
     options.oauthMode ?
       systemMessages.map((message) => message.content.trim()).filter(Boolean).join('\n\n')
     : undefined;
-  const reasoningEffort =
-    supportsOpenAiRequestReasoningEffort(options.model) ?
-      toOpenAiReasoningEffort(options.reasoningEffort ?? resolveDefaultReasoningEffort(options.model))
-    : undefined;
+  const reasoningEffort = resolveOpenAiRequestReasoningEffort({
+    model: options.model,
+    explicitEffort: options.reasoningEffort,
+  });
 
   return {
     model: options.model,
@@ -439,12 +439,31 @@ function buildOpenAiResponsesRequest(
   };
 }
 
-function toOpenAiReasoningEffort(value: ReasoningEffort | undefined): OpenAiReasoningEffort | undefined {
+function resolveOpenAiRequestReasoningEffort(args: {
+  model: string;
+  explicitEffort?: ReasoningEffort;
+}): OpenAiReasoningEffort | undefined {
+  const effectiveEffort = args.explicitEffort ?? resolveDefaultReasoningEffort(args.model);
+  if (!effectiveEffort) {
+    return undefined;
+  }
+
+  if (!supportsOpenAiRequestReasoningEffort(args.model)) {
+    if (args.explicitEffort) {
+      throw new Error(`Reasoning effort is not supported for OpenAI model ${args.model}.`);
+    }
+    return undefined;
+  }
+
+  return toOpenAiReasoningEffort(effectiveEffort);
+}
+
+function toOpenAiReasoningEffort(value: ReasoningEffort): OpenAiReasoningEffort {
   if (value === 'low' || value === 'medium' || value === 'high') {
     return value;
   }
 
-  return undefined;
+  throw new Error('Reasoning effort "ultrahigh" is not supported by the current OpenAI Responses API. Use low, medium, high, or default.');
 }
 
 function toResponseInputItems(msg: ChatMessage): ResponseInputItem[] {

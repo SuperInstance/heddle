@@ -105,7 +105,7 @@ export function updateControlPlaneChatSessionSettings(args: {
   sessionStoragePath: string;
   sessionId: string;
   model?: string;
-  reasoningEffort?: ReasoningEffort;
+  reasoningEffort?: ReasoningEffort | null;
   driftEnabled?: boolean;
 }): ChatSessionDetail {
   const currentSessions = readChatSessionCatalog(args.sessionStoragePath)
@@ -116,7 +116,7 @@ export function updateControlPlaneChatSessionSettings(args: {
       {
         ...session,
         model: args.model ?? session.model,
-        reasoningEffort: args.reasoningEffort ?? session.reasoningEffort,
+        reasoningEffort: args.reasoningEffort === null ? undefined : args.reasoningEffort ?? session.reasoningEffort,
         driftEnabled: args.driftEnabled ?? session.driftEnabled,
         updatedAt: new Date().toISOString(),
       }

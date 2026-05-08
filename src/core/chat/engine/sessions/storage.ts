@@ -48,6 +48,7 @@ export function createChatSession(options: {
   name: string;
   apiKeyPresent: boolean;
   model?: string;
+  reasoningEffort?: ReasoningEffort;
   workspaceId?: string;
 }): ChatSession {
   const now = new Date().toISOString();
@@ -61,6 +62,7 @@ export function createChatSession(options: {
     createdAt: now,
     updatedAt: now,
     model: options.model,
+    reasoningEffort: options.reasoningEffort,
     driftEnabled: false,
     lastContinuePrompt: undefined,
     context: undefined,

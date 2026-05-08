@@ -191,7 +191,7 @@ export const controlPlaneRouter = router({
       sessionStoragePath: resolve(ctx.activeWorkspace.stateRoot, 'chat-sessions.catalog.json'),
       sessionId: input.id,
       model: input.model,
-      reasoningEffort: input.reasoningEffort ?? undefined,
+      reasoningEffort: input.reasoningEffort,
       driftEnabled: input.driftEnabled,
     });
   }),

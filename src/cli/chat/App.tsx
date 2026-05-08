@@ -358,6 +358,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
   const { executeTurn, executeDirectShellCommand } = useAgentRun({
     runtime,
     activeModel,
+    activeReasoningEffort,
     sessionTitleModel,
     activeSessionId,
     sessions,
