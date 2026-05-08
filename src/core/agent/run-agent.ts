@@ -284,8 +284,15 @@ async function requestModelTurn(context: RunContext): Promise<LlmResponse | RunR
 }
 
 function formatReasoningSummaryStream(text: string): string {
-  const trimmed = text.trim();
+  const trimmed = stripReasoningSummaryMarkdown(text.trim());
   return trimmed ? `Thinking: ${trimmed}` : 'Thinking...';
+}
+
+function stripReasoningSummaryMarkdown(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/([.!?])([A-Z][A-Za-z ]{2,}:?)/g, '$1 $2');
 }
 
 async function handleToolTurn(context: RunContext, response: LlmResponse): Promise<RunResult | 'continue'> {

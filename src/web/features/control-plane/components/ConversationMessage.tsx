@@ -1,8 +1,9 @@
-import { Fragment, memo, type ReactNode } from 'react';
+import { memo } from 'react';
 
 import type { ChatSessionDetail } from '../../../lib/api';
 import { className } from '../utils';
 import { Pill } from './common';
+import { AssistantMarkdown } from './AssistantMarkdown';
 
 type ChatMessage = Exclude<ChatSessionDetail, null>['messages'][number];
 
@@ -15,26 +16,105 @@ type ParsedToolResult = {
 };
 
 export const ConversationMessage = memo(function ConversationMessage({ message }: { message: ChatMessage }) {
-  const isWorking = message.role === 'assistant' && (message.isPending || message.isStreaming);
+  const isWorking = message.role === 'assistant' && Boolean(message.isPending || message.isStreaming);
   const toolResult = message.role === 'assistant' ? parseToolResultMessage(message.text) : undefined;
+
+  if (message.role === 'user') {
+    return <UserConversationMessage message={message} />;
+  }
+
+  if (toolResult) {
+    return <ToolResultMessage message={message} result={toolResult} isWorking={isWorking} />;
+  }
+
+  const variant = classifyAssistantMessage(message);
+  return <AssistantConversationMessage message={message} variant={variant} isWorking={isWorking} />;
+});
+
+function UserConversationMessage({ message }: { message: ChatMessage }) {
   return (
-    <article className={className('message', message.role === 'user' ? 'user' : 'assistant', toolResult && 'tool-result', isWorking && 'working')}>
-      <div className="message-header">
-        <span>{message.role === 'user' ? 'You' : toolResult ? 'Tool result' : 'Heddle'}</span>
-        <div className="pills compact-pills">
-          {toolResult ? <Pill tone={toolResult.ok === false ? 'bad' : 'good'}>{toolResult.tool}</Pill> : null}
-          {message.isPending ? <Pill tone="warn">working</Pill> : null}
-          {message.isStreaming ? <Pill>live</Pill> : null}
+    <article className="message-row user" data-message-role="user">
+      <div className="message user-message-card">
+        <div className="message-header user-message-header">
+          <span>You</span>
         </div>
-      </div>
-      <div className={className('message-body', message.role === 'assistant' && 'markdown-body')}>
-        {toolResult ? <ToolResultBody result={toolResult} />
-        : message.role === 'assistant' ? renderSimpleMarkdown(message.text)
-        : message.text}
+        <div className="message-body user-message-body">{message.text}</div>
       </div>
     </article>
   );
-});
+}
+
+function AssistantConversationMessage({
+  message,
+  variant,
+  isWorking,
+}: {
+  message: ChatMessage;
+  variant: 'article' | 'status';
+  isWorking: boolean;
+}) {
+  if (variant === 'status') {
+    return (
+      <article className="message-row assistant status" data-message-role="assistant" data-message-variant="status">
+        <div className={className('message assistant-status-card', isWorking && 'working')}>
+          <div className="message-header assistant-status-header">
+            <span>Heddle</span>
+            <div className="pills compact-pills">
+              {message.isPending ? <Pill tone="warn">working</Pill> : null}
+              {message.isStreaming ? <Pill>live</Pill> : null}
+            </div>
+          </div>
+          <div className="message-body assistant-status-body">{message.text}</div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="message-row assistant article" data-message-role="assistant" data-message-variant="article">
+      <div className="assistant-article-shell">
+        <div className="message-header assistant-article-header">
+          <span>Heddle</span>
+          <div className="pills compact-pills">
+            {message.isPending ? <Pill tone="warn">working</Pill> : null}
+            {message.isStreaming ? <Pill>live</Pill> : null}
+          </div>
+        </div>
+        <div className={className('message-body assistant-article-body', isWorking && 'working')}>
+          <AssistantMarkdown markdown={message.text} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ToolResultMessage({
+  message,
+  result,
+  isWorking,
+}: {
+  message: ChatMessage;
+  result: ParsedToolResult;
+  isWorking: boolean;
+}) {
+  return (
+    <article className="message-row assistant tool-result" data-message-role="assistant" data-message-variant="tool-result">
+      <div className={className('message tool-result-card', isWorking && 'working')}>
+        <div className="message-header tool-result-header">
+          <span>Tool result</span>
+          <div className="pills compact-pills">
+            <Pill tone={result.ok === false ? 'bad' : 'good'}>{result.tool}</Pill>
+            {message.isPending ? <Pill tone="warn">working</Pill> : null}
+            {message.isStreaming ? <Pill>live</Pill> : null}
+          </div>
+        </div>
+        <div className="message-body tool-result-message-body">
+          <ToolResultBody result={result} />
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function ToolResultBody({ result }: { result: ParsedToolResult }) {
   const output = formatToolOutput(result.output);
@@ -48,6 +128,41 @@ function ToolResultBody({ result }: { result: ParsedToolResult }) {
       {output ? <pre className="tool-output">{output}</pre> : <p className="muted">No visible output.</p>}
     </div>
   );
+}
+
+function classifyAssistantMessage(message: ChatMessage): 'article' | 'status' {
+  if (message.id.startsWith('live-run-status')) {
+    return 'status';
+  }
+
+  const trimmed = message.text.trim();
+  if (!trimmed) {
+    return 'status';
+  }
+
+  if (isShortStatusText(trimmed)) {
+    return 'status';
+  }
+
+  return 'article';
+}
+
+function isShortStatusText(text: string): boolean {
+  if (text.length > 120) {
+    return false;
+  }
+
+  return [
+    /^run started/i,
+    /^working…/i,
+    /^approval /i,
+    /^fallback:/i,
+    /^memory update/i,
+    /^memory updating/i,
+    /^compaction /i,
+    /^heddle is working/i,
+    /^[a-z_][a-z0-9_]* finished(?: in \d+ms)?$/i,
+  ].some((pattern) => pattern.test(text));
 }
 
 function parseToolResultMessage(text: string): ParsedToolResult | undefined {
@@ -113,161 +228,4 @@ function isKnownToolName(value: string): boolean {
     'view_image',
     'web_search',
   ].includes(value);
-}
-
-function renderSimpleMarkdown(markdown: string): ReactNode {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
-  const nodes: ReactNode[] = [];
-  let paragraph: string[] = [];
-  let listItems: Array<{ checked?: boolean; content: string }> = [];
-  let orderedItems: string[] = [];
-  let codeFence: string[] | null = null;
-
-  const flushParagraph = () => {
-    if (!paragraph.length) {
-      return;
-    }
-    nodes.push(<p key={`p-${nodes.length}`}>{renderInlineMarkdown(paragraph.join(' '))}</p>);
-    paragraph = [];
-  };
-
-  const flushList = () => {
-    if (!listItems.length) {
-      return;
-    }
-    nodes.push(
-      <ul key={`ul-${nodes.length}`}>
-        {listItems.map((item, index) => (
-          <li key={index}>
-            {typeof item.checked === 'boolean' ?
-              <>
-                <input type="checkbox" checked={item.checked} readOnly disabled />{' '}
-              </>
-            : null}
-            {renderInlineMarkdown(item.content)}
-          </li>
-        ))}
-      </ul>,
-    );
-    listItems = [];
-  };
-
-  const flushOrdered = () => {
-    if (!orderedItems.length) {
-      return;
-    }
-    nodes.push(
-      <ol key={`ol-${nodes.length}`}>
-        {orderedItems.map((item, index) => <li key={index}>{renderInlineMarkdown(item)}</li>)}
-      </ol>,
-    );
-    orderedItems = [];
-  };
-
-  const flushCodeFence = () => {
-    if (!codeFence) {
-      return;
-    }
-    nodes.push(<pre key={`code-${nodes.length}`} className="code-block"><code>{codeFence.join('\n')}</code></pre>);
-    codeFence = null;
-  };
-
-  for (const line of lines) {
-    if (line.trim().startsWith('```')) {
-      flushParagraph();
-      flushList();
-      flushOrdered();
-      if (codeFence) {
-        flushCodeFence();
-      } else {
-        codeFence = [];
-      }
-      continue;
-    }
-
-    if (codeFence) {
-      codeFence.push(line);
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,4})\s+(.*)$/);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      flushOrdered();
-      const level = heading[1].length;
-      const content = renderInlineMarkdown(heading[2] ?? '');
-      if (level === 1) {
-        nodes.push(<h1 key={`h1-${nodes.length}`}>{content}</h1>);
-      } else if (level === 2) {
-        nodes.push(<h2 key={`h2-${nodes.length}`}>{content}</h2>);
-      } else if (level === 3) {
-        nodes.push(<h3 key={`h3-${nodes.length}`}>{content}</h3>);
-      } else {
-        nodes.push(<h4 key={`h4-${nodes.length}`}>{content}</h4>);
-      }
-      continue;
-    }
-
-    const checklist = line.match(/^[-*]\s+\[( |x|X)\]\s+(.*)$/);
-    if (checklist) {
-      flushParagraph();
-      flushOrdered();
-      listItems.push({ checked: checklist[1].toLowerCase() === 'x', content: checklist[2] ?? '' });
-      continue;
-    }
-
-    const bullet = line.match(/^[-*]\s+(.*)$/);
-    if (bullet) {
-      flushParagraph();
-      flushOrdered();
-      listItems.push({ content: bullet[1] ?? '' });
-      continue;
-    }
-
-    const ordered = line.match(/^\d+\.\s+(.*)$/);
-    if (ordered) {
-      flushParagraph();
-      flushList();
-      orderedItems.push(ordered[1] ?? '');
-      continue;
-    }
-
-    if (!line.trim()) {
-      flushParagraph();
-      flushList();
-      flushOrdered();
-      continue;
-    }
-
-    paragraph.push(line.trim());
-  }
-
-  flushParagraph();
-  flushList();
-  flushOrdered();
-  flushCodeFence();
-
-  return nodes.length ? nodes : markdown;
-}
-
-function renderInlineMarkdown(text: string): ReactNode {
-  const nodes: ReactNode[] = [];
-  const pattern = /`([^`]+)`/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
-    }
-    nodes.push(<code key={`code-${match.index}`} className="inline-code">{match[1]}</code>);
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
-  }
-
-  return nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>);
 }
