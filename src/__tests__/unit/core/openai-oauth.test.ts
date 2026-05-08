@@ -383,6 +383,62 @@ describe('OpenAI OAuth helpers', () => {
       },
     ]);
   });
+
+  it('streams OpenAI reasoning summary text events to the LLM stream callback', async () => {
+    const adapter = createOpenAiAdapter({
+      model: 'gpt-5.4',
+      credential: {
+        type: 'oauth',
+        provider: 'openai',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresAt: Date.now() + 120_000,
+        accountId: 'account-123',
+        createdAt: '2026-04-27T00:00:00.000Z',
+        updatedAt: '2026-04-27T00:00:00.000Z',
+      },
+      fetchImpl: (async () => {
+        const body = [
+          'event: response.created',
+          'data: {"type":"response.created","response":{"id":"resp_1","object":"response","created_at":1777301834,"status":"in_progress","model":"gpt-5.4","output":[]}}',
+          '',
+          'event: response.reasoning_summary_text.delta',
+          'data: {"type":"response.reasoning_summary_text.delta","delta":"Inspecting ","item_id":"rs_1","output_index":0,"summary_index":0,"sequence_number":2}',
+          '',
+          'event: response.reasoning_summary_text.delta',
+          'data: {"type":"response.reasoning_summary_text.delta","delta":"the repo.","item_id":"rs_1","output_index":0,"summary_index":0,"sequence_number":3}',
+          '',
+          'event: response.reasoning_summary_text.done',
+          'data: {"type":"response.reasoning_summary_text.done","text":"Inspecting the repo.","item_id":"rs_1","output_index":0,"summary_index":0,"sequence_number":4}',
+          '',
+          'event: response.output_text.done',
+          'data: {"type":"response.output_text.done","text":"Done.","content_index":0,"item_id":"msg_1","output_index":1,"sequence_number":5}',
+          '',
+          'event: response.completed',
+          'data: {"type":"response.completed","response":{"id":"resp_1","object":"response","created_at":1777301834,"status":"completed","completed_at":1777301835,"model":"gpt-5.4","output_text":"Done.","output":[],"usage":{"input_tokens":10,"input_tokens_details":{"cached_tokens":0},"output_tokens":5,"output_tokens_details":{"reasoning_tokens":1},"total_tokens":15}}}',
+          '',
+        ].join('\n');
+
+        return new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        });
+      }) as typeof fetch,
+    });
+    const streamEvents: unknown[] = [];
+
+    const result = await adapter.chat([{ role: 'user', content: 'hello' }], [], undefined, (event) => {
+      streamEvents.push(event);
+    });
+
+    expect(streamEvents).toEqual([
+      { type: 'reasoning_summary.delta', delta: 'Inspecting ' },
+      { type: 'reasoning_summary.delta', delta: 'the repo.' },
+      { type: 'reasoning_summary.done', text: 'Inspecting the repo.' },
+      { type: 'content.done', content: 'Done.' },
+    ]);
+    expect(result.content).toBe('Done.');
+  });
 });
 
 function createJwt(payload: unknown): string {

@@ -220,6 +220,7 @@ async function requestModelTurn(context: RunContext): Promise<LlmResponse | RunR
 
   try {
     let streamedContent = '';
+    let streamedReasoningSummary = '';
     let lastStreamRecordAt = 0;
     const response = await context.llm.chat(
       context.messages,
@@ -242,6 +243,30 @@ async function requestModelTurn(context: RunContext): Promise<LlmResponse | RunR
         if (event.type === 'content.done') {
           streamedContent = event.content;
           context.onAssistantStream?.({ step: context.state.step, text: streamedContent, done: true });
+          return;
+        }
+
+        if (event.type === 'reasoning_summary.delta') {
+          streamedReasoningSummary += event.delta;
+          if (!streamedContent) {
+            context.onAssistantStream?.({
+              step: context.state.step,
+              text: formatReasoningSummaryStream(streamedReasoningSummary),
+              done: false,
+            });
+          }
+          return;
+        }
+
+        if (event.type === 'reasoning_summary.done') {
+          streamedReasoningSummary = event.text;
+          if (!streamedContent) {
+            context.onAssistantStream?.({
+              step: context.state.step,
+              text: formatReasoningSummaryStream(streamedReasoningSummary),
+              done: false,
+            });
+          }
         }
       },
     );
@@ -256,6 +281,11 @@ async function requestModelTurn(context: RunContext): Promise<LlmResponse | RunR
     context.log.error({ step: context.state.step, error: errorMessage }, 'LLM call failed');
     return finishRun(context, 'error', `LLM error: ${errorMessage}`);
   }
+}
+
+function formatReasoningSummaryStream(text: string): string {
+  const trimmed = text.trim();
+  return trimmed ? `Thinking: ${trimmed}` : 'Thinking...';
 }
 
 async function handleToolTurn(context: RunContext, response: LlmResponse): Promise<RunResult | 'continue'> {

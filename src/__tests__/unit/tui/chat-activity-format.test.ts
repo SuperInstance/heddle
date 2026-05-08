@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { toLiveEvent } from '../../../cli/chat/adapters/conversation-activity-adapter.js';
-import { summarizeToolCall } from '../../../core/observability/conversation-activity.js';
+import { formatConversationActivityForTui, toLiveEvent } from '../../../cli/chat/adapters/conversation-activity-adapter.js';
+import { projectAgentLoopEventToConversationActivities, summarizeToolCall } from '../../../core/observability/conversation-activity.js';
+import type { AgentLoopEvent } from '../../../core/runtime/events.js';
 import type { TraceEvent } from '../../../types.js';
 
 describe('chat activity formatting', () => {
@@ -53,5 +54,22 @@ describe('chat activity formatting', () => {
     };
 
     expect(toLiveEvent(event)).toBe('running search_files ("trace" in .heddle/traces)');
+  });
+
+  it('formats loop-level tool calling events with input details for immediate TUI activity', () => {
+    const event: AgentLoopEvent = {
+      type: 'tool.calling',
+      runId: 'run-1',
+      step: 1,
+      tool: 'read_file',
+      toolCallId: 'call-1',
+      input: { path: 'README.md' },
+      requiresApproval: false,
+      timestamp: '2026-05-08T00:00:00.000Z',
+    };
+
+    expect(projectAgentLoopEventToConversationActivities(event).map(formatConversationActivityForTui)).toEqual([
+      'running read_file (README.md)',
+    ]);
   });
 });

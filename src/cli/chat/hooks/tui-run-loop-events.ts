@@ -1,5 +1,9 @@
 import type { TraceEvent } from '../../../index.js';
-import { projectTraceEventToConversationActivities } from '../../../core/observability/conversation-activity.js';
+import type { AgentLoopEvent } from '../../../core/runtime/events.js';
+import {
+  projectAgentLoopEventToConversationActivities,
+  projectTraceEventToConversationActivities,
+} from '../../../core/observability/conversation-activity.js';
 import { previewEditFileInput } from '../../../core/tools/toolkits/coding-files/edit-file.js';
 import { formatConversationActivityForTui } from '../adapters/conversation-activity-adapter.js';
 import { formatEditPreviewHistoryMessage, formatPlanHistoryMessage } from '../utils/format.js';
@@ -30,6 +34,19 @@ export function createTuiRunLoopEventAdapter(args: {
       if (update.done) {
         streamingBuffers.delete(update.step);
       }
+    },
+
+    onAgentLoopEvent(event: AgentLoopEvent) {
+      if (event.type === 'trace') {
+        return;
+      }
+
+      appendLiveEvents(
+        state,
+        projectAgentLoopEventToConversationActivities(event)
+          .map(formatConversationActivityForTui)
+          .filter((text): text is string => Boolean(text)),
+      );
     },
 
     onTraceEvent(event: TraceEvent) {
@@ -84,18 +101,22 @@ export function createTuiRunLoopEventAdapter(args: {
       const nextEvents = projectTraceEventToConversationActivities(event)
         .map(formatConversationActivityForTui)
         .filter((text): text is string => Boolean(text));
-      if (nextEvents.length === 0) {
-        return;
-      }
-
-      state.setLiveEvents((current) => {
-        const dedupedNextEvents = nextEvents.filter((next) => current[current.length - 1]?.text !== next);
-
-        return [
-          ...current,
-          ...dedupedNextEvents.map((text) => ({ id: state.nextLocalId(), text })),
-        ].slice(-8);
-      });
+      appendLiveEvents(state, nextEvents);
     },
   };
+}
+
+function appendLiveEvents(state: ActionState, nextEvents: string[]) {
+  if (nextEvents.length === 0) {
+    return;
+  }
+
+  state.setLiveEvents((current) => {
+    const dedupedNextEvents = nextEvents.filter((next) => current[current.length - 1]?.text !== next);
+
+    return [
+      ...current,
+      ...dedupedNextEvents.map((text) => ({ id: state.nextLocalId(), text })),
+    ].slice(-8);
+  });
 }

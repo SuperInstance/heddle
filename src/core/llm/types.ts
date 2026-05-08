@@ -6,7 +6,9 @@ import type { AssistantDiagnostics, ToolCall, ToolDefinition } from '../types.js
 
 export type LlmStreamEvent =
   | { type: 'content.delta'; delta: string }
-  | { type: 'content.done'; content: string };
+  | { type: 'content.done'; content: string }
+  | { type: 'reasoning_summary.delta'; delta: string }
+  | { type: 'reasoning_summary.done'; text: string };
 
 export type LlmProvider = 'openai' | 'anthropic' | 'google';
 

@@ -28,6 +28,8 @@ const tuiActivityFormatters = {
   'tool.fallback': (activity) => {
     return `retrying with ${activity.toSummary} after ${activity.fromSummary} was blocked (${truncate(activity.reason, 80)})`;
   },
+  'tool.calling': (activity) => `running ${activity.toolSummary}`,
+  'tool.completed': (activity) => `${activity.tool} completed${activity.durationMs === undefined ? '' : ` in ${Math.round(activity.durationMs)}ms`}`,
   'tool.call': (activity) => `running ${activity.toolSummary}`,
   'tool.result': (activity) => {
     return `${activity.toolSummary} ${activity.ok ? 'completed' : `failed: ${activity.error ?? 'error'}`}`;
