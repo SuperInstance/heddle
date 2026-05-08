@@ -184,7 +184,7 @@ describe('runAgentLoop', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'assistant.stream',
       step: 1,
-      text: 'Reasoning: Inspecting the request before choosing tools.',
+      text: 'Thinking: Inspecting the request before choosing tools.',
       done: false,
     }));
   });

@@ -285,7 +285,7 @@ async function requestModelTurn(context: RunContext): Promise<LlmResponse | RunR
 
 function formatReasoningSummaryStream(text: string): string {
   const trimmed = text.trim();
-  return trimmed ? `Reasoning: ${trimmed}` : 'Reasoning...';
+  return trimmed ? `Thinking: ${trimmed}` : 'Thinking...';
 }
 
 async function handleToolTurn(context: RunContext, response: LlmResponse): Promise<RunResult | 'continue'> {

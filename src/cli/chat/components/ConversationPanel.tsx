@@ -109,10 +109,14 @@ function MessageBody({
 
 function StreamingText({ text }: { text: string }) {
   const lines = text.split(/\r?\n/);
+  const isThinkingText = text.startsWith('Thinking:') || text === 'Thinking...';
+
   return (
     <Box flexDirection="column">
       {lines.map((line, index) => (
-        <Text key={`${index}-${line}`} color="white">{line || ' '}</Text>
+        <Text key={`${index}-${line}`} color={isThinkingText ? undefined : 'white'} dimColor={isThinkingText}>
+          {line || ' '}
+        </Text>
       ))}
     </Box>
   );
