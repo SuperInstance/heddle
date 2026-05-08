@@ -165,8 +165,8 @@ describe('runAgentLoop', () => {
         },
       },
       async chat(_messages, _tools, _signal, onStreamEvent): Promise<LlmResponse> {
-        onStreamEvent?.({ type: 'reasoning_summary.delta', delta: 'Inspecting the request' });
-        onStreamEvent?.({ type: 'reasoning_summary.done', text: 'Inspecting the request before choosing tools.' });
+        onStreamEvent?.({ type: 'reasoning_summary.delta', delta: '**Inspecting the request**' });
+        onStreamEvent?.({ type: 'reasoning_summary.done', text: '**Inspecting the request** before choosing tools.' });
         return { content: 'Done.' };
       },
     };
