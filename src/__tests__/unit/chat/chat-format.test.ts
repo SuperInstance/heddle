@@ -160,6 +160,22 @@ describe('summarizePendingApproval', () => {
     expect(summary.effects).toContain('lists entries under src/cli/chat');
   });
 
+  it('shows the search query for search_files approvals', () => {
+    const pendingApproval: PendingApproval = {
+      call: { id: 'call-1', tool: 'search_files', input: { query: 'approvalSubject', path: '../notes' } },
+      tool: { name: 'search_files', description: 'Search files', parameters: { type: 'object', properties: {} } },
+      resolve: () => undefined,
+    };
+
+    const summary = summarizePendingApproval(pendingApproval);
+
+    expect(summary.title).toBe('Allow search_files');
+    expect(summary.command).toBe('approvalSubject');
+    expect(summary.scope).toBe('external');
+    expect(summary.why).toBe('search_files for "approvalSubject" in ../notes');
+    expect(summary.effects).toContain('searches ../notes for "approvalSubject"');
+  });
+
   it('omits remember hint text when the approval cannot actually be remembered', () => {
     const pendingApproval: PendingApproval = {
       call: { id: 'call-1', tool: 'run_shell_inspect', input: { command: 'pwd' } },

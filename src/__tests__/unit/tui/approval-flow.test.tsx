@@ -120,4 +120,16 @@ describe('ApprovalComposer', () => {
     expect(view.container.textContent).toContain('../notes/summary.md');
     expect(view.container.textContent).not.toContain('allow read_file ../notes/summary.md for this project');
   });
+
+  it('renders the search query in the approval preview for search_files', () => {
+    const pendingApproval = createPendingApproval({
+      call: { id: 'call-2', tool: 'search_files', input: { query: 'approvalSubject', path: '../notes' } },
+      tool: { name: 'search_files', description: 'Search files', parameters: { type: 'object', properties: {} } },
+    });
+    const view = render(<ApprovalComposer pendingApproval={pendingApproval} approvalChoice="approve" />);
+
+    expect(view.container.textContent).toContain('Allow search_files');
+    expect(view.container.textContent).toContain('approvalSubject');
+    expect(view.container.textContent).toContain('search_files for "approvalSubject" in ../notes');
+  });
 });

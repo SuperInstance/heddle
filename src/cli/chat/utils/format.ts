@@ -79,6 +79,7 @@ export function summarizePendingApproval(pendingApproval: PendingApproval): Appr
   const policy = describePendingApprovalPolicy(pendingApproval);
   const command = readStringField(pendingApproval.call.input, 'command');
   const editPath = readStringField(pendingApproval.call.input, 'path');
+  const searchQuery = readStringField(pendingApproval.call.input, 'query');
 
   if (command) {
     const title =
@@ -121,6 +122,18 @@ export function summarizePendingApproval(pendingApproval: PendingApproval): Appr
         editPath ? `modifies ${editPath}` : `modifies a ${scope} file`,
         scope === 'external' ? 'writes outside the current repository' : 'stays inside the current repository',
       ],
+      rememberLabel: formatRememberLabel(pendingApproval.rememberLabel),
+    };
+  }
+
+  if (pendingApproval.call.tool === 'search_files') {
+    const path = readStringField(pendingApproval.call.input, 'path') ?? '.';
+    return {
+      title: 'Allow search_files',
+      command: searchQuery,
+      scope: path.startsWith('../') || path.startsWith('/') || path.includes('..\\') ? 'external' : 'workspace',
+      why: searchQuery ? `search_files for "${searchQuery}" in ${path}` : `search_files in ${path}`,
+      effects: [searchQuery ? `searches ${path} for "${searchQuery}"` : `searches ${path}`],
       rememberLabel: formatRememberLabel(pendingApproval.rememberLabel),
     };
   }
