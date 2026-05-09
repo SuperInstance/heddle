@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildConversationMessages,
+  canRememberPendingApproval,
+  formatApprovalHint,
   formatChatFailureMessage,
   formatEditPreviewHistoryMessage,
   formatPlanHistoryMessage,
@@ -156,6 +158,30 @@ describe('summarizePendingApproval', () => {
     expect(summary.command).toBe('src/cli/chat');
     expect(summary.why).toBe('list_files on src/cli/chat');
     expect(summary.effects).toContain('lists entries under src/cli/chat');
+  });
+
+  it('omits remember hint text when the approval cannot actually be remembered', () => {
+    const pendingApproval: PendingApproval = {
+      call: { id: 'call-1', tool: 'run_shell_inspect', input: { command: 'pwd' } },
+      tool: { name: 'run_shell_inspect', description: 'Inspect shell', parameters: { type: 'object', properties: {} } },
+      resolve: () => undefined,
+    };
+
+    expect(canRememberPendingApproval(pendingApproval)).toBe(false);
+    expect(formatApprovalHint(pendingApproval)).toBe('Y approve once • N deny • Enter confirms selected choice');
+  });
+
+  it('includes the concrete remember label only when the approval can be remembered', () => {
+    const pendingApproval: PendingApproval = {
+      call: { id: 'call-1', tool: 'read_file', input: { path: '../notes/summary.md' } },
+      tool: { name: 'read_file', description: 'Read file', parameters: { type: 'object', properties: {} } },
+      rememberForProject: () => undefined,
+      rememberLabel: 'allow read_file ../notes/summary.md for this project',
+      resolve: () => undefined,
+    };
+
+    expect(canRememberPendingApproval(pendingApproval)).toBe(true);
+    expect(formatApprovalHint(pendingApproval)).toContain('A allow read_file ../notes/summary.md for this project');
   });
 });
 

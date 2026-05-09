@@ -100,7 +100,9 @@ describe('tool input validation', () => {
     expect(searchFilesTool.description).toContain('locate a specific symbol or text string');
     expect(searchFilesTool.description).toContain('Prefer searching for concrete terms');
     expect(searchFilesTool.description).toContain('may also point to nearby parent or sibling folders');
+    expect(searchFilesTool.description).toContain('Prefer rg when available');
     expect(searchFilesTool.description).toContain('grep-style path:line:content format');
+    expect(searchFilesTool.description).toContain('includeIgnored');
     expect(searchFilesTool.description).toContain('{ "query": "createUser" }');
     expect(searchFilesTool.description).toContain('{ "query": "incident", "path": "../shared-notes" }');
     expect(webSearchTool.description).toContain('Search the public web');
@@ -335,6 +337,35 @@ describe('searchFilesTool', () => {
     expect(result.output).not.toContain('vendor/hidden.ts');
   });
 
+  it('allows ignored dependency folders when includeIgnored is true', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'heddle-search-include-ignored-'));
+    await mkdir(join(root, 'src'));
+    await mkdir(join(root, 'node_modules'));
+    await writeFile(join(root, 'src', 'main.ts'), 'const needle = true;\n');
+    await writeFile(join(root, 'node_modules', 'pkg.ts'), 'const needle = true;\n');
+
+    const result = await searchFilesTool.execute({ query: 'needle', path: root, includeIgnored: true });
+
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain('src/main.ts');
+    expect(result.output).toContain('node_modules/pkg.ts');
+  });
+
+  it('keeps state folders excluded with includeIgnored unless explicitly targeted', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'heddle-search-state-default-'));
+    await mkdir(join(root, 'src'));
+    await mkdir(join(root, '.heddle'), { recursive: true });
+    await mkdir(join(root, '.heddle', 'traces'));
+    await writeFile(join(root, 'src', 'main.ts'), 'const needle = true;\n');
+    await writeFile(join(root, '.heddle', 'traces', 'trace-1.json'), '{"needle":true}\n');
+
+    const result = await searchFilesTool.execute({ query: 'needle', path: root, includeIgnored: true });
+
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain('src/main.ts');
+    expect(result.output).not.toContain('.heddle/traces/trace-1.json');
+  });
+
   it('searches inside an explicitly targeted excluded directory', async () => {
     const root = await mkdtemp(join(tmpdir(), 'heddle-search-state-'));
     await mkdir(join(root, '.heddle'));
@@ -345,6 +376,15 @@ describe('searchFilesTool', () => {
 
     expect(result.ok).toBe(true);
     expect(result.output).toContain('.heddle/traces/trace-1.json');
+  });
+
+  it('rejects invalid includeIgnored input', async () => {
+    const result = await searchFilesTool.execute({ query: 'needle', includeIgnored: 'yes' });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Invalid input for search_files. Required field: query. Optional fields: path, includeIgnored.',
+    });
   });
 });
 

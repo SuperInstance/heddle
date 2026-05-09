@@ -57,10 +57,22 @@ export function formatApprovalPrompt(pendingApproval: PendingApproval): string {
   return summarizePendingApproval(pendingApproval).title;
 }
 
+export function canRememberPendingApproval(pendingApproval: PendingApproval): boolean {
+  return typeof pendingApproval.rememberForProject === 'function'
+    && typeof pendingApproval.rememberLabel === 'string'
+    && pendingApproval.rememberLabel.trim().length > 0;
+}
+
 export function formatApprovalHint(pendingApproval: PendingApproval): string {
   const summary = summarizePendingApproval(pendingApproval);
-  const rememberLabel = summary.rememberLabel ? `A ${summary.rememberLabel}` : 'A remember for project';
-  return `Y approve once • ${rememberLabel} • N deny • Enter confirms selected choice`;
+  const parts = ['Y approve once'];
+
+  if (canRememberPendingApproval(pendingApproval) && summary.rememberLabel) {
+    parts.push(`A ${summary.rememberLabel}`);
+  }
+
+  parts.push('N deny', 'Enter confirms selected choice');
+  return parts.join(' • ');
 }
 
 export function summarizePendingApproval(pendingApproval: PendingApproval): ApprovalSummary {
