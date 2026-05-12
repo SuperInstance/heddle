@@ -20,6 +20,30 @@ should know where the code belongs before they start wiring it.
 If a contributor cannot explain why a piece of logic is specific to one host,
 it probably does not belong in that host's controller or view.
 
+## Top-Level Direction
+
+The intended long-term repo shape is:
+
+```text
+src/
+  core/        # shared domain behavior and reusable runtime capabilities
+  apps/        # user-facing interface surfaces
+    cli/       # terminal/TUI interface
+    web/       # browser interface
+  server/      # transport/control-plane serving layer over core capabilities
+```
+
+The point of this split is to make the ownership obvious:
+
+- `src/core` is the shared system.
+- `src/apps/cli` and `src/apps/web` are two different interfaces over that
+  shared system.
+- `src/server` is not a third product surface. It serves core capabilities to
+  the web/control-plane side of the system.
+
+The current repository is not fully in this shape yet. Treat this as the target
+direction for future refactors in touched areas.
+
 ## Core Rule
 
 Chat code should follow a strict split:
@@ -68,20 +92,57 @@ src/
         turns/
           service.ts
           ...
-  cli/
-    chat/
-      README.md                  # host-side TUI rules
-      App.tsx                    # presentation composition root
-      components/                # pure or near-pure view components
-      controllers/               # interface-specific orchestration only
-      hooks/                     # UI hooks or controller adapters, not domain owners
-      adapters/                  # host-to-domain translation only
-      state/                     # UI-only ephemeral state
-      utils/                     # presentation helpers only
-  web/
+  apps/
+    cli/
+      chat/
+        README.md                # host-side CLI/TUI rules
+        App.tsx                  # presentation composition root
+        components/              # pure or near-pure view components
+        controllers/             # interface-specific orchestration only
+        hooks/                   # UI hooks or controller adapters, not domain owners
+        adapters/                # host-to-domain translation only
+        state/                   # UI-only ephemeral state
+        utils/                   # presentation helpers only
+    web/
+      features/
+        control-plane/
+          components/            # pure or near-pure view components
+          controllers/           # interface-specific orchestration only
+          hooks/                 # UI hooks or controller adapters
+          adapters/              # web-to-core translation only
+          state/                 # UI-only ephemeral state
+          utils/                 # presentation helpers only
+  server/
     features/
-      control-plane/             # same split: view/controller/adapters over domain
+      control-plane/             # transport layer exposing core capabilities
 ```
+
+## Current vs Target
+
+Today, some interface code still lives under paths like `src/cli/` and
+`src/web/`. That is current structure, not the desired final shape.
+
+When future refactors touch these areas:
+
+- prefer moving shared behavior inward toward `src/core`
+- prefer moving interface-only behavior toward `src/apps/cli` or
+  `src/apps/web`
+- do not move behavior sideways between interfaces when it really belongs in
+  core
+
+The CLI still does too much today. The direction is to keep pushing shared
+logic into core so the CLI becomes a thinner interface layer over time.
+
+## Interface-Level Shape
+
+Inside each interface app, prefer this local split:
+
+- `components/`: rendering and UI widgets
+- `controllers/`: interface-specific orchestration only
+- `hooks/`: UI hooks or thin controller adapters
+- `adapters/`: translation between interface events/data and core contracts
+- `state/`: ephemeral UI-only state
+- `utils/`: presentation helpers only
 
 ## What Should Go Where
 
