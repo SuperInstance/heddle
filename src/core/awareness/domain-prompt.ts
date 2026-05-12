@@ -6,7 +6,7 @@ Situation awareness is the agent's current-state orientation layer for the activ
 ### Purpose
 
 - Use situation awareness to orient quickly on the current workspace and git state before substantial coding, planning, or review work.
-- Treat project_dashboard as the default first-call orientation package for repo state and bounded workspace structure.
+- In a brand-new session, if the user asks for substantial workspace understanding, planning, review, or coding help, you MUST call project_dashboard before deeper repo inspection or explanation.
 - Use it to avoid re-deriving repo-state basics or re-listing obvious top-level workspace shape through redundant tool calls.
 
 ### Interpretation
@@ -14,6 +14,7 @@ Situation awareness is the agent's current-state orientation layer for the activ
 - Situation awareness is a map of current workspace state, not proof of code behavior or design intent.
 - After using project_dashboard, follow with read_file or search_files only for task-specific implementation or documentation details.
 - Do not keep rediscovering branch, repo-root, or dirty-state facts unless the task needs deeper verification.
+- You may skip project_dashboard for trivial questions or for narrowly scoped tasks that already name the exact file or implementation target.
 
 ### Boundaries
 

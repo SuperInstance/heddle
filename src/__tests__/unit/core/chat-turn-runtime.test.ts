@@ -80,7 +80,7 @@ describe('chat turn preparation modules', () => {
     expect(runtime.memoryDir).toBe(join(stateRoot, 'memory'));
     expect(runtime.systemContext).toContain('System context');
     expect(runtime.systemContext).toContain('## Situation Awareness Domain');
-    expect(runtime.systemContext).toContain('Treat project_dashboard as the default first-call orientation package');
+    expect(runtime.systemContext).toContain('you MUST call project_dashboard before deeper repo inspection or explanation');
     expect(runtime.systemContext).toContain('## Heddle-Managed Memory Domain');
     expect(runtime.systemContext?.indexOf('## Situation Awareness Domain')).toBeLessThan(
       runtime.systemContext?.indexOf('## Heddle-Managed Memory Domain') ?? Infinity,
