@@ -1,3 +1,15 @@
+/**
+ * TUI presentation composition root.
+ *
+ * Strict boundary:
+ * - `App.tsx` is a view/presentation layer. It should render state and forward
+ *   user intent only.
+ * - Non-UI state must not be owned here. Session state, runtime state, policy,
+ *   inheritance/default resolution, and domain logic belong in controller or
+ *   domain modules.
+ * - If a feature needs new stateful behavior, move that ownership outward
+ *   instead of teaching `App.tsx` new policy or persistent semantics.
+ */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import {

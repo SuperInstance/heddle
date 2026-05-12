@@ -62,12 +62,16 @@ When a companion notes repo is present, treat the live Heddle codebase as the im
   feature work, but call out broader refactors before expanding scope.
 - For non-trivial backend/core work, prefer domain-owned services with clear
   boundaries. A module should own real behavior, not act as a thin wrapper.
+- Prefer a simple layered split: presentation renders, host/application code
+  orchestrates, and core domains own policy and persisted semantics.
 - When creating or substantially refactoring a non-trivial service/domain, add
   or update a nearby `README.md` describing responsibility, boundaries, owned
   data/behavior, and where adjacent logic should live. Include a compact
   agent-facing example when it materially helps.
 - Use top-level file comments sparingly, only when they clarify responsibility
   or boundary choices that are hard to infer from code.
+- Do not re-resolve defaults or fallbacks at every layer. Resolve once at the
+  owning boundary, then pass concrete values downward.
 - For UI work, default to shadcn UI primitives and Tailwind utility composition;
   prefer migrating touched surfaces toward those primitives over extending
   one-off controls without a concrete product reason.
