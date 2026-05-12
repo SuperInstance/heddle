@@ -5,36 +5,43 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createAwarenessService } from '../../../core/awareness/service.js';
 import { createCodingAwarenessProvider } from '../../../core/awareness/domains/coding/provider.js';
-import { createWorkingEnvironmentTool } from '../../../core/tools/toolkits/coding-awareness/working-environment.js';
+import { createProjectDashboardTool } from '../../../core/tools/toolkits/coding-awareness/project-dashboard.js';
 
-describe('coding working environment awareness', () => {
-  it('reports a clean git workspace with repo root, branch, and short commit', async () => {
+describe('coding project dashboard awareness', () => {
+  it('reports a clean git workspace with environment and workspace tree sections', async () => {
     const root = createGitWorkspace();
     const realRoot = realpathSync(root);
-    const snapshot = await collectWorkingEnvironment(root);
-    const section = snapshot.sections[0];
+    const snapshot = await collectProjectDashboard(root);
 
-    expect(section).toBeDefined();
-    expect(section?.type).toBe('working_environment');
-    expect(section?.data).toMatchObject({
-      workspaceRoot: root,
-      gitRepositoryRoot: realRoot,
-      isGitRepository: true,
-      isDirty: false,
-      gitBranch: expect.any(String),
-      gitShortCommit: expect.stringMatching(/^[0-9a-f]{7,}$/),
-      paths: {
-        staged: [],
-        modified: [],
-        deleted: [],
-        untracked: [],
-        renamed: [],
-      },
-    });
-    expect(snapshot.limits).toEqual([]);
+    expect(snapshot.profile).toBe('project_dashboard');
+    expect(snapshot.sections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'working_environment',
+        data: expect.objectContaining({
+          workspaceRoot: root,
+          gitRepositoryRoot: realRoot,
+          isGitRepository: true,
+          isDirty: false,
+          gitBranch: expect.any(String),
+          gitShortCommit: expect.stringMatching(/^[0-9a-f]{7,}$/),
+        }),
+      }),
+      expect.objectContaining({
+        type: 'workspace_tree',
+        data: expect.objectContaining({
+          root: root,
+          maxDepth: 2,
+          maxEntries: 60,
+          entries: expect.arrayContaining([
+            expect.objectContaining({ path: 'README.md', kind: 'file' }),
+          ]),
+        }),
+      }),
+    ]));
+    expect(snapshot.limits).toEqual(expect.arrayContaining([]));
   });
 
-  it('reports dirty, staged, untracked, deleted, and renamed paths while excluding .heddle state', async () => {
+  it('reports dirty paths while excluding runtime noise from both environment and tree', async () => {
     const root = createGitWorkspace();
 
     writeFileSync(join(root, 'delete-me.txt'), 'delete me\n');
@@ -50,6 +57,9 @@ describe('coding working environment awareness', () => {
     execFileSync('git', ['add', '.heddle/ignored-state.json'], { cwd: root });
     execFileSync('git', ['commit', '-m', 'track heddle state for ignore test'], { cwd: root, stdio: 'ignore' });
 
+    mkdirSync(join(root, 'src', 'deep'), { recursive: true });
+    writeFileSync(join(root, 'src', 'main.ts'), 'export const main = true;\n');
+    writeFileSync(join(root, 'src', 'deep', 'nested.ts'), 'export const nested = true;\n');
     writeFileSync(join(root, 'README.md'), 'hello\nworld\nmodified\n');
     writeFileSync(join(root, 'staged.txt'), 'staged\n');
     execFileSync('git', ['add', 'staged.txt'], { cwd: root });
@@ -66,20 +76,16 @@ describe('coding working environment awareness', () => {
 
     rmSync(join(root, '.git', 'index.lock'), { force: true });
 
-    const snapshot = await collectWorkingEnvironment(root);
-    const environment = snapshot.sections[0]?.data;
+    const snapshot = await collectProjectDashboard(root, { maxDepth: 2, maxEntries: 20 });
+    const environment = snapshot.sections.find((section) => section.type === 'working_environment');
+    const tree = snapshot.sections.find((section) => section.type === 'workspace_tree');
 
-    expect(environment).toBeDefined();
-    expect(environment?.isDirty).toBe(true);
-    expect(environment?.paths.staged).toEqual(expect.arrayContaining(['README.md', 'new-file.txt', 'staged.txt']));
-    expect(environment?.paths.modified).toEqual(['README.md']);
-    expect(environment?.paths.deleted).toEqual(['delete-me.txt']);
-    expect(environment?.paths.untracked).toEqual(['truly-untracked.txt']);
-    expect(environment?.paths.renamed).toEqual([{ from: 'rename-from.txt', to: 'rename-to.txt' }]);
-    expect(environment?.paths.staged).not.toContain('.heddle/ignored-state.json');
-    expect(environment?.paths.staged).not.toContain('node_modules/ignored-runtime.js');
+    expect(environment?.data.isDirty).toBe(true);
+    expect(environment?.data.paths.untracked).toEqual(['truly-untracked.txt']);
     expect(JSON.stringify(environment)).not.toContain('.heddle');
     expect(JSON.stringify(environment)).not.toContain('node_modules');
+    expect(JSON.stringify(tree)).not.toContain('.heddle');
+    expect(JSON.stringify(tree)).not.toContain('node_modules');
     expect(snapshot.limits).toContainEqual(expect.objectContaining({
       kind: 'omitted',
       subject: 'git working tree paths',
@@ -88,20 +94,13 @@ describe('coding working environment awareness', () => {
 
   it('degrades gracefully outside a git workspace', async () => {
     const root = mkdtempSync(join(tmpdir(), 'heddle-awareness-non-git-'));
-    const snapshot = await collectWorkingEnvironment(root);
-    const environment = snapshot.sections[0]?.data;
+    const snapshot = await collectProjectDashboard(root);
+    const environment = snapshot.sections.find((section) => section.type === 'working_environment');
 
-    expect(environment).toMatchObject({
+    expect(environment?.data).toMatchObject({
       workspaceRoot: root,
       isGitRepository: false,
       isDirty: false,
-      paths: {
-        staged: [],
-        modified: [],
-        deleted: [],
-        untracked: [],
-        renamed: [],
-      },
     });
     expect(snapshot.limits).toContainEqual({
       kind: 'not_applicable',
@@ -110,56 +109,83 @@ describe('coding working environment awareness', () => {
     });
   });
 
-  it('truncates oversized path groups and reports the limit', async () => {
+  it('truncates oversized tree entry budgets and path groups', async () => {
     const root = createGitWorkspace();
 
     for (let index = 0; index < 24; index += 1) {
       writeFileSync(join(root, `untracked-${index}.txt`), `file ${index}\n`);
     }
+    mkdirSync(join(root, 'src'), { recursive: true });
+    for (let index = 0; index < 24; index += 1) {
+      writeFileSync(join(root, 'src', `file-${index}.ts`), `export const file${index} = true;\n`);
+    }
 
-    const snapshot = await collectWorkingEnvironment(root);
-    const environment = snapshot.sections[0]?.data;
+    const snapshot = await collectProjectDashboard(root, { maxEntries: 10 });
+    const environment = snapshot.sections.find((section) => section.type === 'working_environment');
+    const tree = snapshot.sections.find((section) => section.type === 'workspace_tree');
 
-    expect(environment?.paths.untracked).toHaveLength(20);
-    expect(snapshot.limits).toContainEqual({
+    expect(environment?.data.paths.untracked).toHaveLength(20);
+    expect(tree?.data.maxEntries).toBe(10);
+    expect(snapshot.limits).toContainEqual(expect.objectContaining({
       kind: 'truncated',
       subject: 'untracked paths',
-      detail: 'Showing 20 of 24 entries; 4 more omitted from the summary.',
+    }));
+    expect(snapshot.limits).toContainEqual({
+      kind: 'truncated',
+      subject: 'workspace tree entries',
+      detail: 'Showing at most 10 entries across the tree; additional entries were omitted.',
     });
   });
 
-  it('exposes the default tool and formats the summary from the awareness service', async () => {
+  it('exposes one default dashboard tool with structured JSON output', async () => {
     const root = createGitWorkspace();
     const realRoot = realpathSync(root);
     writeFileSync(join(root, 'README.md'), 'hello\nworld\nmodified\n');
+    mkdirSync(join(root, 'src'), { recursive: true });
+    writeFileSync(join(root, 'src', 'main.ts'), 'export const main = true;\n');
 
-    const tool = createWorkingEnvironmentTool({ workspaceRoot: root });
+    const tool = createProjectDashboardTool({ workspaceRoot: root });
     const result = await tool.execute({});
 
-    expect(result).toEqual({
-      ok: true,
-      output: expect.stringContaining(`Working environment for ${root}`),
+    expect(result.ok).toBe(true);
+    expect(result.output).toMatchObject({
+      schemaVersion: 1,
+      domain: 'coding',
+      profile: 'project_dashboard',
+      workspaceRoot: root,
+      sections: {
+        working_environment: expect.objectContaining({
+          gitRepositoryRoot: realRoot,
+        }),
+        workspace_tree: expect.objectContaining({
+          entries: expect.arrayContaining([
+            expect.objectContaining({ path: 'README.md', kind: 'file' }),
+          ]),
+        }),
+      },
+      sources: expect.any(Array),
+      limits: expect.any(Array),
     });
-    expect(result.output).toContain('Git repository: yes');
-    expect(result.output).toContain(`Git repo root: ${realRoot}`);
-    expect(result.output).toContain('Modified paths: README.md');
-    expect(result.output).toContain('Collected:');
-    expect(result.output).toContain('Sources:');
   });
 });
 
-async function collectWorkingEnvironment(workspaceRoot: string) {
+async function collectProjectDashboard(
+  workspaceRoot: string,
+  options: { maxDepth?: number; maxEntries?: number } = {},
+) {
   const service = createAwarenessService({
     providers: [createCodingAwarenessProvider({
       now: () => new Date('2026-05-11T12:00:00.000Z'),
-      nextId: () => 'awareness-working-environment-test',
+      nextId: () => 'awareness-project-dashboard-test',
     })],
   });
 
   return service.collect({
     domain: 'coding',
-    profile: 'working_environment',
+    profile: 'project_dashboard',
     workspaceRoot,
+    maxDepth: options.maxDepth,
+    maxEntries: options.maxEntries,
   });
 }
 

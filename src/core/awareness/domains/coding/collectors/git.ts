@@ -194,7 +194,7 @@ function isNoisePath(path: string): boolean {
   return segments.some((segment) => OMITTED_PATH_SEGMENTS.has(segment));
 }
 
-const OMITTED_PATH_SEGMENTS = new Set([
+export const OMITTED_PATH_SEGMENTS = new Set([
   '.git',
   '.heddle',
   'node_modules',

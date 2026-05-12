@@ -1,6 +1,6 @@
 export type AwarenessDomain = 'coding';
 
-export type AwarenessProfile = 'working_environment';
+export type AwarenessProfile = 'project_dashboard';
 
 export type AwarenessSource = {
   kind: 'filesystem' | 'git' | 'runtime_config';
@@ -31,6 +31,7 @@ export type AwarenessCollectInput = {
   workspaceRoot: string;
   stateRoot?: string;
   profile: AwarenessProfile;
+  requestedSections?: string[];
   maxDepth?: number;
   maxEntries?: number;
 };

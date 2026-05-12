@@ -13,9 +13,12 @@ export type {
   AwarenessSource,
 } from './types.js';
 export { createCodingAwarenessProvider } from './domains/coding/provider.js';
-export { formatCodingWorkingEnvironmentSnapshot } from './domains/coding/format.js';
+export { formatCodingProjectDashboardSnapshot } from './domains/coding/format.js';
 export type {
   CodingAwarenessSection,
   CodingAwarenessSnapshot,
+  CodingProjectDashboardOutput,
   CodingWorkingEnvironment,
+  CodingWorkspaceTree,
+  CodingWorkspaceTreeEntry,
 } from './domains/coding/types.js';

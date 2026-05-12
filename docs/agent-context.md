@@ -59,10 +59,22 @@ When a companion notes repo is present, treat the live Heddle codebase as the im
 - Use `yarn`, not `npm`.
 - Use `yarn build` as the canonical type-check.
 - Use `yarn test` as the canonical test command.
+- For non-trivial backend/core work, prefer a domain-owned, service-oriented
+  structure over feature code scattered across hosts, helpers, or thin wrappers.
 - Prefer scoped refactoring alongside feature work. Each feature should leave the touched code cleaner, easier to maintain, more structured, and named more clearly than before.
 - Do not ship features by trading implementation speed for code quality regression. Avoid accumulating tech debt in touched areas when a scoped cleanup is practical.
 - If a feature reveals that broader refactoring is needed, call it out explicitly before expanding scope.
 - Coding agents should treat code quality as part of the deliverable, not optional polish. A completed feature should improve product behavior and maintainability together.
+- A service or domain module should own real behavior: policy, orchestration,
+  translation, persistence, lifecycle handling, or formatting. Do not add
+  wrapper-only modules that merely forward calls.
+- When creating or substantially refactoring a non-trivial service/domain,
+  add or update a service-level `README.md` that explains its responsibility,
+  boundaries, key data it owns or gathers, and where adjacent behavior should
+  live. If agent-facing output matters, include a compact example.
+- Use short top-level comments in service files only when they clarify
+  responsibility or boundary decisions that would otherwise be hard to infer
+  from code alone.
 - For web/mobile UI work, default to shadcn UI primitives and Tailwind utility composition for standard interaction behavior and design language.
 - When touching an existing UI surface, prefer migrating the touched area toward shadcn primitives instead of extending custom one-off controls unless there is a concrete product reason not to.
 - Before building any non-trivial feature, state the user-facing problem, the expected user benefit, and why the feature is worth the added complexity. If that case is weak, stop and discuss before implementing.

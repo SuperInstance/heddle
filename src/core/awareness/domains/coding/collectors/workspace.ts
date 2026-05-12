@@ -1,6 +1,7 @@
 import type { AwarenessCollectInput, AwarenessLimit, AwarenessSource } from '../../../types.js';
-import type { CodingWorkingEnvironment } from '../types.js';
+import type { CodingWorkingEnvironment, CodingWorkspaceTree } from '../types.js';
 import { collectGitWorkingEnvironment } from './git.js';
+import { collectCodingWorkspaceTree } from './workspace-tree.js';
 
 export async function collectCodingWorkingEnvironment(input: AwarenessCollectInput): Promise<{
   environment: CodingWorkingEnvironment;
@@ -31,4 +32,46 @@ export async function collectCodingWorkingEnvironment(input: AwarenessCollectInp
     sources,
     limits,
   };
+}
+
+export async function collectCodingProjectDashboard(input: AwarenessCollectInput): Promise<{
+  environment: CodingWorkingEnvironment;
+  workspaceTree: CodingWorkspaceTree;
+  sources: AwarenessSource[];
+  limits: AwarenessLimit[];
+}> {
+  const [environmentResult, treeResult] = await Promise.all([
+    collectCodingWorkingEnvironment(input),
+    collectCodingWorkspaceTree({
+      workspaceRoot: input.workspaceRoot,
+      maxDepth: input.maxDepth,
+      maxEntries: input.maxEntries,
+    }),
+  ]);
+
+  return {
+    environment: environmentResult.environment,
+    workspaceTree: treeResult.tree,
+    sources: mergeSources(environmentResult.sources, treeResult.sources),
+    limits: [...environmentResult.limits, ...treeResult.limits],
+  };
+}
+
+function mergeSources(
+  left: AwarenessSource[],
+  right: AwarenessSource[],
+): AwarenessSource[] {
+  const seen = new Set<string>();
+  const merged: AwarenessSource[] = [];
+
+  for (const source of [...left, ...right]) {
+    const key = `${source.kind}|${source.command ?? ''}|${source.path ?? ''}|${source.note ?? ''}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(source);
+  }
+
+  return merged;
 }

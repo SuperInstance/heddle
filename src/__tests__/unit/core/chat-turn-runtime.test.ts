@@ -80,7 +80,7 @@ describe('chat turn preparation modules', () => {
     expect(runtime.memoryDir).toBe(join(stateRoot, 'memory'));
     expect(runtime.systemContext).toContain('System context');
     expect(runtime.systemContext).toContain('## Situation Awareness Domain');
-    expect(runtime.systemContext).toContain('Treat working_environment as a compact current-state summary');
+    expect(runtime.systemContext).toContain('Treat project_dashboard as the default first-call orientation package');
     expect(runtime.systemContext).toContain('## Heddle-Managed Memory Domain');
     expect(runtime.systemContext?.indexOf('## Situation Awareness Domain')).toBeLessThan(
       runtime.systemContext?.indexOf('## Heddle-Managed Memory Domain') ?? Infinity,
@@ -181,7 +181,7 @@ describe('chat turn preparation modules', () => {
     expect(context.session.id).toBe('session-1');
     expect(context.runtime.model).toBe('gpt-5.4');
     expect(context.toolNames).toEqual([
-      'working_environment',
+      'project_dashboard',
       'list_files',
       'read_file',
       'edit_file',

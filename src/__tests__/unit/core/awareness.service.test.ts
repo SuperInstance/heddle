@@ -13,17 +13,17 @@ describe('awareness service', () => {
 
     const snapshot = await service.collect({
       domain: 'coding',
-      profile: 'working_environment',
+      profile: 'project_dashboard',
       workspaceRoot: '/workspace/sample',
     });
 
     expect(snapshot).toMatchObject({
       id: 'awareness-test-id',
       domain: 'coding',
-      profile: 'working_environment',
+      profile: 'project_dashboard',
       collectedAt: '2026-05-11T10:00:00.000Z',
       workspaceRoot: '/workspace/sample',
-      sections: [expect.objectContaining({ type: 'working_environment' })],
+      sections: expect.arrayContaining([expect.objectContaining({ type: 'working_environment' })]),
       sources: expect.any(Array),
       limits: expect.any(Array),
     });
@@ -34,7 +34,7 @@ describe('awareness service', () => {
 
     await expect(service.collect({
       domain: 'coding',
-      profile: 'working_environment',
+      profile: 'project_dashboard',
       workspaceRoot: '/workspace/sample',
     })).rejects.toThrow('No awareness provider registered for domain: coding');
   });

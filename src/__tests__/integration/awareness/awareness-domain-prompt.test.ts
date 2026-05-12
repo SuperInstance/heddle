@@ -7,7 +7,7 @@ describe('awareness domain prompt', () => {
 
     expect(context).toContain('## Situation Awareness Domain');
     expect(context).toContain('current-state orientation layer');
-    expect(context).toContain('Treat working_environment as a compact current-state summary');
+    expect(context).toContain('Treat project_dashboard as the default first-call orientation package');
     expect(context).toContain('Situation awareness is a map of current workspace state, not proof of code behavior');
     expect(context).toContain('Durable preferences, recurring workflows, and historical operational context belong to Heddle-managed memory');
   });

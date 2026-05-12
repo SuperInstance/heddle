@@ -23,3 +23,4 @@ The awareness domain owns fresh current-state perception for the active workspac
 - Keep core contracts domain-agnostic.
 - Put coding-specific fields in the coding domain types.
 - Awareness tools should call this service boundary instead of duplicating collectors.
+- Coding-domain service details and the agent-facing dashboard payload live in `domains/coding/README.md`.

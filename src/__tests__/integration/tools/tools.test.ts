@@ -17,7 +17,7 @@ import {
   DEFAULT_MUTATE_RULES,
 } from '../../../core/tools/toolkits/shell-process/run-shell.js';
 import { createSearchFilesTool, searchFilesTool } from '../../../core/tools/toolkits/coding-files/search-files.js';
-import { createWorkingEnvironmentTool, workingEnvironmentTool } from '../../../core/tools/toolkits/coding-awareness/working-environment.js';
+import { createProjectDashboardTool, projectDashboardTool } from '../../../core/tools/toolkits/coding-awareness/project-dashboard.js';
 import { createWebSearchTool, webSearchTool } from '../../../core/tools/toolkits/external-context/web-search.js';
 import { createViewImageTool, viewImageTool } from '../../../core/tools/toolkits/external-context/view-image.js';
 import {
@@ -69,12 +69,12 @@ describe('tool input validation', () => {
     });
   });
 
-  it('rejects invalid working_environment input', async () => {
-    const result = await workingEnvironmentTool.execute({ path: '.' });
+  it('rejects invalid project_dashboard input', async () => {
+    const result = await projectDashboardTool.execute({ path: '.' });
 
     expect(result).toEqual({
       ok: false,
-      error: 'Invalid input for working_environment. This tool takes no input; use {}.',
+      error: 'Invalid input for project_dashboard. Optional fields: includeSections (working_environment|workspace_tree), maxDepth (1-4), maxEntries (1-200). Use {} for the default full dashboard.',
     });
   });
 
@@ -116,12 +116,11 @@ describe('tool input validation', () => {
     expect(searchFilesTool.description).toContain('includeIgnored');
     expect(searchFilesTool.description).toContain('{ "query": "createUser" }');
     expect(searchFilesTool.description).toContain('{ "query": "incident", "path": "../shared-notes" }');
-    expect(workingEnvironmentTool.description).toContain('Collect a compact coding working-environment summary');
-    expect(workingEnvironmentTool.description).toContain('workspace root, git repo root, branch, short commit');
-    expect(workingEnvironmentTool.description).toContain('Treat the result as current-state orientation');
-    expect(workingEnvironmentTool.description).toContain('avoid re-deriving repo-state basics');
-    expect(workingEnvironmentTool.description).toContain('excludes Heddle runtime state such as .heddle');
-    expect(workingEnvironmentTool.description).toContain('degrades gracefully outside git repos');
+    expect(projectDashboardTool.description).toContain('Collect the initial coding project dashboard');
+    expect(projectDashboardTool.description).toContain('current working-environment state and a bounded workspace tree');
+    expect(projectDashboardTool.description).toContain('orient in a single call');
+    expect(projectDashboardTool.description).toContain('read_file or search_files only for task-specific details');
+    expect(projectDashboardTool.description).toContain('includeSections');
     expect(webSearchTool.description).toContain('Search the public web');
     expect(webSearchTool.description).toContain("active model provider's hosted web search");
     expect(webSearchTool.description).toContain('{ "query": "OpenAI Responses API web search tool" }');
@@ -264,7 +263,7 @@ describe('workspace-bound default tools', () => {
       });
       const readTool = tools.find((tool) => tool.name === 'read_file');
       const shellTool = tools.find((tool) => tool.name === 'run_shell_inspect');
-      const awarenessTool = tools.find((tool) => tool.name === 'working_environment');
+      const awarenessTool = tools.find((tool) => tool.name === 'project_dashboard');
 
       expect(readTool).toBeDefined();
       expect(shellTool).toBeDefined();
@@ -281,8 +280,15 @@ describe('workspace-bound default tools', () => {
 
       const awarenessResult = await awarenessTool?.execute({});
       expect(awarenessResult?.ok).toBe(true);
-      expect(awarenessResult?.output).toContain(`Working environment for ${workspaceRoot}`);
-      expect(awarenessResult?.output).toContain(`Git repo root: ${resolvedWorkspaceRoot}`);
+      expect(awarenessResult?.output).toMatchObject({
+        workspaceRoot,
+        sections: {
+          working_environment: expect.objectContaining({
+            gitRepositoryRoot: resolvedWorkspaceRoot,
+          }),
+          workspace_tree: expect.any(Object),
+        },
+      });
     } finally {
       process.chdir(previousCwd);
     }

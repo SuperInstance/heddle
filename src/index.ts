@@ -86,7 +86,7 @@ export type { DefaultAgentToolsOptions } from './core/runtime/default-tools.js';
 export {
   createAwarenessService,
   createCodingAwarenessProvider,
-  formatCodingWorkingEnvironmentSnapshot,
+  formatCodingProjectDashboardSnapshot,
 } from './core/awareness/index.js';
 export type {
   AwarenessCollectInput,
@@ -98,7 +98,10 @@ export type {
   AwarenessSource,
   CodingAwarenessSection,
   CodingAwarenessSnapshot,
+  CodingProjectDashboardOutput,
   CodingWorkingEnvironment,
+  CodingWorkspaceTree,
+  CodingWorkspaceTreeEntry,
 } from './core/awareness/index.js';
 export { DEFAULT_OPENAI_MODEL, DEFAULT_ANTHROPIC_MODEL } from './core/config.js';
 export {

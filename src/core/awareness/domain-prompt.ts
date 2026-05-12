@@ -6,13 +6,13 @@ Situation awareness is the agent's current-state orientation layer for the activ
 ### Purpose
 
 - Use situation awareness to orient quickly on the current workspace and git state before substantial coding, planning, or review work.
-- Treat working_environment as a compact current-state summary for repo root, branch, dirty state, and changed-path groups.
-- Use it to avoid re-deriving repo-state basics through redundant shell or file inspection.
+- Treat project_dashboard as the default first-call orientation package for repo state and bounded workspace structure.
+- Use it to avoid re-deriving repo-state basics or re-listing obvious top-level workspace shape through redundant tool calls.
 
 ### Interpretation
 
 - Situation awareness is a map of current workspace state, not proof of code behavior or design intent.
-- After using working_environment, follow with read_file or search_files only for task-specific implementation or documentation details.
+- After using project_dashboard, follow with read_file or search_files only for task-specific implementation or documentation details.
 - Do not keep rediscovering branch, repo-root, or dirty-state facts unless the task needs deeper verification.
 
 ### Boundaries
