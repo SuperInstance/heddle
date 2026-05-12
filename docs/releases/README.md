@@ -34,6 +34,34 @@ Before tagging a release, use the normal green checkpoint baseline:
 
 Add more verification if the release changes a workflow that needs manual validation.
 
+## Fast Release Preflight
+
+Before spending time on the full build/test/pack baseline, check the auth- and
+environment-sensitive release steps that most often fail late:
+
+```bash
+gh auth status
+git config --get tag.gpgSign
+```
+
+If multiple GitHub accounts are configured, decide the release account first
+and switch early:
+
+```bash
+gh auth switch -u <username>
+gh api user
+```
+
+If the intended account may need release creation and does not already have the
+right scopes, refresh before the long verification pass:
+
+```bash
+gh auth refresh -h github.com -s workflow
+```
+
+This does not replace the normal release verification baseline. It exists to
+catch predictable release-environment failures before the long verification pass.
+
 ## Git Range Review
 
 Release notes should be written from the actual change range, usually:
@@ -86,6 +114,9 @@ Typical release sequence:
 ```bash
 npm view @roackb2/heddle version
 gh release list --limit 5
+gh auth status
+gh auth switch -u <username-if-needed>
+gh api user
 yarn build
 yarn test
 npm pack --dry-run --cache /tmp/heddle-npm-cache
@@ -103,6 +134,11 @@ If the repo does not have a previous tag yet, run `yarn release:context <base-re
 Release commands that use GitHub or npm credentials should be treated as auth-sensitive. In agent environments, sandboxed shell commands may not have the same keyring, credential helper, or network access as the operator's normal terminal.
 
 If sandboxed `gh auth status`, `gh release list`, or `gh release create` reports invalid credentials while the operator's terminal shows a valid active account, rerun the GitHub command through the normal authenticated shell context or request an unsandboxed/escalated execution path. Do not stop the release solely because sandboxed `gh` cannot see the keyring-backed token.
+
+In this repo's real release workflow, this has happened repeatedly: the
+operator's normal shell had valid keyring-backed `gh` auth, while the
+agent/constrained shell reported invalid tokens. Treat the operator's normal
+authenticated shell as the source of truth for `gh` auth state.
 
 If `gh release create` fails with a scope or account error, check the active GitHub CLI account before starting a new auth flow:
 
@@ -123,6 +159,37 @@ gh auth refresh -h github.com -s workflow
 ```
 
 During device login, make sure the browser authorizes the same account that `gh auth refresh` is trying to update. If `gh` expects one account but the browser grants another, the refresh will fail with an account mismatch. In that case, either switch to the already-authorized account with the right scope or rerun the refresh while logged into the intended GitHub account in the browser.
+
+If `gh auth status` shows more than one valid account, do not assume the
+currently active one is the release account. Explicitly switch to the intended
+account and verify it with:
+
+```bash
+gh auth switch -u <username>
+gh api user
+```
+
+For this repository, make sure the account creating the GitHub release is the
+one that owns or can publish releases for `roackb2/heddle`.
+
+Do not claim the release sequence is complete until the GitHub release object
+actually exists. A pushed commit and pushed tag are not the end of the flow.
+
+## Annotated Tagging Notes
+
+Annotated release tags are still the rule, but local tag creation may fail in
+agent or constrained-shell environments even when normal git pushes work.
+
+Common failure modes:
+
+- GPG signing enabled but the local `gpg-agent` is unavailable.
+- constrained shells cannot create temporary files under the local GnuPG home.
+- the tagging shell has different permissions from the operator's normal shell.
+
+If annotated tag creation fails with GPG- or temp-file-related errors, do not
+redo the whole release pass. Use the normal authenticated shell context or an
+unsandboxed execution path for the tag operation, then continue from the
+already-verified release commit.
 
 ## Writing Rule
 
@@ -168,6 +235,7 @@ Current example release note drafts:
 
 When a coding agent is asked to do a release, it should:
 
+- preflight `gh` auth and active account before the long verification pass
 - identify the previous release tag if one exists
 - review the real diff and commit range
 - verify the release candidate is green
@@ -175,5 +243,7 @@ When a coding agent is asked to do a release, it should:
 - create the annotated tag only for the actual release commit
 - push the release commit and tag
 - create the GitHub release from the curated release note
+- verify that the GitHub release object actually exists before reporting the
+  release sequence complete
 - leave `npm publish` as the final operator action unless explicitly delegated
 - avoid inventing release scope from commit naming style alone
