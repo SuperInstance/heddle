@@ -9,11 +9,8 @@ import {
   touchSession,
 } from '../state/storage.js';
 import { resolveWorkspaceContext } from '../../../core/runtime/workspaces.js';
-import type { SessionExecutionPreferences } from '../../../core/chat/session-preferences/service.js';
-import {
-  resolveNewSessionExecutionPreferences,
-  resolveSessionExecutionPreferences,
-} from '../../../core/chat/session-preferences/service.js';
+import type { SessionExecutionPreferences } from '../../../core/chat/engine/sessions/preferences/service.js';
+import { resolveNewSessionExecutionPreferences } from '../../../core/chat/engine/sessions/preferences/service.js';
 
 type UseChatSessionsArgs = {
   sessionCatalogFile: string;
@@ -30,13 +27,7 @@ export function useChatSessions({ sessionCatalogFile, apiKeyPresent, defaultMode
   );
   const initialSessionsRef = useRef<ChatSession[]>([]);
   if (initialSessionsRef.current.length === 0) {
-    initialSessionsRef.current = loadChatSessions(sessionCatalogFile, apiKeyPresent).map((session: ChatSession) => ({
-      ...session,
-      ...resolveSessionExecutionPreferences({
-        session,
-        defaultModel,
-      }),
-    }));
+    initialSessionsRef.current = loadChatSessions(sessionCatalogFile, apiKeyPresent);
   }
 
   const nextSessionNumberRef = useRef(getNextSessionNumber(initialSessionsRef.current));

@@ -14,7 +14,7 @@ import type { LlmProvider, ReasoningEffort } from '../../../../llm/types.js';
 import {
   formatSessionReasoningEffortStatus,
   resolveEffectiveReasoningEffort,
-} from '../../../../chat/session-preferences/service.js';
+} from '../../../../chat/engine/sessions/preferences/service.js';
 
 export const MODEL_LIST_MESSAGE = ['Common built-in model choices', '', formatBuiltInModelGroups()].join('\n');
 export const MODEL_SET_HELP_MESSAGE = 'Use /model set <query> to filter models, then use arrows and Enter to choose one.';

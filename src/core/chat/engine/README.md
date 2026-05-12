@@ -7,7 +7,8 @@ conversation engine.
 
 - Normalized engine config and derived paths in `config.ts`.
 - File-backed session persistence, migration, lease rules, titles, archives, and
-  conversation-line projection under `sessions/`.
+  conversation-line projection plus session execution-preference policy under
+  `sessions/`.
 - Persisted turn execution, runtime resolution, preflight compaction, memory
   maintenance, trace persistence, final durable persistence, and host adaptation
   under `turns/`.

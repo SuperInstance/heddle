@@ -6,7 +6,7 @@ import type { ResolvedRuntimeHost } from '../../../core/runtime/runtime-hosts.js
 import { currentActivityText } from '../utils/format.js';
 import type { ApprovalChoice, LiveEvent, PendingApproval } from '../state/types.js';
 import type { PlanItem } from '../../../core/tools/toolkits/internal/update-plan.js';
-import { resolveEffectiveReasoningEffort } from '../../../core/chat/session-preferences/service.js';
+import { resolveEffectiveReasoningEffort } from '../../../core/chat/engine/sessions/preferences/service.js';
 import { supportsReasoningEffort } from '../../../core/llm/model-policy.js';
 
 type ActiveTurnSummary = {

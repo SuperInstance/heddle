@@ -34,6 +34,41 @@ simple regressions hard to diagnose because there was no single place to answer:
 This module is the shared owner for that policy. Hosts should call into it
 instead of re-deriving the rules locally.
 
+## Refactoring Pattern
+
+Treat this module as a golden example for policy cleanup in Heddle.
+
+The rule is:
+
+1. resolve once at the owning domain boundary;
+2. persist the explicit state that actually matters;
+3. derive effective runtime state in one owner;
+4. pass concrete values downward;
+5. do not re-resolve defaults or fallbacks in every host layer.
+
+Good boundary points for resolution:
+
+- loading stored session data;
+- creating the first session when no session exists yet;
+- creating a brand-new session from the currently active host state;
+- deriving one effective runtime value from one explicit stored value plus one
+  model policy default.
+
+Bad patterns this module is meant to avoid:
+
+- every layer doing `x ?? y ?? z` again;
+- spread-based object copying plus another fallback at the next layer;
+- hosts reinterpreting stored session state differently;
+- separate UI, CLI, and engine paths all deciding their own defaults.
+
+If future refactors touch another messy domain, mimic this shape:
+
+- define one owner for the policy;
+- keep explicit stored state small;
+- keep derived state derived;
+- leave fallback logic only at true system boundaries;
+- pass plain resolved values downward after the owner has decided.
+
 ## Agent-Facing Example
 
 Given:
@@ -70,3 +105,6 @@ preferences should start as:
   "reasoningEffort": "medium"
 }
 ```
+
+The important point is that lower layers should receive these already-resolved
+preferences, not repeat the inheritance logic again.

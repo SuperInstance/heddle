@@ -18,7 +18,6 @@ import { buildConversationMessages } from './utils/format.js';
 import { buildCompactionRunningContext, compactChatHistoryWithArchive } from './state/compaction.js';
 import { estimateBuiltInContextWindow } from '../../core/llm/openai-models.js';
 import { credentialModeFromSource, resolveCompatibleActiveModel, resolveSystemSelectedModel } from '../../core/llm/model-policy.js';
-import type { ReasoningEffort } from '../../core/llm/types.js';
 import { useApprovalFlow } from './hooks/useApprovalFlow.js';
 import { useAgentRun } from './hooks/useAgentRun.js';
 import { useChatDrift } from './hooks/useChatDrift.js';
@@ -34,9 +33,8 @@ import { listMentionableFiles } from './utils/file-mentions.js';
 import { resolveProviderCredentialSourceForModel, type ChatRuntimeConfig } from './utils/runtime.js';
 import {
   resolveNewSessionExecutionPreferences,
-  resolveSessionExecutionPreferences,
-  resolveSessionPreferenceSync,
-} from '../../core/chat/session-preferences/service.js';
+  resolveStoredSessionExecutionPreferences,
+} from '../../core/chat/engine/sessions/preferences/service.js';
 
 export function App({ runtime }: { runtime: ChatRuntimeConfig }) {
   return <EmbeddedChatApp runtime={runtime} />;
@@ -51,7 +49,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     provider: runtime.model.startsWith('claude') ? 'anthropic' : 'openai',
     credentialMode: credentialModeFromSource(runtime.providerCredentialSource),
   }), [runtime.model, runtime.providerCredentialSource]);
-  const [activeModel, setActiveModel] = useState(initialModelCompatibility.model);
   const {
     draft,
     setDraft,
@@ -61,7 +58,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     replaceDraft,
   } = usePromptDraft();
   const { promptHistory, recordPromptHistory } = usePromptHistory();
-  const [activeReasoningEffort, setActiveReasoningEffort] = useState<ReasoningEffort | undefined>(undefined);
   const mentionableFiles = useState(() => listMentionableFiles(runtime.workspaceRoot, runtime.searchIgnoreDirs))[0];
 
   const {
@@ -84,18 +80,29 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     workspaceRoot: runtime.workspaceRoot,
     stateRoot: runtime.stateRoot,
   });
+  const storedActivePreferences = useMemo(() => resolveStoredSessionExecutionPreferences({
+    stored: activeSession,
+    defaultModel: runtime.model,
+  }), [activeSession, runtime.model]);
+  const activeModelCompatibility = useMemo(() => resolveCompatibleActiveModel({
+    activeModel: storedActivePreferences.model,
+    provider: storedActivePreferences.model.startsWith('claude') ? 'anthropic' : 'openai',
+    credentialMode: credentialModeFromSource(resolveProviderCredentialSourceForModel(storedActivePreferences.model, runtime)),
+  }), [runtime, storedActivePreferences.model]);
+  const activeModel = activeModelCompatibility.model;
+  const activeReasoningEffort = activeSession?.reasoningEffort;
   const createSession = useCallback((name?: string) => createSessionWithDefaultModel(
     name,
     resolveNewSessionExecutionPreferences({
       defaultModel: runtime.model,
       inherited: {
         model: activeModel,
-        reasoningEffort: activeReasoningEffort,
+        reasoningEffort: activeSession?.reasoningEffort,
       },
     }),
   ), [
-    activeReasoningEffort,
     activeModel,
+    activeSession?.reasoningEffort,
     createSessionWithDefaultModel,
     runtime.model,
   ]);
@@ -114,9 +121,8 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
   });
 
   const previousActiveModelRef = useRef(activeModel);
-  const previousSessionPreferenceWriteSessionIdRef = useRef<string | undefined>(undefined);
-
-  const [modelCompatibilityNotice, setModelCompatibilityNotice] = useState<string | undefined>(initialModelCompatibility.warning);
+  const previousActiveSessionIdRef = useRef<string | undefined>(activeSession?.id);
+  const modelCompatibilityNotice = activeModelCompatibility.warning ?? initialModelCompatibility.warning;
   const {
     status,
     setStatus,
@@ -136,41 +142,32 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     workingFrames,
   } = useApprovalFlow(nextLocalId);
   useEffect(() => {
+    if (!activeSession || !activeSession.model) {
+      return;
+    }
+
+    if (activeSession.model === activeModel) {
+      return;
+    }
+
+    setSessionPreferences(activeSession.id, {
+      model: activeModel,
+      reasoningEffort: activeSession.reasoningEffort,
+    });
+  }, [activeModel, activeSession, setSessionPreferences]);
+
+  useEffect(() => {
     if (!activeSession) {
       previousActiveModelRef.current = activeModel;
-      previousSessionPreferenceWriteSessionIdRef.current = undefined;
+      previousActiveSessionIdRef.current = undefined;
       return;
     }
 
-    const syncAction = resolveSessionPreferenceSync({
-      previousSessionId: previousSessionPreferenceWriteSessionIdRef.current,
-      currentSessionId: activeSession.id,
-      currentSession: activeSession,
-      activePreferences: {
-        model: activeModel,
-        reasoningEffort: activeReasoningEffort,
-      },
-      defaultModel: runtime.model,
-    });
-    previousSessionPreferenceWriteSessionIdRef.current = activeSession.id;
-
-    if (syncAction.kind === 'adopt_session_preferences') {
-      previousActiveModelRef.current = syncAction.preferences.model;
-      setActiveModel(syncAction.preferences.model);
-      setActiveReasoningEffort(syncAction.preferences.reasoningEffort);
-      return;
-    }
-
-    if (syncAction.kind === 'none') {
-      previousActiveModelRef.current = activeModel;
-      return;
-    }
-
-    setSessionPreferences(activeSession.id, syncAction.preferences);
-
+    const previousSessionId = previousActiveSessionIdRef.current;
     const previousModel = previousActiveModelRef.current;
+    previousActiveSessionIdRef.current = activeSession.id;
     previousActiveModelRef.current = activeModel;
-    if (previousModel === activeModel) {
+    if (previousSessionId !== activeSession.id || previousModel === activeModel) {
       return;
     }
 
@@ -186,18 +183,11 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     const previousArchives = activeSession.archives;
 
     setStatus('Compacting');
-    updateSessionById(sessionId, (session) => ({
-      ...session,
-      ...resolveSessionExecutionPreferences({
-        session: {
-          model: activeModel,
-          reasoningEffort: activeReasoningEffort,
-        },
-        defaultModel: runtime.model,
-      }),
-      context: buildCompactionRunningContext({
-        history: session.history,
-        previous: session.context,
+      updateSessionById(sessionId, (session) => ({
+        ...session,
+        context: buildCompactionRunningContext({
+          history: session.history,
+          previous: session.context,
         archiveCount: session.archives?.length,
         currentSummaryPath: session.context?.currentSummaryPath,
       }),
@@ -214,13 +204,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     }).then((compacted: Awaited<ReturnType<typeof compactChatHistoryWithArchive>>) => {
       updateSessionById(sessionId, (session) => ({
         ...session,
-        ...resolveSessionExecutionPreferences({
-          session: {
-            model: activeModel,
-            reasoningEffort: activeReasoningEffort,
-          },
-          defaultModel: runtime.model,
-        }),
         history: compacted.history,
         context: compacted.context,
         archives: compacted.archives,
@@ -230,31 +213,12 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     }).catch(() => {
       updateSessionById(sessionId, (session) => ({
         ...session,
-        ...resolveSessionExecutionPreferences({
-          session: {
-            model: activeModel,
-            reasoningEffort: activeReasoningEffort,
-          },
-          defaultModel: runtime.model,
-        }),
         context: previousContext,
         archives: previousArchives,
       }));
       setStatus('Idle');
     });
-  }, [activeModel, activeReasoningEffort, activeSession, runtime.model, runtime.providerCredentialSource, runtime.stateRoot, runtime.systemContext, setStatus, setSessionPreferences, updateSessionById]);
-
-  useEffect(() => {
-    const nextCompatibility = resolveCompatibleActiveModel({
-      activeModel,
-      provider: activeModel.startsWith('claude') ? 'anthropic' : 'openai',
-      credentialMode: credentialModeFromSource(resolveProviderCredentialSourceForModel(activeModel, runtime)),
-    });
-    if (nextCompatibility.model !== activeModel) {
-      setActiveModel(nextCompatibility.model);
-    }
-    setModelCompatibilityNotice(nextCompatibility.warning);
-  }, [activeModel, runtime]);
+  }, [activeModel, activeSession, runtime.providerCredentialSource, runtime.stateRoot, runtime.systemContext, setStatus, updateSessionById]);
 
   const messages = useMemo(() => activeSession?.messages ?? [], [activeSession?.messages]);
   const sessionTitleModel = resolveSystemSelectedModel({
@@ -385,8 +349,15 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
   }, [clearDraft, resetRunState, setActiveSessionId]);
 
   const applyActiveModel = useCallback((model: string) => {
-    setActiveModel(model);
-  }, []);
+    if (!activeSession) {
+      return;
+    }
+
+    setSessionPreferences(activeSession.id, {
+      model,
+      reasoningEffort: activeSession.reasoningEffort,
+    });
+  }, [activeSession, setSessionPreferences]);
 
   const closeSession = (id: string) => {
     const removedActive = removeSession(id);
@@ -419,7 +390,16 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     activeModel,
     activeReasoningEffort,
     setActiveModel: applyActiveModel,
-    setActiveReasoningEffort,
+    setActiveReasoningEffort: (effort) => {
+      if (!activeSession) {
+        return;
+      }
+
+      setSessionPreferences(activeSession.id, {
+        model: activeSession.model ?? runtime.model,
+        reasoningEffort: effort,
+      });
+    },
     sessions,
     recentSessions,
     activeSessionId,
