@@ -1,3 +1,15 @@
+/**
+ * TUI presentation composition root.
+ *
+ * Strict boundary:
+ * - `App.tsx` is a view/presentation layer. It should render state and forward
+ *   user intent only.
+ * - Non-UI state must not be owned here. Session state, runtime state, policy,
+ *   inheritance/default resolution, and domain logic belong in controller or
+ *   domain modules.
+ * - If a feature needs new stateful behavior, move that ownership outward
+ *   instead of teaching `App.tsx` new policy or persistent semantics.
+ */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import {
@@ -18,7 +30,6 @@ import { buildConversationMessages } from './utils/format.js';
 import { buildCompactionRunningContext, compactChatHistoryWithArchive } from './state/compaction.js';
 import { estimateBuiltInContextWindow } from '../../core/llm/openai-models.js';
 import { credentialModeFromSource, resolveCompatibleActiveModel, resolveSystemSelectedModel } from '../../core/llm/model-policy.js';
-import type { ReasoningEffort } from '../../core/llm/types.js';
 import { useApprovalFlow } from './hooks/useApprovalFlow.js';
 import { useAgentRun } from './hooks/useAgentRun.js';
 import { useChatDrift } from './hooks/useChatDrift.js';
@@ -32,6 +43,10 @@ import { usePromptSubmission } from './hooks/usePromptSubmission.js';
 import { autocompleteLocalCommand } from './state/local-commands.js';
 import { listMentionableFiles } from './utils/file-mentions.js';
 import { resolveProviderCredentialSourceForModel, type ChatRuntimeConfig } from './utils/runtime.js';
+import {
+  resolveNewSessionExecutionPreferences,
+  resolveStoredSessionExecutionPreferences,
+} from '../../core/chat/engine/sessions/preferences/service.js';
 
 export function App({ runtime }: { runtime: ChatRuntimeConfig }) {
   return <EmbeddedChatApp runtime={runtime} />;
@@ -46,7 +61,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     provider: runtime.model.startsWith('claude') ? 'anthropic' : 'openai',
     credentialMode: credentialModeFromSource(runtime.providerCredentialSource),
   }), [runtime.model, runtime.providerCredentialSource]);
-  const [activeModel, setActiveModel] = useState(initialModelCompatibility.model);
   const {
     draft,
     setDraft,
@@ -56,7 +70,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     replaceDraft,
   } = usePromptDraft();
   const { promptHistory, recordPromptHistory } = usePromptHistory();
-  const [activeReasoningEffort, setActiveReasoningEffort] = useState<ReasoningEffort | undefined>(undefined);
   const mentionableFiles = useState(() => listMentionableFiles(runtime.workspaceRoot, runtime.searchIgnoreDirs))[0];
 
   const {
@@ -68,7 +81,7 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     listRecentSessionsMessage,
     updateSessionById,
     updateActiveSession,
-    setSessionModel,
+    setSessionPreferences,
     createSession: createSessionWithDefaultModel,
     renameSession,
     removeSession,
@@ -79,9 +92,31 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     workspaceRoot: runtime.workspaceRoot,
     stateRoot: runtime.stateRoot,
   });
-  const createSession = useCallback((name?: string) => createSessionWithDefaultModel(name, activeModel), [
+  const storedActivePreferences = useMemo(() => resolveStoredSessionExecutionPreferences({
+    stored: activeSession,
+    defaultModel: runtime.model,
+  }), [activeSession, runtime.model]);
+  const activeModelCompatibility = useMemo(() => resolveCompatibleActiveModel({
+    activeModel: storedActivePreferences.model,
+    provider: storedActivePreferences.model.startsWith('claude') ? 'anthropic' : 'openai',
+    credentialMode: credentialModeFromSource(resolveProviderCredentialSourceForModel(storedActivePreferences.model, runtime)),
+  }), [runtime, storedActivePreferences.model]);
+  const activeModel = activeModelCompatibility.model;
+  const activeReasoningEffort = activeSession?.reasoningEffort;
+  const createSession = useCallback((name?: string) => createSessionWithDefaultModel(
+    name,
+    resolveNewSessionExecutionPreferences({
+      defaultModel: runtime.model,
+      inherited: {
+        model: activeModel,
+        reasoningEffort: activeSession?.reasoningEffort,
+      },
+    }),
+  ), [
     activeModel,
+    activeSession?.reasoningEffort,
     createSessionWithDefaultModel,
+    runtime.model,
   ]);
   const pickers = useChatPickers({
     draft,
@@ -98,9 +133,8 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
   });
 
   const previousActiveModelRef = useRef(activeModel);
-  const previousModelWriteSessionIdRef = useRef<string | undefined>(activeSession?.id);
-
-  const [modelCompatibilityNotice, setModelCompatibilityNotice] = useState<string | undefined>(initialModelCompatibility.warning);
+  const previousActiveSessionIdRef = useRef<string | undefined>(activeSession?.id);
+  const modelCompatibilityNotice = activeModelCompatibility.warning ?? initialModelCompatibility.warning;
   const {
     status,
     setStatus,
@@ -120,33 +154,32 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     workingFrames,
   } = useApprovalFlow(nextLocalId);
   useEffect(() => {
-    setActiveReasoningEffort(activeSession?.reasoningEffort);
-  }, [activeSession?.id, activeSession?.reasoningEffort]);
+    if (!activeSession || !activeSession.model) {
+      return;
+    }
+
+    if (activeSession.model === activeModel) {
+      return;
+    }
+
+    setSessionPreferences(activeSession.id, {
+      model: activeModel,
+      reasoningEffort: activeSession.reasoningEffort,
+    });
+  }, [activeModel, activeSession, setSessionPreferences]);
 
   useEffect(() => {
     if (!activeSession) {
       previousActiveModelRef.current = activeModel;
-      previousModelWriteSessionIdRef.current = undefined;
+      previousActiveSessionIdRef.current = undefined;
       return;
     }
 
-    const sessionChanged = previousModelWriteSessionIdRef.current !== activeSession.id;
-    previousModelWriteSessionIdRef.current = activeSession.id;
-    if (sessionChanged) {
-      previousActiveModelRef.current = activeModel;
-      if (activeSession.model !== activeModel) {
-        setSessionModel(activeSession.id, activeModel);
-      }
-      return;
-    }
-
-    if (activeSession.model !== activeModel) {
-      setSessionModel(activeSession.id, activeModel);
-    }
-
+    const previousSessionId = previousActiveSessionIdRef.current;
     const previousModel = previousActiveModelRef.current;
+    previousActiveSessionIdRef.current = activeSession.id;
     previousActiveModelRef.current = activeModel;
-    if (previousModel === activeModel) {
+    if (previousSessionId !== activeSession.id || previousModel === activeModel) {
       return;
     }
 
@@ -162,12 +195,11 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     const previousArchives = activeSession.archives;
 
     setStatus('Compacting');
-    updateSessionById(sessionId, (session) => ({
-      ...session,
-      model: activeModel,
-      context: buildCompactionRunningContext({
-        history: session.history,
-        previous: session.context,
+      updateSessionById(sessionId, (session) => ({
+        ...session,
+        context: buildCompactionRunningContext({
+          history: session.history,
+          previous: session.context,
         archiveCount: session.archives?.length,
         currentSummaryPath: session.context?.currentSummaryPath,
       }),
@@ -184,7 +216,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     }).then((compacted: Awaited<ReturnType<typeof compactChatHistoryWithArchive>>) => {
       updateSessionById(sessionId, (session) => ({
         ...session,
-        model: activeModel,
         history: compacted.history,
         context: compacted.context,
         archives: compacted.archives,
@@ -194,28 +225,12 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     }).catch(() => {
       updateSessionById(sessionId, (session) => ({
         ...session,
-        model: activeModel,
         context: previousContext,
         archives: previousArchives,
       }));
       setStatus('Idle');
     });
-  }, [activeModel, activeSession, runtime.providerCredentialSource, runtime.stateRoot, runtime.systemContext, setStatus, setSessionModel, updateSessionById]);
-
-  useEffect(() => {
-    const nextCompatibility = resolveCompatibleActiveModel({
-      activeModel,
-      provider: activeModel.startsWith('claude') ? 'anthropic' : 'openai',
-      credentialMode: credentialModeFromSource(resolveProviderCredentialSourceForModel(activeModel, runtime)),
-    });
-    if (nextCompatibility.model !== activeModel) {
-      setActiveModel(nextCompatibility.model);
-      if (activeSession) {
-        setSessionModel(activeSession.id, nextCompatibility.model);
-      }
-    }
-    setModelCompatibilityNotice(nextCompatibility.warning);
-  }, [activeModel, activeSession, runtime, setSessionModel]);
+  }, [activeModel, activeSession, runtime.providerCredentialSource, runtime.stateRoot, runtime.systemContext, setStatus, updateSessionById]);
 
   const messages = useMemo(() => activeSession?.messages ?? [], [activeSession?.messages]);
   const sessionTitleModel = resolveSystemSelectedModel({
@@ -315,7 +330,6 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     approvalChoice,
     draft,
     draftCursor,
-    promptHistory,
     pickers.model,
     pickers.reasoning,
     pickers.session,
@@ -347,11 +361,15 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
   }, [clearDraft, resetRunState, setActiveSessionId]);
 
   const applyActiveModel = useCallback((model: string) => {
-    setActiveModel(model);
-    if (activeSession && activeSession.model !== model) {
-      setSessionModel(activeSession.id, model);
+    if (!activeSession) {
+      return;
     }
-  }, [activeSession, setSessionModel]);
+
+    setSessionPreferences(activeSession.id, {
+      model,
+      reasoningEffort: activeSession.reasoningEffort,
+    });
+  }, [activeSession, setSessionPreferences]);
 
   const closeSession = (id: string) => {
     const removedActive = removeSession(id);
@@ -385,10 +403,14 @@ function EmbeddedChatApp({ runtime }: { runtime: ChatRuntimeConfig }) {
     activeReasoningEffort,
     setActiveModel: applyActiveModel,
     setActiveReasoningEffort: (effort) => {
-      setActiveReasoningEffort(effort);
-      if (activeSession) {
-        updateSessionById(activeSession.id, (session) => ({ ...session, reasoningEffort: effort }));
+      if (!activeSession) {
+        return;
       }
+
+      setSessionPreferences(activeSession.id, {
+        model: activeSession.model ?? runtime.model,
+        reasoningEffort: effort,
+      });
     },
     sessions,
     recentSessions,

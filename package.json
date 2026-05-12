@@ -41,6 +41,7 @@
     "client:dev": "vite --config src/web/vite.config.ts",
     "server:dev": "tsx --no-cache src/server/dev.ts",
     "daemon:dev": "tsx --no-cache src/cli/main.ts daemon --assets-dir dist/src/web",
+    "verify:tui-session-switch": "node --import tsx/esm scripts/verify-tui-session-switch.tsx",
     "eval:agent": "tsx --no-cache src/cli/main.ts eval agent",
     "eval:clean": "tsx --no-cache src/cli/main.ts eval clean",
     "e2e": "playwright test",

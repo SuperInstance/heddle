@@ -3,15 +3,37 @@
 This folder is the owning bounded module for Heddle's persisted programmatic
 conversation engine.
 
+If a chat behavior has one true meaning across TUI, ask mode, daemon, or future
+hosts, this engine or one of its explicit subdomains should own it. Hosts must
+not each invent their own version.
+
 ## Owns
 
 - Normalized engine config and derived paths in `config.ts`.
 - File-backed session persistence, migration, lease rules, titles, archives, and
-  conversation-line projection under `sessions/`.
+  conversation-line projection plus session execution-preference policy under
+  `sessions/`.
 - Persisted turn execution, runtime resolution, preflight compaction, memory
   maintenance, trace persistence, final durable persistence, and host adaptation
   under `turns/`.
 - The alpha programmatic API through `conversation-engine.ts` and `index.ts`.
+
+## Domain Ownership Rule
+
+The engine should be the place where chat semantics become dead simple to
+reason about.
+
+That means:
+
+- explicit persisted state stays small and obvious;
+- defaults/fallbacks are resolved at one owning boundary;
+- derived runtime state is derived once;
+- hosts consume concrete values instead of re-deciding policy;
+- duplicated host-side policy should be treated as a design bug to remove.
+
+If multiple hosts need the same answer to a question like "what does this
+session store?" or "what reasoning effort is actually in force?", the engine
+should expose one answer rather than letting each host improvise.
 
 ## Does Not Own
 
@@ -42,6 +64,11 @@ conversation engine.
 
 - Do not rebuild flat `src/core/chat/*` wrappers around engine internals.
 - The engine must own real behavior, not facade-only forwarding.
+- When policy is scattered across App/hooks/storage/defaults, pull it toward an
+  engine-owned service instead of adding another host-level reconciliation step.
 - If a host only provides `events.onActivity`, it must still receive compaction
   activity through engine host normalization.
 - Keep docs and exports clearly marked alpha.
+
+See [docs/strategy/chat-layering.md](/Users/roackb2/Studio/projects/ProjectHeddle/heddle/docs/strategy/chat-layering.md)
+for the target folder structure and layering rules.

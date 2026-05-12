@@ -1,0 +1,51 @@
+import type { ChatSession } from '../../../types.js';
+import { resolveDefaultReasoningEffort, supportsReasoningEffort } from '../../../../llm/model-policy.js';
+import type { ReasoningEffort } from '../../../../llm/types.js';
+
+export type SessionExecutionPreferences = {
+  model: string;
+  reasoningEffort?: ReasoningEffort;
+};
+
+export function resolveStoredSessionExecutionPreferences(args: {
+  stored?: Pick<ChatSession, 'model' | 'reasoningEffort'>;
+  defaultModel: string;
+}): SessionExecutionPreferences {
+  return {
+    model: args.stored?.model ?? args.defaultModel,
+    reasoningEffort: args.stored?.reasoningEffort,
+  };
+}
+
+export function resolveNewSessionExecutionPreferences(args: {
+  defaultModel: string;
+  inherited?: Partial<SessionExecutionPreferences>;
+}): SessionExecutionPreferences {
+  return {
+    model: args.inherited?.model ?? args.defaultModel,
+    reasoningEffort: args.inherited?.reasoningEffort,
+  };
+}
+
+export function resolveEffectiveReasoningEffort(args: {
+  model: string;
+  reasoningEffort?: ReasoningEffort;
+}): ReasoningEffort | undefined {
+  return args.reasoningEffort ?? resolveDefaultReasoningEffort(args.model);
+}
+
+export function formatSessionReasoningEffortStatus(args: {
+  model: string;
+  reasoningEffort?: ReasoningEffort;
+}): string {
+  const supported = supportsReasoningEffort(args.model);
+  const effective = resolveEffectiveReasoningEffort(args);
+  return [
+    `Current model: ${args.model}`,
+    `Reasoning effort support: ${supported ? 'supported' : 'unsupported'}`,
+    `Configured effort: ${args.reasoningEffort ?? 'default'}`,
+    `Effective effort: ${effective ?? 'none'}`,
+    '',
+    'Use /reasoning set to choose an effort, or /reasoning default to clear it.',
+  ].join('\n');
+}

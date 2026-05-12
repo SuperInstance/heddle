@@ -40,8 +40,14 @@ tooling, approval policy, memory, situation awareness, traces, and evaluation.
 - Prefer domain-owned services with clear responsibility boundaries for
   non-trivial backend behavior. Do not spread one domain's logic across hosts,
   adapters, and generic helpers when a focused service/module can own it.
+- Keep layering simple and legible: presentation surfaces render state,
+  application/controller layers orchestrate user intent, and core domains own
+  semantics, policy, and persisted meaning.
 - A module boundary earns its place only when it owns meaningful behavior.
   Wrapper-only pass-through layers are not architecture progress.
+- Resolve defaults and fallbacks in one owning domain whenever possible. Avoid
+  the pattern where hosts, hooks, and leaf helpers all repeat `x ?? y ?? z`
+  and each layer partially re-decides behavior.
 - Private workspace notes are optional. Public Heddle behavior must not depend
   on private files.
 - Do not trade code quality for feature speed in touched areas. Scoped cleanup
@@ -53,6 +59,8 @@ tooling, approval policy, memory, situation awareness, traces, and evaluation.
   and host-facing execution.
 - `src/core/chat/engine/` owns persisted conversation sessions, turns,
   compaction, leases, approvals, traces, and package-level programmatic use.
+- `src/core/chat/` defines the shared chat boundary and layering guidance above
+  the engine. It should stay small.
 - `src/core/tools/` owns tool definitions, registries, execution, and toolkits.
 - `src/core/approvals/` owns approval policy chains and remembered rules.
 - `src/core/observability/` owns trace and activity projection.
@@ -71,6 +79,12 @@ review. A good service boundary should make it obvious:
 - what behavior still belongs outside the module;
 - which tests lock its behavior;
 - where to extend the feature next.
+
+For host-heavy areas, prefer an MVC-like split that stays easy to reason about:
+
+- view/presentation renders state;
+- application/controller code wires user actions and host lifecycle;
+- domain modules decide the actual behavior.
 
 For non-trivial services, keep a local `README.md` near the implementation when
 it materially improves ownership clarity for future contributors and coding
