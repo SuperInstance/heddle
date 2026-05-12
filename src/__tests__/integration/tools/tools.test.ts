@@ -118,6 +118,8 @@ describe('tool input validation', () => {
     expect(searchFilesTool.description).toContain('{ "query": "incident", "path": "../shared-notes" }');
     expect(workingEnvironmentTool.description).toContain('Collect a compact coding working-environment summary');
     expect(workingEnvironmentTool.description).toContain('workspace root, git repo root, branch, short commit');
+    expect(workingEnvironmentTool.description).toContain('Treat the result as current-state orientation');
+    expect(workingEnvironmentTool.description).toContain('avoid re-deriving repo-state basics');
     expect(workingEnvironmentTool.description).toContain('excludes Heddle runtime state such as .heddle');
     expect(workingEnvironmentTool.description).toContain('degrades gracefully outside git repos');
     expect(webSearchTool.description).toContain('Search the public web');

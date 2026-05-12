@@ -19,7 +19,7 @@ export function createWorkingEnvironmentTool(options: WorkingEnvironmentToolOpti
   return {
     name: 'working_environment',
     description:
-      'Collect a compact coding working-environment summary for the active workspace. Use this before substantial coding work when you need workspace root, git repo root, branch, short commit, and current dirty/staged/untracked/deleted/renamed paths without reconstructing them manually. This tool summarizes metadata and paths only, excludes Heddle runtime state such as .heddle, degrades gracefully outside git repos, and reports freshness plus collection limits.',
+      'Collect a compact coding working-environment summary for the active workspace. Use this early in substantial coding, planning, or review work to orient on workspace root, git repo root, branch, short commit, and current dirty/staged/untracked/deleted/renamed paths without reconstructing them manually. Treat the result as current-state orientation: use it to avoid re-deriving repo-state basics, then follow with read_file or search_files only for task-specific details. This tool summarizes metadata and paths only, excludes Heddle runtime state such as .heddle, degrades gracefully outside git repos, and reports freshness plus collection limits.',
     parameters: {
       type: 'object',
       additionalProperties: false,

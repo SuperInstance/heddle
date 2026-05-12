@@ -1,4 +1,8 @@
 export { createAwarenessService } from './service.js';
+export {
+  appendAwarenessDomainSystemContext,
+  buildAwarenessDomainSystemContext,
+} from './domain-prompt.js';
 export type {
   AwarenessCollectInput,
   AwarenessDomain,
