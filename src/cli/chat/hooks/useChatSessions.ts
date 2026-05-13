@@ -22,13 +22,14 @@ import {
 } from '../../../core/chat/engine/sessions/service.js';
 
 type UseChatSessionsArgs = {
+  sessionCatalogFile: string;
   apiKeyPresent: boolean;
   defaultModel: string;
   workspaceRoot: string;
   stateRoot: string;
 };
 
-export function useChatSessions({ apiKeyPresent, defaultModel, workspaceRoot, stateRoot }: UseChatSessionsArgs) {
+export function useChatSessions({ sessionCatalogFile, apiKeyPresent, defaultModel, workspaceRoot, stateRoot }: UseChatSessionsArgs) {
   const workspaceId = useMemo(
     () => resolveWorkspaceContext({ workspaceRoot, stateRoot }).activeWorkspace.id,
     [workspaceRoot, stateRoot],
@@ -39,12 +40,13 @@ export function useChatSessions({ apiKeyPresent, defaultModel, workspaceRoot, st
         config: {
           workspaceRoot,
           stateRoot,
+          sessionStoragePath: sessionCatalogFile,
           model: defaultModel,
           apiKeyPresent,
           workspaceId,
         },
       }),
-    [apiKeyPresent, defaultModel, stateRoot, workspaceId, workspaceRoot],
+    [apiKeyPresent, defaultModel, sessionCatalogFile, stateRoot, workspaceId, workspaceRoot],
   );
   const initialSessions = useMemo(() => sessionService.list(), [sessionService]);
   const [sessions, setSessions] = useState<ChatSession[]>(initialSessions);
