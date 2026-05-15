@@ -59,10 +59,6 @@ type RunDaemonBackedAskOptions = {
   runtimeHost: Extract<ResolvedRuntimeHost, { kind: 'daemon' }>;
 };
 
-export async function runAskCli(goal: string, options: AskCliOptions = {}) {
-  await AskCliHost.run(goal, options);
-}
-
 export class AskCliHost {
   static async run(goal: string, options: AskCliOptions = {}) {
     if (!goal.trim()) {

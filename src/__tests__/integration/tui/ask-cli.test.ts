@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runAskCli } from '../../../cli/ask.js';
+import { AskCliHost } from '../../../cli/ask.js';
 import { createChatSession } from '../../../core/chat/engine/sessions/session-record.js';
 import { readChatSession, readChatSessionCatalog, saveChatSessions } from '../../../core/chat/engine/sessions/repository/file-chat-session-repository.js';
 import type { ChatSession } from '../../../core/chat/types.js';
@@ -12,7 +12,7 @@ import type { ResolvedRuntimeHost } from '../../../core/runtime/runtime-hosts.js
 import type { RunResult } from '../../../index.js';
 import { createHeddleServerApp } from '../../../server/app.js';
 
-describe('runAskCli', () => {
+describe('AskCliHost.run', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -44,7 +44,7 @@ describe('runAskCli', () => {
     };
     const runAgentLoopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
 
-    await runAskCli('what is this project', {
+    await AskCliHost.run('what is this project', {
       workspaceRoot,
       model: 'gpt-5.1-codex-mini',
       maxSteps: 7,
@@ -90,7 +90,7 @@ describe('runAskCli', () => {
     };
     vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
 
-    await runAskCli('inspect the repository', {
+    await AskCliHost.run('inspect the repository', {
       workspaceRoot,
       model: 'gpt-5.1-codex-mini',
       apiKey: 'test-key',
@@ -159,7 +159,7 @@ describe('runAskCli', () => {
       return result as never;
     });
 
-    await runAskCli('follow up question', {
+    await AskCliHost.run('follow up question', {
       workspaceRoot,
       model: 'gpt-5.1-codex-mini',
       apiKey: 'test-key',
@@ -177,7 +177,7 @@ describe('runAskCli', () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-ask-cli-latest-empty-'));
     const sessionStoragePath = join(workspaceRoot, '.heddle', 'chat-sessions.catalog.json');
 
-    await expect(runAskCli('follow up question', {
+    await expect(AskCliHost.run('follow up question', {
       workspaceRoot,
       model: 'gpt-5.1-codex-mini',
       apiKey: 'test-key',
@@ -281,7 +281,7 @@ describe('runAskCli', () => {
       return result as never;
     });
 
-    await runAskCli('follow up question', {
+    await AskCliHost.run('follow up question', {
       workspaceRoot,
       model: 'gpt-5.1-codex-mini',
       apiKey: 'test-key',
@@ -332,7 +332,7 @@ describe('runAskCli', () => {
     };
 
     try {
-      await runAskCli('daemon stateless ask', {
+      await AskCliHost.run('daemon stateless ask', {
         workspaceRoot,
         model: 'gpt-5.1-codex-mini',
         apiKey: 'test-key',
@@ -391,7 +391,7 @@ describe('runAskCli', () => {
     };
 
     try {
-      await runAskCli('remote session ask', {
+      await AskCliHost.run('remote session ask', {
         workspaceRoot,
         model: 'gpt-5.1-codex-mini',
         apiKey: 'test-key',
