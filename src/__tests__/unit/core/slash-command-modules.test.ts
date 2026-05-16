@@ -5,7 +5,7 @@ import { buildHeartbeatContinuationPrompt } from '../../../core/commands/slash/m
 import { resolveSessionReference } from '../../../core/commands/slash/modules/session/session-commands.js';
 import type { ChatSession } from '../../../core/chat/types.js';
 import type { SlashCommandExecutionContext } from '../../../core/commands/slash/modules/context.js';
-import type { HeartbeatTask, HeartbeatTaskRunRecordEntry } from '../../../core/runtime/heartbeat-task-store.js';
+import type { HeartbeatTask, HeartbeatTaskRunRecordEntry } from '@/core/heartbeat/heartbeat-task-store.js';
 
 function testSession(overrides: Partial<ChatSession> & Pick<ChatSession, 'id' | 'name'>): ChatSession {
   return {

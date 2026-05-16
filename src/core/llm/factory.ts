@@ -9,7 +9,7 @@ import { createOpenAiAdapter } from './openai.js';
 import type { LlmAdapter, LlmProvider, ReasoningEffort } from './types.js';
 import { inferProviderFromModel } from './providers.js';
 import type { StoredProviderCredential } from '../auth/provider-credentials.js';
-import { resolveOAuthCredentialForModel } from '../runtime/api-keys.js';
+import { RuntimeCredentialService } from '../runtime/credentials/index.js';
 
 export type CreateLlmAdapterOptions = {
   provider?: LlmProvider;
@@ -27,7 +27,7 @@ export function createLlmAdapter(options: CreateLlmAdapterOptions = {}): LlmAdap
     ?? (provider === 'anthropic' ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL);
   const credential =
     options.credential
-    ?? (!options.apiKey && provider === 'openai' ? resolveOAuthCredentialForModel(model, {
+    ?? (!options.apiKey && provider === 'openai' ? RuntimeCredentialService.resolveOAuthCredentialForModel(model, {
       storePath: options.credentialStorePath,
     }) : undefined);
 

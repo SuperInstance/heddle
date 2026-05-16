@@ -1,10 +1,10 @@
 import type { ChatSession } from '../../../chat/types.js';
 import type { LlmProvider, ReasoningEffort } from '../../../llm/types.js';
-import type { ProviderCredentialSource } from '../../../runtime/api-keys.js';
+import type { ProviderCredentialSource } from '../../../runtime/credentials/index.js';
 import type {
   HeartbeatTask,
   HeartbeatTaskRunRecordEntry,
-} from '../../../runtime/heartbeat-task-store.js';
+} from '@/core/heartbeat/heartbeat-task-store.js';
 import type { SlashCommandResult } from '../result-types.js';
 
 export type SlashCommandExecutionContext = {

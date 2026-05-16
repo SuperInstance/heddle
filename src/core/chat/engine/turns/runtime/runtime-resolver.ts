@@ -3,14 +3,11 @@ import { DEFAULT_OPENAI_MODEL } from '@/core/config.js';
 import { createLlmAdapter } from '@/core/llm/factory.js';
 import { inferProviderFromModel } from '@/core/llm/providers.js';
 import {
-  formatMissingProviderCredentialMessage,
-  hasProviderCredentialForModel,
-  resolveApiKeyForModel,
-  resolveProviderCredentialSourceForModel,
-} from '@/core/runtime/api-keys.js';
+  RuntimeCredentialService,
+} from '@/core/runtime/credentials/index.js';
 import { appendAwarenessDomainSystemContext } from '@/core/awareness/domain-prompt.js';
 import { appendMemoryCatalogSystemContext } from '@/core/memory/catalog.js';
-import type { ApiKeyRuntime } from '@/core/runtime/api-keys.js';
+import type { ApiKeyRuntime } from '@/core/runtime/credentials/index.js';
 import type { ChatTurnRuntime, ResolveConversationTurnRuntimeArgs } from './types.js';
 
 /**
@@ -33,8 +30,8 @@ export class ConversationTurnRuntimeResolver {
     });
     const provider = inferProviderFromModel(model);
     const credentialRuntime = ConversationTurnRuntimeResolver.credentialRuntime(config);
-    const apiKey = config.apiKey ?? resolveApiKeyForModel(model, credentialRuntime);
-    const providerCredentialSource = resolveProviderCredentialSourceForModel(model, {
+    const apiKey = config.apiKey ?? RuntimeCredentialService.resolveApiKeyForModel(model, credentialRuntime);
+    const providerCredentialSource = RuntimeCredentialService.resolveCredentialSourceForModel(model, {
       ...credentialRuntime,
       apiKey,
       apiKeyProvider: config.apiKey ? 'explicit' : apiKey ? provider : undefined,
@@ -76,10 +73,10 @@ export class ConversationTurnRuntimeResolver {
   }
 
   private static assertCredential(args: { model: string; credentialRuntime: ApiKeyRuntime }) {
-    const hasCredential = hasProviderCredentialForModel(args.model, args.credentialRuntime);
+    const hasCredential = RuntimeCredentialService.hasCredentialForModel(args.model, args.credentialRuntime);
 
     if (!hasCredential) {
-      throw new Error(formatMissingProviderCredentialMessage(args.model));
+      throw new Error(RuntimeCredentialService.formatMissingCredentialMessage(args.model));
     }
   }
 }

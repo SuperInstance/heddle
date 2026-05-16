@@ -6,8 +6,8 @@ import {
   createLlmAdapter,
   createLogger,
   formatTraceForConsole,
-  resolveApiKeyForModel,
-  runAgentLoop,
+  AgentLoopRuntimeService,
+  RuntimeCredentialService,
   type RunResult,
 } from '../../../../index.js';
 import { runMaintenanceForRecordedCandidates } from '../../../../core/memory/maintenance-integration.js';
@@ -38,14 +38,14 @@ export class ControlPlaneAskController {
     const maxSteps = args.maxSteps ?? ControlPlaneAskController.parsePositiveInt(process.env.HEDDLE_MAX_STEPS) ?? 100;
     const logger = createLogger({ pretty: true, level: 'debug' });
     const memoryDir = join(args.stateRoot, 'memory');
-    const apiKey = resolveApiKeyForModel(model, {
+    const apiKey = RuntimeCredentialService.resolveApiKeyForModel(model, {
       apiKey: args.apiKey,
       apiKeyProvider: args.apiKey ? 'explicit' : undefined,
       preferApiKey: args.preferApiKey,
     });
     const llm = createLlmAdapter({ model, apiKey });
 
-    const result = await runAgentLoop({
+    const result = await AgentLoopRuntimeService.run({
       goal: args.goal,
       model,
       apiKey,

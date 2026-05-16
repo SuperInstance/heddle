@@ -4,7 +4,7 @@ import type {
   ConversationCompactionStatus,
 } from '../../observability/conversation-activity.js';
 import type { TraceSummarizerRegistry } from '../../observability/trace-summarizers.js';
-import type { AgentLoopEvent, RunAgentLoopOptions } from '../../runtime/agent-loop.js';
+import type { AgentLoopEvent, RunAgentLoopOptions } from '../../runtime/loop/index.js';
 import type { ChatMessage, ReasoningEffort } from '../../llm/types.js';
 import type { TraceEvent } from '../../types.js';
 import type { ChatSessionLeaseOwner } from './sessions/leases/index.js';

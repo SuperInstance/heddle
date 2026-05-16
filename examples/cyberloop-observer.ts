@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
   createCyberLoopObserver,
-  runAgentLoop,
+  AgentLoopRuntimeService,
   type CyberLoopCompatibleMiddleware,
   type HeddleRuntimeFrame,
   type LlmAdapter,
@@ -77,7 +77,7 @@ async function main() {
     },
   });
 
-  const result = await runAgentLoop({
+  const result = await AgentLoopRuntimeService.run({
     goal: 'What does this project do?',
     llm: createMockLlm(),
     tools: [inspectTool],

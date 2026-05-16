@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import type { AgentLoopResult } from '@/core/runtime/agent-loop.js';
+import type { AgentLoopResult } from '@/core/runtime/loop/index.js';
 import type { TraceEvent } from '@/core/types.js';
 import { runMaintenanceForRecordedCandidates } from '@/core/memory/maintenance-integration.js';
 import { summarizeTrace } from '@/core/observability/trace-summarizers.js';

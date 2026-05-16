@@ -1,6 +1,6 @@
 import type { LlmAdapter } from '@/core/llm/types.js';
-import type { AgentLoopResult } from '@/core/runtime/agent-loop.js';
-import type { AgentLoopEvent } from '@/core/runtime/events.js';
+import type { AgentLoopResult } from '@/core/runtime/loop/index.js';
+import type { AgentLoopEvent } from '@/core/runtime/loop/index.js';
 
 export type RunInlineTurnMemoryMaintenanceArgs = {
   memoryRoot: string;

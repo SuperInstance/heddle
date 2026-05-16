@@ -55,8 +55,10 @@ tooling, approval policy, memory, situation awareness, traces, and evaluation.
 
 ## Architecture Map
 
-- `src/core/runtime/` owns agent runtime boundaries, heartbeat, default tools,
-  and host-facing execution.
+- `src/core/runtime/` owns agent runtime boundaries, default tools, and
+  host-facing execution.
+- `src/core/heartbeat/` owns autonomous wake cycles, heartbeat scheduling,
+  checkpoint reuse, and heartbeat task/run views.
 - `src/core/chat/engine/` owns persisted conversation sessions, turns,
   compaction, leases, approvals, traces, and package-level programmatic use.
 - `src/core/chat/` defines the shared chat boundary and layering guidance above
@@ -108,8 +110,8 @@ scope.
 
 ## Common Discovery Paths
 
-- Agent loop and runtime: `src/core/runtime/agent-loop.ts`,
-  `src/core/agent/service.ts`, `src/core/runtime/default-tools.ts`.
+- Agent loop and runtime: `src/core/runtime/loop/`,
+  `src/core/agent/service.ts`, `src/core/runtime/tools/`.
 - Tool behavior: `src/core/tools/toolkits/`, `src/core/tools/registry.ts`,
   `src/core/tools/execute-tool.ts`.
 - Shell and approvals: `src/core/tools/toolkits/shell-process/`,

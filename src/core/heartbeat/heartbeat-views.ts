@@ -1,3 +1,4 @@
+import type { LlmUsage } from '@/core/llm/types.js';
 import type {
   HeartbeatTask,
   HeartbeatTaskRunRecordEntry,
@@ -5,7 +6,6 @@ import type {
   HeartbeatTaskStore,
 } from './heartbeat-task-store.js';
 import type { HeartbeatDecision } from './heartbeat.js';
-import type { LlmUsage } from '../llm/types.js';
 
 export type HeartbeatTaskView = {
   taskId: string;

@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  createAgentLoopCheckpoint,
   createFileHeartbeatTaskStore,
   runDueHeartbeatTasks,
   runHeartbeatScheduler,
@@ -11,8 +10,8 @@ import {
   type HeartbeatTask,
   type HeartbeatTaskStore,
 } from '../../../index.js';
-import type { AgentHeartbeatResult } from '../../../core/runtime/heartbeat.js';
-import type { AgentLoopCheckpoint } from '../../../core/runtime/events.js';
+import type { AgentHeartbeatResult } from '@/core/heartbeat/heartbeat.js';
+import { AgentLoopCheckpointService, type AgentLoopCheckpoint } from '../../../core/runtime/loop/index.js';
 
 const NOW = new Date('2026-04-13T00:00:00.000Z');
 
@@ -295,7 +294,7 @@ function createHeartbeatResult(decision: AgentHeartbeatResult['decision']): Agen
     decision,
     summary,
     state,
-    checkpoint: createAgentLoopCheckpoint(state, {
+    checkpoint: AgentLoopCheckpointService.createCheckpoint(state, {
       createdAt: '2026-04-13T00:00:01.000Z',
     }),
   };

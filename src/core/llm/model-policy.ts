@@ -1,5 +1,5 @@
 import { DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL } from '../config.js';
-import type { ProviderCredentialSource } from '../runtime/api-keys.js';
+import type { ProviderCredentialSource } from '../runtime/credentials/index.js';
 import { isOpenAiAccountSignInModel, OPENAI_ACCOUNT_SIGN_IN_MODELS } from './openai-models.js';
 import type { LlmProvider, ReasoningEffort } from './types.js';
 

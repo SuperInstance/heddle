@@ -7,7 +7,7 @@ import { AskCliHost } from '../../../cli/ask.js';
 import { ChatSessionRecords } from '../../../core/chat/engine/sessions/records/index.js';
 import { FileChatSessionRepository } from '../../../core/chat/engine/sessions/repository/index.js';
 import type { ChatSession } from '../../../core/chat/types.js';
-import * as agentLoopModule from '../../../core/runtime/agent-loop.js';
+import * as agentLoopModule from '../../../core/runtime/loop/index.js';
 import type { ResolvedRuntimeHost } from '../../../core/runtime/runtime-hosts.js';
 import type { RunResult } from '../../../index.js';
 import { createHeddleServerApp } from '../../../server/app.js';
@@ -42,7 +42,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Stateless answer.' },
       ],
     };
-    const runAgentLoopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
+    const runAgentLoopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(result as never);
 
     await AskCliHost.run('what is this project', {
       workspaceRoot,
@@ -88,7 +88,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Session-backed answer.' },
       ],
     };
-    vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
+    vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(result as never);
 
     await AskCliHost.run('inspect the repository', {
       workspaceRoot,
@@ -153,7 +153,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Follow-up answer.' },
       ],
     };
-    const runAgentLoopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockImplementation(async (options) => {
+    const runAgentLoopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockImplementation(async (options) => {
       expect(options.history).toEqual(existingSession.history);
       expect(options.goal).toBe('follow up question');
       return result as never;
@@ -186,7 +186,7 @@ describe('AskCliHost.run', () => {
     expect(new FileChatSessionRepository({ sessionStoragePath: sessionStoragePath }).readCatalog()).toEqual([]);
   });
 
-  it('preflight compacts an oversized session before ask-mode runAgentLoop executes', async () => {
+  it('preflight compacts an oversized session before ask-mode AgentLoopRuntimeService.run executes', async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-ask-cli-preflight-'));
     const stateRoot = join(workspaceRoot, '.heddle');
     const sessionStoragePath = join(stateRoot, 'chat-sessions.catalog.json');
@@ -285,7 +285,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Follow-up answer.' },
       ],
     };
-    const runAgentLoopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockImplementation(async (options) => {
+    const runAgentLoopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockImplementation(async (options) => {
       expect(options.history).toEqual(compactedHistory);
       return result as never;
     });
@@ -323,7 +323,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Remote stateless answer.' },
       ],
     };
-    vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
+    vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(result as never);
 
     const server = createHeddleServerApp({ workspaceRoot, stateRoot }).listen(0, '127.0.0.1');
     await onceListening(server);
@@ -385,7 +385,7 @@ describe('AskCliHost.run', () => {
         { role: 'assistant', content: 'Remote session answer.' },
       ],
     };
-    vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
+    vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(result as never);
 
     const server = createHeddleServerApp({ workspaceRoot, stateRoot }).listen(0, '127.0.0.1');
     await onceListening(server);

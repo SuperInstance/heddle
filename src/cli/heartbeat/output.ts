@@ -1,7 +1,7 @@
-import type { AgentLoopEvent, HeartbeatSchedulerEvent } from '../../index.js';
+import type { AgentHeartbeatEvent, HeartbeatSchedulerEvent } from '../../index.js';
 import { stripHeartbeatDecisionLine } from './summary.js';
 
-export function printAgentLoopEvent(event: AgentLoopEvent) {
+export function printAgentLoopEvent(event: AgentHeartbeatEvent) {
   switch (event.type) {
     case 'loop.started':
       process.stdout.write(`[heartbeat] agent started run=${event.runId} model=${event.model}\n`);

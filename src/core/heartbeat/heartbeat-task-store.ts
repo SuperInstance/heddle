@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import type { LlmUsage } from '@/core/llm/types.js';
+import type { AgentLoopCheckpoint } from '@/core/runtime/loop/index.js';
 import type { AgentHeartbeatResult, HeartbeatDecision } from './heartbeat.js';
-import type { AgentLoopCheckpoint } from './events.js';
-import type { LlmUsage } from '../llm/types.js';
 
 export type HeartbeatTask = {
   id: string;

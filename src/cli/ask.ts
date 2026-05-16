@@ -21,7 +21,7 @@ import {
   inferProviderFromModel,
   formatTraceForConsole,
   createLogger,
-  hasProviderCredentialForModel,
+  RuntimeCredentialService,
 } from '../index.js';
 import type { ResolvedRuntimeHost } from '../core/runtime/runtime-hosts.js';
 import { createConversationEngine } from '../core/chat/engine/index.js';
@@ -101,7 +101,7 @@ export class AskCliHost {
       return;
     }
 
-    const apiKeyPresent = hasProviderCredentialForModel(model, {
+    const apiKeyPresent = RuntimeCredentialService.hasCredentialForModel(model, {
       apiKey: options.apiKey,
       apiKeyProvider: 'explicit',
       preferApiKey: options.preferApiKey,
@@ -189,7 +189,7 @@ export class AskCliHost {
         name: options.createSessionName?.trim() || `Ask ${new Date().toISOString()}`,
         model: options.model,
         retention: options.createSessionName === undefined ? 'one_off' : 'reusable',
-        apiKeyPresent: hasProviderCredentialForModel(options.model, {
+        apiKeyPresent: RuntimeCredentialService.hasCredentialForModel(options.model, {
           apiKey: options.apiKey,
           apiKeyProvider: 'explicit',
           preferApiKey: options.preferApiKey,

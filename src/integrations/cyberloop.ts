@@ -1,4 +1,5 @@
-import type { AgentLoopEvent } from '../core/runtime/events.js';
+import type { AgentHeartbeatEvent } from '@/core/heartbeat/heartbeat.js';
+import type { AgentLoopEvent } from '@/core/runtime/loop/index.js';
 
 export type CyberLoopMetadataChannels = Record<string, unknown>;
 
@@ -55,7 +56,7 @@ export type HeddleRuntimeFrame = {
   tool?: string;
   toolCallId?: string;
   ok?: boolean;
-  rawEvent: AgentLoopEvent;
+  rawEvent: AgentHeartbeatEvent;
 };
 
 export type CyberLoopDriftLevel = 'unknown' | 'low' | 'medium' | 'high';
@@ -87,7 +88,7 @@ export type CreateRuntimeFrameEmbedderOptions = {
 };
 
 export type CyberLoopObserver = {
-  handleEvent: (event: AgentLoopEvent) => void;
+  handleEvent: (event: AgentHeartbeatEvent) => void;
   flush: () => Promise<void>;
 };
 
@@ -224,7 +225,7 @@ export function createCyberLoopObserver(options: CreateCyberLoopObserverOptions)
   };
 
   return {
-    handleEvent(event: AgentLoopEvent) {
+    handleEvent(event: AgentHeartbeatEvent) {
       enqueue(async () => {
         if (event.type === 'loop.started') {
           await setup(event);
@@ -259,7 +260,7 @@ function runtimeFrameKey(frame: HeddleRuntimeFrame): string {
 }
 
 export function eventToRuntimeFrame(
-  event: AgentLoopEvent,
+  event: AgentHeartbeatEvent,
   context: { runId?: string; goal?: string } = {},
 ): HeddleRuntimeFrame | undefined {
   const runId = 'runId' in event ? event.runId : context.runId;

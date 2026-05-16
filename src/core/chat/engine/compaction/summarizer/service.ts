@@ -1,11 +1,9 @@
 import { createLlmAdapter, inferProviderFromModel } from '@/core/llm/factory.js';
 import {
-  hasProviderCredentialForModel,
-  resolveApiKeyForModel,
-  resolveProviderCredentialSourceForModel,
+  RuntimeCredentialService,
   type ApiKeyRuntime,
   type ProviderCredentialSource,
-} from '@/core/runtime/api-keys.js';
+} from '@/core/runtime/credentials/index.js';
 import {
   credentialModeFromSource,
   resolveSystemSelectedModel,
@@ -48,12 +46,12 @@ export class ConversationArchiveSummarizer {
           credentialSource: options.summarizer?.credentialSource,
         }),
       });
-    const apiKey = options.summarizer?.apiKey ?? resolveApiKeyForModel(model);
+    const apiKey = options.summarizer?.apiKey ?? RuntimeCredentialService.resolveApiKeyForModel(model);
     const summarizerCredentialRuntime: ApiKeyRuntime = {
       apiKey,
       apiKeyProvider: options.summarizer?.apiKey ? 'explicit' : apiKey ? provider : undefined,
     };
-    if (!hasProviderCredentialForModel(model, summarizerCredentialRuntime)) {
+    if (!RuntimeCredentialService.hasCredentialForModel(model, summarizerCredentialRuntime)) {
       return { model };
     }
 
@@ -91,7 +89,7 @@ export class ConversationArchiveSummarizer {
       apiKeyProvider: explicitApiKey ? 'explicit' : undefined,
       credentialStorePath,
     };
-    return credentialModeFromSource(credentialSource ?? resolveProviderCredentialSourceForModel(activeModel, credentialRuntime));
+    return credentialModeFromSource(credentialSource ?? RuntimeCredentialService.resolveCredentialSourceForModel(activeModel, credentialRuntime));
   }
 
   static deriveShortDescription(summary: string): string | undefined {

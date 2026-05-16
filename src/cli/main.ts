@@ -20,7 +20,7 @@ import {
   repairMissingMemoryCatalogs,
   validateMemoryWorkspace,
 } from '../core/memory/validation.js';
-import { resolveApiKeyForModel } from '../core/runtime/api-keys.js';
+import { RuntimeCredentialService } from '../core/runtime/credentials/index.js';
 import { runAuthCli } from './auth.js';
 import { AskCliHost } from './ask.js';
 import { startChatCli } from './chat/index.js';
@@ -444,7 +444,7 @@ async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun
   }
 
   const model = options.model ?? process.env.OPENAI_MODEL ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_OPENAI_MODEL;
-  const apiKey = resolveApiKeyForModel(model);
+  const apiKey = RuntimeCredentialService.resolveApiKeyForModel(model);
   if (!apiKey) {
     throw new Error(`Missing provider API key for memory maintainer model: ${model}`);
   }

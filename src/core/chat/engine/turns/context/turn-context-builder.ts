@@ -1,4 +1,4 @@
-import { createDefaultAgentTools } from '@/core/runtime/default-tools.js';
+import { RuntimeToolService } from '@/core/runtime/tools/index.js';
 import { FileChatSessionRepository } from '@/core/chat/engine/sessions/repository/index.js';
 import { ConversationTurnRuntimeResolver } from '../runtime/index.js';
 import type {
@@ -24,7 +24,7 @@ export class ConversationTurnContextBuilder {
     const runtime = ConversationTurnRuntimeResolver.resolve({ config: runtimeConfig, session });
     const toolContext: ConversationTurnToolContextArgs = args;
     const toolRuntime: ConversationTurnToolRuntimeArgs = runtime;
-    const tools = createDefaultAgentTools({
+    const tools = RuntimeToolService.createDefaultAgentTools({
       ...toolContext,
       ...toolRuntime,
     });

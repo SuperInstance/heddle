@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { AgentLoopCheckpoint } from '@/core/runtime/loop/index.js';
 import { runAgentHeartbeat } from './heartbeat.js';
 import type { AgentHeartbeatResult, RunAgentHeartbeatOptions } from './heartbeat.js';
-import type { AgentLoopCheckpoint } from './events.js';
 
 export type HeartbeatCheckpointStore = {
   load: () => Promise<AgentLoopCheckpoint | undefined>;
