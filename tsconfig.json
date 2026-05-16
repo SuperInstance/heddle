@@ -16,7 +16,7 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/web/*"]
+      "@/*": ["src/*"]
     }
   },
   "include": ["src/**/*", "examples/**/*", "e2e/**/*", "scripts/**/*", "playwright.config.ts"],

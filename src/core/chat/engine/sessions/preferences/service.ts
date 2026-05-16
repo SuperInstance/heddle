@@ -1,6 +1,6 @@
-import type { ChatSession } from '../../../types.js';
-import { resolveDefaultReasoningEffort, supportsReasoningEffort } from '../../../../llm/model-policy.js';
-import type { ReasoningEffort } from '../../../../llm/types.js';
+import type { ChatSession } from '@/core/chat/types.js';
+import { resolveDefaultReasoningEffort, supportsReasoningEffort } from '@/core/llm/model-policy.js';
+import type { ReasoningEffort } from '@/core/llm/types.js';
 
 export type SessionExecutionPreferences = {
   model: string;
