@@ -1,4 +1,4 @@
-import type { ChatSessionLease } from '../../../types.js';
+import type { ChatSessionLease } from '@/core/chat/types.js';
 
 export type ChatSessionLeaseOwner = {
   ownerKind: ChatSessionLease['ownerKind'];

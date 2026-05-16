@@ -5,7 +5,7 @@
  * here. This class should not perform storage I/O; callers persist the returned
  * session through the owning service or repository.
  */
-import type { ChatSession, ChatSessionLease } from '../../../types.js';
+import type { ChatSession, ChatSessionLease } from '@/core/chat/types.js';
 import type { ChatSessionLeaseConflictOptions, ChatSessionLeaseOwner } from './types.js';
 
 const DEFAULT_SESSION_LEASE_STALE_AFTER_MS = 15 * 60 * 1000;

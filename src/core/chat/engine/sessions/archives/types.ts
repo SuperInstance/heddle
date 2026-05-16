@@ -1,5 +1,5 @@
-import type { ChatMessage } from '../../../../llm/types.js';
-import type { ChatArchiveManifest } from '../../../types.js';
+import type { ChatMessage } from '@/core/llm/types.js';
+import type { ChatArchiveManifest } from '@/core/chat/types.js';
 
 export type ChatArchivePaths = {
   sessionDir: string;

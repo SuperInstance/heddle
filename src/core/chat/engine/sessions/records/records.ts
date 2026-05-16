@@ -5,8 +5,8 @@
  * creation, timestamp, naming, and summary semantics here so the stateful
  * session service can compose them without growing scattered helper functions.
  */
-import { truncate } from '../../../../utils/text.js';
-import type { ChatSession, ConversationLine } from '../../../types.js';
+import { truncate } from '@/core/utils/text.js';
+import type { ChatSession, ConversationLine } from '@/core/chat/types.js';
 import type { CreateChatSessionRecordOptions } from './types.js';
 
 export class ChatSessionRecords {

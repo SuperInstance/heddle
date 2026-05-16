@@ -1,5 +1,5 @@
-import type { ReasoningEffort } from '../../../../llm/types.js';
-import type { ChatArchiveRecord, ChatContextStats, ChatSession, ChatSessionLease, ChatSessionRetention } from '../../../types.js';
+import type { ReasoningEffort } from '@/core/llm/types.js';
+import type { ChatArchiveRecord, ChatContextStats, ChatSession, ChatSessionLease, ChatSessionRetention } from '@/core/chat/types.js';
 
 export type ChatSessionCatalogEntry = {
   id: string;

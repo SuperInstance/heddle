@@ -4,7 +4,7 @@
  * Owns the prompt and LLM call used to suggest a short chat session title.
  * Storage and host auto-rename policy stay outside this class.
  */
-import type { ChatMessage, LlmAdapter } from '../../../../llm/types.js';
+import type { ChatMessage, LlmAdapter } from '@/core/llm/types.js';
 import type { GenerateChatSessionTitleInput } from './types.js';
 
 export class ChatSessionTitles {

@@ -4,9 +4,9 @@
  * Keep transcript-to-UI-message semantics here. This class should not know
  * about storage, host state, or session lifecycle policy.
  */
-import type { ChatMessage } from '../../../../llm/types.js';
-import { isCompactedHistorySummary } from '../../history/compaction.js';
-import type { ConversationLine } from '../../../types.js';
+import type { ChatMessage } from '@/core/llm/types.js';
+import { isCompactedHistorySummary } from '@/core/chat/engine/history/compaction.js';
+import type { ConversationLine } from '@/core/chat/types.js';
 
 export class ConversationLines {
   static fromHistory(history: ChatMessage[]): ConversationLine[] {

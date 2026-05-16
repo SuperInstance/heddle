@@ -20,7 +20,7 @@ import type { ChatSessionRepository } from './repository/types.js';
 import { ChatSessionLeases, type ChatSessionLeaseOwner } from './leases/index.js';
 import { buildCompactionRunningContext } from '../history/compaction.js';
 import { ChatSessionRecords, ConversationLines } from './records/index.js';
-import type { ChatSession } from '../../types.js';
+import type { ChatSession } from '@/core/chat/types.js';
 import type { ConversationEngineConfig } from '../types.js';
 import type { NormalizedConversationEngineConfig } from '../config.js';
 import type {

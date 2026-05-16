@@ -10,9 +10,9 @@
     "noEmit": true,
     "outDir": "../../dist/web-types",
     "rootDir": "../..",
-    "baseUrl": ".",
+    "baseUrl": "../..",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     },
     "types": ["vite/client"]
   },

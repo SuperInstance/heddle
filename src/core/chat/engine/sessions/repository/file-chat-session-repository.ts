@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import type { ChatMessage } from '../../../../llm/types.js';
+import type { ChatMessage } from '@/core/llm/types.js';
 import type {
   ChatArchiveRecord,
   ChatContextStats,
@@ -20,7 +20,7 @@ import type {
   ChatSessionRetention,
   ConversationLine,
   TurnSummary,
-} from '../../../types.js';
+} from '@/core/chat/types.js';
 import { ChatSessionRecords } from '../records/index.js';
 import type { ChatSessionCatalog, ChatSessionCatalogEntry, ChatSessionRepository, SessionStoragePaths } from './types.js';
 
