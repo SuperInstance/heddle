@@ -12,7 +12,7 @@ import { EngineConversationTurnService } from '../../../core/chat/engine/turns/s
 import { FileConversationSessionService } from '../../../core/chat/engine/sessions/service.js';
 import { ChatSessionRecords } from '../../../core/chat/engine/sessions/records/index.js';
 import { FileChatSessionRepository } from '../../../core/chat/engine/sessions/repository/index.js';
-import * as agentLoopModule from '../../../core/runtime/agent-loop.js';
+import * as agentLoopModule from '../../../core/runtime/loop/index.js';
 import type { ToolApprovalPolicy } from '../../../core/approvals/types.js';
 import { controlPlaneChatSessionsController } from '../../../server/features/control-plane/controllers/chat-sessions-controller.js';
 
@@ -308,7 +308,7 @@ describe('executeAgentTurn final message persistence', () => {
       ],
     };
 
-    const runAgentLoopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(result as never);
+    const runAgentLoopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(result as never);
 
     await executeAgentTurn({
       prompt,
@@ -497,7 +497,7 @@ describe('control-plane shared chat runtime integration', () => {
       apiKeyPresent: true,
     });
 
-    const loopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop')
+    const loopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run')
       .mockResolvedValueOnce({
         outcome: 'done',
         summary: 'First turn done.',
@@ -595,7 +595,7 @@ describe('conversation turn lifecycle', () => {
 
   it('passes approval policies and normalized host surfaces into the run loop', async () => {
     const storage = createConversationTurnStorage();
-    const loopSpy = vi.spyOn(agentLoopModule, 'runAgentLoop').mockResolvedValue(createLoopResult({
+    const loopSpy = vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockResolvedValue(createLoopResult({
       workspaceRoot: storage.workspaceRoot,
       prompt: 'Edit safely.',
       summary: 'Done.',
@@ -639,7 +639,7 @@ describe('conversation turn lifecycle', () => {
 
   it('clears the session lease when the run loop fails', async () => {
     const storage = createConversationTurnStorage();
-    vi.spyOn(agentLoopModule, 'runAgentLoop').mockRejectedValue(new Error('loop failed'));
+    vi.spyOn(agentLoopModule.AgentLoopRuntimeService, 'run').mockRejectedValue(new Error('loop failed'));
 
     await expect(EngineConversationTurnService.run({
       workspaceRoot: storage.workspaceRoot,

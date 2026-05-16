@@ -4,7 +4,7 @@ export type ToolToolkitContext = {
   workspaceRoot: string;
   model: string;
   apiKey?: string;
-  providerCredentialSource?: import('../runtime/api-keys.js').ProviderCredentialSource;
+  providerCredentialSource?: import('../runtime/credentials/index.js').ProviderCredentialSource;
   credentialStorePath?: string;
   memoryDir: string;
   memoryMode: 'none' | 'read-and-record' | 'maintainer' | 'legacy-full';

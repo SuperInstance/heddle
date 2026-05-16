@@ -14,11 +14,10 @@
 // For a no-key test of this API, see src/__tests__/agent-loop.test.ts.
 // ---------------------------------------------------------------------------
 
-import { runAgentLoop, type AgentLoopEvent } from '../src/core/runtime/agent-loop.js';
-import { createAgentLoopCheckpoint } from '../src/core/runtime/events.js';
+import { AgentLoopCheckpointService, AgentLoopRuntimeService, type AgentLoopEvent } from '../src/core/runtime/loop/index.js';
 import type { ToolDefinition } from '../src/core/types.js';
 import type { TraceEvent } from '../src/core/types.js';
-import { resolveProviderApiKey } from '../src/core/runtime/api-keys.js';
+import { RuntimeCredentialService } from '../src/core/runtime/credentials/index.js';
 import { inferProviderFromModel } from '../src/core/llm/providers.js';
 
 const DEFAULT_EXAMPLE_MODEL = 'gpt-5.1-codex-mini';
@@ -48,7 +47,7 @@ const echoTool: ToolDefinition = {
 async function main() {
   const model = process.env.HEDDLE_EXAMPLE_MODEL ?? process.env.OPENAI_MODEL ?? DEFAULT_EXAMPLE_MODEL;
   const provider = inferProviderFromModel(model);
-  const apiKey = resolveProviderApiKey(provider);
+  const apiKey = RuntimeCredentialService.resolveProviderApiKey(provider);
   if (!apiKey) {
     throw new Error(
       `Missing API key for ${provider}. ` +
@@ -56,7 +55,7 @@ async function main() {
     );
   }
 
-  const result = await runAgentLoop({
+  const result = await AgentLoopRuntimeService.run({
     goal:
       'Use the echo_context tool once, then explain in two short sentences how another app can embed Heddle as a programmatic agent loop.',
     model,
@@ -75,7 +74,7 @@ async function main() {
   console.log('\nFinal answer:\n');
   console.log(result.summary);
 
-  const checkpoint = createAgentLoopCheckpoint(result.state);
+  const checkpoint = AgentLoopCheckpointService.createCheckpoint(result.state);
   console.log('\nCheckpoint preview:\n');
   console.log(JSON.stringify({
     version: checkpoint.version,

@@ -1,5 +1,5 @@
 import type { LlmAdapter, LlmProvider, ReasoningEffort } from '@/core/llm/types.js';
-import type { ApiKeyRuntime, ProviderCredentialSource } from '@/core/runtime/api-keys.js';
+import type { ApiKeyRuntime, ProviderCredentialSource } from '@/core/runtime/credentials/index.js';
 import type { ChatSession } from '@/core/chat/types.js';
 
 export type ChatTurnRuntime = {

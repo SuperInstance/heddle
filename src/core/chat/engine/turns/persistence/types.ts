@@ -1,7 +1,7 @@
-import type { AgentLoopResult } from '@/core/runtime/agent-loop.js';
+import type { AgentLoopResult } from '@/core/runtime/loop/index.js';
 import type { RunResult } from '@/core/types.js';
 import type { ChatMessage } from '@/core/llm/types.js';
-import type { ProviderCredentialSource } from '@/core/runtime/api-keys.js';
+import type { ProviderCredentialSource } from '@/core/runtime/credentials/index.js';
 import type { TraceSummarizerRegistry } from '@/core/observability/trace-summarizers.js';
 import type { ChatSession, TurnSummary } from '@/core/chat/types.js';
 import type { ChatTurnHostPort } from '../host/index.js';

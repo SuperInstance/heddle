@@ -41,7 +41,7 @@ If you want a terminal-first coding agent with local state, review traces, works
 Heddle currently has two main programmatic layers:
 
 - `createConversationEngine`: an alpha API for persisted multi-turn sessions with session storage, compaction, approvals, traces, semantic activity, and custom frontends or local hosts
-- `runAgentLoop`: a lower-level single-run execution loop for hosts that do not need persisted chat or session behavior
+- `AgentLoopRuntimeService.run(...)`: a lower-level single-run execution loop for hosts that do not need persisted chat or session behavior
 
 If you want the programmatic surface, start with the [Programmatic use guide](docs/guides/programmatic-use.md).
 
@@ -334,7 +334,7 @@ More: [Semantic drift](docs/guides/semantic-drift.md)
 
 ### Programmatic runtime APIs
 
-Heddle is not only a CLI. The npm package also exposes runtime primitives such as `runAgentLoop` and `runAgentHeartbeat` so other hosts can build on top of it.
+Heddle is not only a CLI. The npm package also exposes runtime primitives such as `AgentLoopRuntimeService.run(...)` and `runAgentHeartbeat` so other hosts can build on top of it.
 
 This is for people building their own agent hosts, schedulers, or control surfaces rather than only using the packaged CLI.
 

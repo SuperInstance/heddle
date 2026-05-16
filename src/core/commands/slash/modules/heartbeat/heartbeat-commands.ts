@@ -4,7 +4,7 @@ import type { SlashCommandModule } from '../../types.js';
 import type {
   HeartbeatTask,
   HeartbeatTaskRunRecordEntry,
-} from '../../../../runtime/heartbeat-task-store.js';
+} from '@/core/heartbeat/heartbeat-task-store.js';
 import type { SlashCommandExecutionContext } from '../context.js';
 import { argumentAfterPrefix, slashMessageResult } from '../results.js';
 

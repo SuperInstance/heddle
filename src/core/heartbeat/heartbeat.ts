@@ -1,16 +1,37 @@
 import { resolve } from 'node:path';
 import type { Logger } from 'pino';
-import { appendMemoryCatalogSystemContext } from '../memory/catalog.js';
-import type { ChatMessage, LlmAdapter } from '../llm/types.js';
-import type { ToolCall, ToolDefinition } from '../types.js';
-import type { ToolApprovalPolicy } from '../approvals/types.js';
-import { runAgentLoop } from './agent-loop.js';
-import { createAgentLoopCheckpoint } from './events.js';
-import type { AgentLoopCheckpoint, AgentLoopEvent, AgentLoopState } from './events.js';
+import type { ToolApprovalPolicy } from '@/core/approvals/types.js';
+import type { ChatMessage, LlmAdapter } from '@/core/llm/types.js';
+import { appendMemoryCatalogSystemContext } from '@/core/memory/catalog.js';
+import { AgentLoopCheckpointService, AgentLoopRuntimeService } from '@/core/runtime/loop/index.js';
+import type { AgentLoopCheckpoint, AgentLoopEvent, AgentLoopState } from '@/core/runtime/loop/index.js';
+import type { StopReason } from '@/core/types.js';
+import type { ToolCall, ToolDefinition } from '@/core/types.js';
 
 const DEFAULT_HEARTBEAT_MAX_STEPS = 80;
 
 export type HeartbeatDecision = 'continue' | 'pause' | 'complete' | 'escalate';
+
+export type HeartbeatDecisionEvent = {
+  type: 'heartbeat.decision';
+  runId: string;
+  decision: HeartbeatDecision;
+  outcome: StopReason;
+  summary: string;
+  timestamp: string;
+};
+
+export type HeartbeatEscalationEvent = {
+  type: 'escalation.required';
+  runId: string;
+  task: string;
+  outcome: StopReason;
+  summary: string;
+  step: number;
+  timestamp: string;
+};
+
+export type AgentHeartbeatEvent = AgentLoopEvent | HeartbeatDecisionEvent | HeartbeatEscalationEvent;
 
 export type RunAgentHeartbeatOptions = {
   task: string;
@@ -30,7 +51,7 @@ export type RunAgentHeartbeatOptions = {
   includeDefaultTools?: boolean;
   includePlanTool?: boolean;
   logger?: Logger;
-  onEvent?: (event: AgentLoopEvent) => void;
+  onEvent?: (event: AgentHeartbeatEvent) => void;
   approvalPolicies?: ToolApprovalPolicy[];
   approveToolCall?: (call: ToolCall, tool: ToolDefinition) => Promise<{ approved: boolean; reason?: string }>;
   shouldStop?: () => boolean;
@@ -51,7 +72,7 @@ export async function runAgentHeartbeat(options: RunAgentHeartbeatOptions): Prom
     memoryRoot: memoryDir,
   }));
 
-  const result = await runAgentLoop({
+  const result = await AgentLoopRuntimeService.run({
     goal: buildHeartbeatGoal(options.task),
     model: options.model,
     apiKey: options.apiKey,
@@ -78,7 +99,7 @@ export async function runAgentHeartbeat(options: RunAgentHeartbeatOptions): Prom
 
   const decision = inferHeartbeatDecision(result.summary, result.outcome);
   const runId = result.state.runId;
-  const checkpoint = createAgentLoopCheckpoint(result.state);
+  const checkpoint = AgentLoopCheckpointService.createCheckpoint(result.state);
   const now = () => new Date().toISOString();
 
   options.onEvent?.({

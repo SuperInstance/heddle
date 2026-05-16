@@ -4,13 +4,9 @@ import type { LlmProvider } from '../../../index.js';
 import type { ResolvedRuntimeHost } from '../../../core/runtime/runtime-hosts.js';
 import { resolveProviderCredentialStorePath } from '../../../core/auth/provider-credentials.js';
 import {
-  hasProviderCredentialForModel as hasRuntimeProviderCredentialForModel,
+  RuntimeCredentialService,
   type ProviderCredentialSource,
-  resolveOAuthCredentialForModel,
-  resolveApiKeyForModel as resolveRuntimeApiKeyForModel,
-  resolveProviderCredentialSourceForModel as resolveRuntimeProviderCredentialSourceForModel,
-  resolveProviderApiKey as resolveRuntimeProviderApiKey,
-} from '../../../core/runtime/api-keys.js';
+} from '../../../core/runtime/credentials/index.js';
 import { parsePositiveInt } from './format.js';
 
 export type ChatCliOptions = {
@@ -71,10 +67,10 @@ export function resolveChatRuntimeConfig(options: ChatCliOptions): ChatRuntimeCo
   const preferApiKey = Boolean(options.preferApiKey);
   const oauthCredential =
     options.apiKey || preferApiKey ? undefined
-    : resolveOAuthCredentialForModel(model, { storePath: credentialStorePath });
-  const apiKey = options.apiKey ?? (oauthCredential ? undefined : resolveProviderApiKey(provider));
+    : RuntimeCredentialService.resolveOAuthCredentialForModel(model, { storePath: credentialStorePath });
+  const apiKey = options.apiKey ?? (oauthCredential ? undefined : RuntimeCredentialService.resolveProviderApiKey(provider));
   const apiKeyProvider = options.apiKey ? 'explicit' : apiKey ? provider : undefined;
-  const providerCredentialSource = resolveProviderCredentialSourceForModel(model, {
+  const providerCredentialSource = RuntimeCredentialService.resolveCredentialSourceForModel(model, {
     apiKey,
     apiKeyProvider,
     credentialStorePath,
@@ -112,23 +108,23 @@ export function resolveProviderCredentialSourceForModel(
   model: string,
   runtime?: Pick<ChatRuntimeConfig, 'apiKey' | 'apiKeyProvider' | 'preferApiKey'> & { credentialStorePath?: string },
 ): ProviderCredentialSource {
-  return resolveRuntimeProviderCredentialSourceForModel(model, runtime);
+  return RuntimeCredentialService.resolveCredentialSourceForModel(model, runtime);
 }
 
 export function resolveProviderApiKey(provider: LlmProvider): string | undefined {
-  return resolveRuntimeProviderApiKey(provider);
+  return RuntimeCredentialService.resolveProviderApiKey(provider);
 }
 
 export function resolveApiKeyForModel(
   model: string,
   runtime?: Pick<ChatRuntimeConfig, 'apiKey' | 'apiKeyProvider' | 'credentialStorePath' | 'preferApiKey'>,
 ): string | undefined {
-  return resolveRuntimeApiKeyForModel(model, runtime);
+  return RuntimeCredentialService.resolveApiKeyForModel(model, runtime);
 }
 
 export function hasProviderCredentialForModel(
   model: string,
   runtime?: Pick<ChatRuntimeConfig, 'apiKey' | 'apiKeyProvider' | 'credentialStorePath' | 'preferApiKey'>,
 ): boolean {
-  return hasRuntimeProviderCredentialForModel(model, runtime);
+  return RuntimeCredentialService.hasCredentialForModel(model, runtime);
 }

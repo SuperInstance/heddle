@@ -16,6 +16,6 @@
     },
     "types": ["vite/client"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "../server/**/*.ts", "../core/runtime/heartbeat-views.ts", "../core/llm/types.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../server/**/*.ts", "../core/heartbeat/heartbeat-views.ts", "../core/llm/types.ts"],
   "exclude": ["../../node_modules", "../../dist"]
 }

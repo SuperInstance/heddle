@@ -1,7 +1,5 @@
 import {
-  formatMissingProviderCredentialMessage,
-  hasProviderCredentialForModel,
-  resolveApiKeyForModel,
+  RuntimeCredentialService,
   runDueHeartbeatTasks,
   runHeartbeatScheduler,
   type HeartbeatTask,
@@ -29,9 +27,9 @@ export async function runHeartbeatWorkerCli(
   options: HeartbeatCliOptions,
 ) {
   const model = stringFlag(parsed.flags, 'model') ?? options.model ?? process.env.OPENAI_MODEL ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
-  const apiKey = resolveApiKeyForModel(model);
-  if (!hasProviderCredentialForModel(model)) {
-    throw new Error(formatMissingProviderCredentialMessage(model));
+  const apiKey = RuntimeCredentialService.resolveApiKeyForModel(model);
+  if (!RuntimeCredentialService.hasCredentialForModel(model)) {
+    throw new Error(RuntimeCredentialService.formatMissingCredentialMessage(model));
   }
 
   const heartbeat = {

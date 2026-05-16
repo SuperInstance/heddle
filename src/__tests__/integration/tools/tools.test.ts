@@ -28,7 +28,7 @@ import {
 } from '../../../core/tools/toolkits/knowledge/memory-notes.js';
 import { createMemoryCheckpointTool } from '../../../core/tools/toolkits/knowledge/memory-checkpoint.js';
 import { createRecordKnowledgeTool } from '../../../core/tools/toolkits/knowledge/record-knowledge.js';
-import { createDefaultAgentTools } from '../../../core/runtime/default-tools.js';
+import { RuntimeToolService } from '../../../core/runtime/tools/index.js';
 import { setStoredProviderCredential } from '../../../core/auth/provider-credentials.js';
 
 describe('tool input validation', () => {
@@ -258,7 +258,7 @@ describe('workspace-bound default tools', () => {
     const previousCwd = process.cwd();
     try {
       process.chdir(processRoot);
-      const tools = createDefaultAgentTools({
+      const tools = RuntimeToolService.createDefaultAgentTools({
         model: 'gpt-5.1-codex-mini',
         workspaceRoot,
         memoryMode: 'none',

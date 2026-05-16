@@ -2,23 +2,22 @@ import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runAgentLoop } from '../../../core/runtime/agent-loop.js';
-import { createAgentLoopCheckpoint, getHistoryFromAgentLoopCheckpoint, getHistoryFromAgentLoopState } from '../../../core/runtime/events.js';
-import { createDefaultAgentTools } from '../../../core/runtime/default-tools.js';
+import { AgentLoopCheckpointService, AgentLoopRuntimeService } from '../../../core/runtime/loop/index.js';
+import { RuntimeToolService } from '../../../core/runtime/tools/index.js';
 import { createToolkitToolBundle, type ToolToolkit } from '../../../core/tools/toolkit.js';
 import type { ChatMessage, LlmAdapter, LlmResponse } from '../../../core/llm/types.js';
-import type { AgentLoopEvent, ToolDefinition } from '../../../index.js';
+import type { AgentHeartbeatEvent, AgentLoopEvent, ToolDefinition } from '../../../index.js';
 import { createLogger } from '../../../core/utils/logger.js';
-import { runAgentHeartbeat } from '../../../core/runtime/heartbeat.js';
-import { runStoredHeartbeat, suggestNextHeartbeatDelayMs, type HeartbeatCheckpointStore } from '../../../core/runtime/heartbeat-store.js';
+import { runAgentHeartbeat } from '@/core/heartbeat/heartbeat.js';
+import { runStoredHeartbeat, suggestNextHeartbeatDelayMs, type HeartbeatCheckpointStore } from '@/core/heartbeat/heartbeat-store.js';
 
 const silentLogger = createLogger({ level: 'silent', console: false });
 
-describe('runAgentLoop', () => {
+describe('AgentLoopRuntimeService.run', () => {
   it('runs through the public execution loop and emits loop events around trace events', async () => {
     const workspaceRoot = resolve('/tmp/heddle-loop-test');
     const seenMessages: ChatMessage[][] = [];
-    const events: AgentLoopEvent[] = [];
+    const events: AgentHeartbeatEvent[] = [];
     const fakeLlm: LlmAdapter = {
       info: {
         provider: 'openai',
@@ -60,7 +59,7 @@ describe('runAgentLoop', () => {
       },
     };
 
-    const result = await runAgentLoop({
+    const result = await AgentLoopRuntimeService.run({
       goal: 'Use the echo tool.',
       llm: fakeLlm,
       tools: [echoTool],
@@ -114,7 +113,7 @@ describe('runAgentLoop', () => {
   });
 
   it('emits assistant stream events through the programmatic event stream', async () => {
-    const events: AgentLoopEvent[] = [];
+    const events: AgentHeartbeatEvent[] = [];
     const fakeLlm: LlmAdapter = {
       info: {
         provider: 'anthropic',
@@ -133,7 +132,7 @@ describe('runAgentLoop', () => {
       },
     };
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Say hello.',
       llm: fakeLlm,
       tools: [],
@@ -171,7 +170,7 @@ describe('runAgentLoop', () => {
       },
     };
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Say hello.',
       llm: fakeLlm,
       tools: [],
@@ -209,7 +208,7 @@ describe('runAgentLoop', () => {
       },
     };
 
-    await expect(runAgentLoop({
+    await expect(AgentLoopRuntimeService.run({
       goal: 'Use the fake LLM.',
       model: 'gpt-5.5',
       llm: fakeLlm,
@@ -244,7 +243,7 @@ describe('runAgentLoop', () => {
       },
     };
 
-    const first = await runAgentLoop({
+    const first = await AgentLoopRuntimeService.run({
       goal: 'First turn.',
       llm: fakeLlm,
       tools: [],
@@ -252,12 +251,12 @@ describe('runAgentLoop', () => {
       maxSteps: 1,
       logger: silentLogger,
     });
-    const checkpoint = createAgentLoopCheckpoint(first.state, {
+    const checkpoint = AgentLoopCheckpointService.createCheckpoint(first.state, {
       createdAt: '2026-04-11T00:00:00.000Z',
     });
 
-    expect(getHistoryFromAgentLoopState(first.state)).toEqual(first.transcript);
-    expect(getHistoryFromAgentLoopCheckpoint(checkpoint)).toEqual(first.transcript);
+    expect(AgentLoopCheckpointService.historyFromState(first.state)).toEqual(first.transcript);
+    expect(AgentLoopCheckpointService.historyFromCheckpoint(checkpoint)).toEqual(first.transcript);
     expect(JSON.parse(JSON.stringify(checkpoint))).toMatchObject({
       version: 1,
       state: {
@@ -266,7 +265,7 @@ describe('runAgentLoop', () => {
       },
     });
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Second turn.',
       llm: fakeLlm,
       tools: [],
@@ -284,14 +283,14 @@ describe('runAgentLoop', () => {
   });
 });
 
-describe('createDefaultAgentTools', () => {
+describe('RuntimeToolService.createDefaultAgentTools', () => {
   it('creates the default runtime tool bundle with stable ordering and can omit planning for single-turn hosts', () => {
-    const withPlan = createDefaultAgentTools({
+    const withPlan = RuntimeToolService.createDefaultAgentTools({
       model: 'gpt-test',
       memoryDir: '/tmp/heddle-memory',
       includePlanTool: true,
     });
-    const withoutPlan = createDefaultAgentTools({
+    const withoutPlan = RuntimeToolService.createDefaultAgentTools({
       model: 'gpt-test',
       memoryDir: '/tmp/heddle-memory',
       includePlanTool: false,
@@ -338,17 +337,17 @@ describe('createDefaultAgentTools', () => {
   });
 
   it('supports explicit memory tool modes', () => {
-    const none = createDefaultAgentTools({
+    const none = RuntimeToolService.createDefaultAgentTools({
       model: 'gpt-test',
       memoryDir: '/tmp/heddle-memory',
       memoryMode: 'none',
     }).map((tool) => tool.name);
-    const maintainer = createDefaultAgentTools({
+    const maintainer = RuntimeToolService.createDefaultAgentTools({
       model: 'gpt-test',
       memoryDir: '/tmp/heddle-memory',
       memoryMode: 'maintainer',
     }).map((tool) => tool.name);
-    const legacy = createDefaultAgentTools({
+    const legacy = RuntimeToolService.createDefaultAgentTools({
       model: 'gpt-test',
       memoryDir: '/tmp/heddle-memory',
       memoryMode: 'legacy-full',
@@ -583,7 +582,7 @@ describe('AgentLoopEvent contracts', () => {
       },
     };
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Test tool events.',
       llm: fakeLlm,
       tools: [echoTool],
@@ -640,7 +639,7 @@ describe('AgentLoopEvent contracts', () => {
       },
     };
 
-    const first = await runAgentLoop({
+    const first = await AgentLoopRuntimeService.run({
       goal: 'First.',
       llm: fakeLlm,
       tools: [],
@@ -649,9 +648,9 @@ describe('AgentLoopEvent contracts', () => {
       logger: silentLogger,
     });
 
-    const checkpoint = createAgentLoopCheckpoint(first.state);
+    const checkpoint = AgentLoopCheckpointService.createCheckpoint(first.state);
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Second.',
       llm: fakeLlm,
       tools: [],
@@ -799,7 +798,7 @@ describe('AgentLoopEvent contracts', () => {
       },
     };
 
-    await runAgentLoop({
+    await AgentLoopRuntimeService.run({
       goal: 'Test correlation.',
       llm: fakeLlm,
       tools: [],

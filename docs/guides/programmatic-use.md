@@ -34,9 +34,9 @@ Compared with `createConversationEngine`, this is lower-level and more manual:
 - you are closer to the engine internals
 - you still get persisted session behavior, compaction, approvals, trace persistence, and memory maintenance
 
-### Use `runAgentLoop` for single-run embedding
+### Use `AgentLoopRuntimeService.run(...)` for single-run embedding
 
-Use `runAgentLoop` when you want an evented agent run without the persisted conversation/session layer.
+Use `AgentLoopRuntimeService.run(...)` when you want an evented agent run without the persisted conversation/session layer.
 
 This is the right choice when you want:
 
@@ -45,7 +45,7 @@ This is the right choice when you want:
 - default tools and model assembly without chat session persistence
 - checkpointable state that your own host will manage
 
-`runAgentLoop` is not the main persisted conversation API. It is the lower-level execution loop that the conversation engine builds on.
+`AgentLoopRuntimeService.run(...)` is not the main persisted conversation API. It is the lower-level execution loop that the conversation engine builds on.
 
 ### Use heartbeat APIs for scheduled or background wake cycles
 
@@ -183,12 +183,12 @@ See [`examples/conversation-engine.ts`](../../examples/conversation-engine.ts).
 import {
   createConversationEngine,
   inferProviderFromModel,
-  resolveProviderApiKey,
+  RuntimeCredentialService,
 } from '@roackb2/heddle'
 
 const model = process.env.HEDDLE_EXAMPLE_MODEL ?? 'gpt-5.1-codex-mini'
 const provider = inferProviderFromModel(model)
-const apiKey = resolveProviderApiKey(provider)
+const apiKey = RuntimeCredentialService.resolveProviderApiKey(provider)
 
 if (!apiKey) {
   throw new Error(
@@ -271,14 +271,14 @@ const result = await runConversationTurn({
 
 Choose this only when your host already owns session creation/storage details and only needs the low-level persisted turn runner. For new hosts, prefer `createConversationEngine`.
 
-## `runAgentLoop`
+## `AgentLoopRuntimeService.run(...)`
 
-Use `runAgentLoop` for lower-level single-run execution when you do not need persisted conversation sessions:
+Use `AgentLoopRuntimeService.run(...)` for lower-level single-run execution when you do not need persisted conversation sessions:
 
 ```ts
-import { runAgentLoop } from '@roackb2/heddle'
+import { AgentLoopRuntimeService } from '@roackb2/heddle'
 
-const result = await runAgentLoop({
+const result = await AgentLoopRuntimeService.run({
   goal: 'Inspect this repo and summarize the main architecture',
   model: 'gpt-5.4',
   reasoningEffort: 'medium',

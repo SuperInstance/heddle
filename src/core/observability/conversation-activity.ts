@@ -1,4 +1,4 @@
-import type { AgentLoopEvent } from '../runtime/events.js';
+import type { AgentLoopEvent } from '../runtime/loop/index.js';
 import type { TraceEvent, ToolCall } from '../types.js';
 import { truncate } from '../utils/text.js';
 

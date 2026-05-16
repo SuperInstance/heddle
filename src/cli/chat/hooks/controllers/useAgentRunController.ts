@@ -6,17 +6,14 @@ import type { ReasoningEffort } from '../../../../core/llm/types.js';
 import {
   createLogger,
   createLlmAdapter,
-  createDefaultAgentTools,
+  RuntimeToolService,
 } from '../../../../index.js';
 import type { CyberLoopObserverAnnotation } from '../../../../index.js';
 import type { EditFilePreview } from '../../../../core/tools/toolkits/coding-files/edit-file.js';
 import type { PlanItem } from '../../../../core/tools/toolkits/internal/update-plan.js';
 import {
-  formatMissingProviderCredentialMessage,
-  hasProviderCredentialForModel,
-  resolveApiKeyForModel,
-  resolveProviderCredentialSourceForModel,
-} from '../../../../core/runtime/api-keys.js';
+  RuntimeCredentialService,
+} from '../../../../core/runtime/credentials/index.js';
 import { ChatSessionRecords, ChatSessionTitles } from '../../../../core/chat/engine/sessions/records/index.js';
 import type { ConversationSessionService } from '../../../../core/chat/engine/types.js';
 import { normalizeSessionTitle } from '../../utils/format.js';
@@ -119,14 +116,14 @@ export type ChatDriftObserverOptions = {
 export function useAgentRunController(args: UseAgentRunArgs) {
   const { runtime, activeModel, activeReasoningEffort, sessionTitleModel, activeSessionId, sessions, state, sessionService, refreshSessions, updateSessionById } = args;
   const projectApprovals = useProjectApprovals(runtime.approvalsFile);
-  const activeApiKey = resolveApiKeyForModel(activeModel, runtime);
-  const titleApiKey = resolveApiKeyForModel(sessionTitleModel, runtime);
+  const activeApiKey = RuntimeCredentialService.resolveApiKeyForModel(activeModel, runtime);
+  const titleApiKey = RuntimeCredentialService.resolveApiKeyForModel(sessionTitleModel, runtime);
   const titleCredentialSource = useMemo(
-    () => resolveProviderCredentialSourceForModel(sessionTitleModel, runtime),
+    () => RuntimeCredentialService.resolveCredentialSourceForModel(sessionTitleModel, runtime),
     [runtime, sessionTitleModel],
   );
   const activeCredentialSource = useMemo(
-    () => resolveProviderCredentialSourceForModel(activeModel, runtime),
+    () => RuntimeCredentialService.resolveCredentialSourceForModel(activeModel, runtime),
     [activeModel, runtime],
   );
 
@@ -145,7 +142,7 @@ export function useAgentRunController(args: UseAgentRunArgs) {
   );
   const tools = useMemo(
     () => {
-      return createDefaultAgentTools({
+      return RuntimeToolService.createDefaultAgentTools({
         model: activeModel,
         apiKey: activeApiKey,
         providerCredentialSource: activeCredentialSource,
@@ -278,8 +275,8 @@ export async function executeAgentTurn(args: ExecuteTurnArgs): Promise<RunResult
     return undefined;
   }
 
-  if (!hasProviderCredentialForModel(llm.info?.model ?? runtime.model, runtime)) {
-    state.setError(formatMissingProviderCredentialMessage(llm.info?.model ?? runtime.model));
+  if (!RuntimeCredentialService.hasCredentialForModel(llm.info?.model ?? runtime.model, runtime)) {
+    state.setError(RuntimeCredentialService.formatMissingCredentialMessage(llm.info?.model ?? runtime.model));
     state.setStatus('Error');
     return undefined;
   }

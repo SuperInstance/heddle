@@ -1,5 +1,5 @@
-import type { RunAgentLoopOptions } from '@/core/runtime/agent-loop.js';
-import type { AgentLoopEvent } from '@/core/runtime/events.js';
+import type { RunAgentLoopOptions } from '@/core/runtime/loop/index.js';
+import type { AgentLoopEvent } from '@/core/runtime/loop/index.js';
 import type { PersistChatTurnCompactionStatus } from '../persistence/index.js';
 import type { ChatTurnPreflightCompactionStatus } from '../preflight/index.js';
 

@@ -1,0 +1,114 @@
+import {
+  getStoredProviderCredential,
+  type StoredProviderCredential,
+} from '@/core/auth/provider-credentials.js';
+import { inferProviderFromModel } from '@/core/llm/providers.js';
+import type { LlmProvider } from '@/core/llm/types.js';
+import type { ApiKeyRuntime, ProviderCredentialSource } from './types.js';
+
+/**
+ * Resolves runtime credential sources for provider-backed agent execution.
+ */
+export class RuntimeCredentialService {
+  static resolveProviderApiKey(provider: LlmProvider): string | undefined {
+    switch (provider) {
+      case 'openai':
+        return this.firstDefinedNonEmpty(process.env.OPENAI_API_KEY, process.env.PERSONAL_OPENAI_API_KEY);
+      case 'anthropic':
+        return this.firstDefinedNonEmpty(process.env.ANTHROPIC_API_KEY, process.env.PERSONAL_ANTHROPIC_API_KEY);
+      case 'google':
+        return undefined;
+    }
+  }
+
+  static resolveApiKeyForModel(model: string, runtime?: ApiKeyRuntime): string | undefined {
+    const source = this.resolveCredentialSourceForModel(model, runtime);
+
+    if (source.type === 'explicit-api-key') {
+      return runtime?.apiKey;
+    }
+
+    if (source.type === 'env-api-key') {
+      return runtime?.apiKey && runtime.apiKeyProvider === source.provider ?
+          runtime.apiKey
+        : this.resolveProviderApiKey(source.provider);
+    }
+
+    return undefined;
+  }
+
+  static resolveOAuthCredentialForModel(
+    model: string,
+    options: { storePath?: string } = {},
+  ): Extract<StoredProviderCredential, { type: 'oauth' }> | undefined {
+    const provider = inferProviderFromModel(model);
+    const credential = getStoredProviderCredential(provider, options.storePath);
+    return credential?.type === 'oauth' ? credential : undefined;
+  }
+
+  static hasCredentialForModel(
+    model: string,
+    runtime?: ApiKeyRuntime & { credentialStorePath?: string },
+  ): boolean {
+    return this.resolveCredentialSourceForModel(model, runtime).type !== 'missing';
+  }
+
+  static resolveCredentialSourceForModel(
+    model: string,
+    runtime?: ApiKeyRuntime,
+  ): ProviderCredentialSource {
+    const provider = inferProviderFromModel(model);
+    if (runtime?.apiKey && runtime.apiKeyProvider === 'explicit') {
+      return { type: 'explicit-api-key' };
+    }
+
+    if (runtime?.preferApiKey) {
+      if (runtime.apiKey && runtime.apiKeyProvider === provider) {
+        return { type: 'env-api-key', provider };
+      }
+
+      const preferredApiKey = this.resolveProviderApiKey(provider);
+      if (preferredApiKey) {
+        return { type: 'env-api-key', provider };
+      }
+    }
+
+    const oauthCredential = this.resolveOAuthCredentialForModel(model, { storePath: runtime?.credentialStorePath });
+    if (oauthCredential) {
+      return {
+        type: 'oauth',
+        provider: oauthCredential.provider,
+        accountId: oauthCredential.accountId,
+        expiresAt: oauthCredential.expiresAt,
+      };
+    }
+
+    if (runtime?.apiKey && runtime.apiKeyProvider === provider) {
+      return { type: 'env-api-key', provider };
+    }
+
+    const apiKey = this.resolveProviderApiKey(provider);
+    if (apiKey) {
+      return { type: 'env-api-key', provider };
+    }
+
+    return { type: 'missing', provider };
+  }
+
+  static formatMissingCredentialMessage(model: string): string {
+    const provider = inferProviderFromModel(model);
+    if (provider === 'openai') {
+      return 'Missing OpenAI credential. Run `heddle auth login openai` to use OpenAI account sign-in, or set OPENAI_API_KEY for Platform API-key mode.';
+    }
+
+    if (provider === 'anthropic') {
+      return 'Missing Anthropic credential. Set ANTHROPIC_API_KEY for Anthropic models.';
+    }
+
+    return `Missing provider credential for ${provider}.`;
+  }
+
+  private static firstDefinedNonEmpty(...values: Array<string | undefined>): string | undefined {
+    return values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  }
+}

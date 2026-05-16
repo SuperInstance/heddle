@@ -15,7 +15,7 @@
 import {
   createConversationEngine,
   inferProviderFromModel,
-  resolveProviderApiKey,
+  RuntimeCredentialService,
   type ConversationActivity,
   type ConversationCompactionStatus,
   type ToolApprovalPolicyContext,
@@ -29,7 +29,7 @@ async function main() {
   const stateRoot = `${workspaceRoot}/.heddle`;
   const model = process.env.HEDDLE_EXAMPLE_MODEL ?? process.env.OPENAI_MODEL ?? DEFAULT_EXAMPLE_MODEL;
   const provider = inferProviderFromModel(model);
-  const apiKey = resolveProviderApiKey(provider);
+  const apiKey = RuntimeCredentialService.resolveProviderApiKey(provider);
 
   if (!apiKey) {
     throw new Error(

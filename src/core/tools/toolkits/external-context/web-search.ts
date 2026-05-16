@@ -24,9 +24,9 @@ import { validateModelCredentialCompatibility } from '../../../llm/model-policy.
 import type { LlmProvider } from '../../../llm/types.js';
 import { DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL } from '../../../config.js';
 import {
-  resolveOAuthCredentialForModel,
+  RuntimeCredentialService,
   type ProviderCredentialSource,
-} from '../../../runtime/api-keys.js';
+} from '../../../runtime/credentials/index.js';
 
 type WebSearchInput = {
   query: string;
@@ -101,7 +101,7 @@ async function executeOpenAiWebSearch(input: WebSearchInput, options: WebSearchT
   const model = options.model ?? process.env.OPENAI_WEB_SEARCH_MODEL ?? DEFAULT_OPENAI_MODEL;
   const oauthCredential =
     options.providerCredentialSource?.type === 'oauth' ?
-      resolveOAuthCredentialForModel(model, { storePath: options.credentialStorePath })
+      RuntimeCredentialService.resolveOAuthCredentialForModel(model, { storePath: options.credentialStorePath })
     : undefined;
 
   if (options.providerCredentialSource?.type === 'oauth' && !oauthCredential) {
@@ -155,7 +155,7 @@ async function executeOpenAiWebSearch(input: WebSearchInput, options: WebSearchT
 async function executeOpenAiOAuthWebSearch(
   input: WebSearchInput,
   options: WebSearchToolOptions & { model: string },
-  oauthCredential: NonNullable<ReturnType<typeof resolveOAuthCredentialForModel>>,
+  oauthCredential: NonNullable<ReturnType<typeof RuntimeCredentialService.resolveOAuthCredentialForModel>>,
 ): Promise<ToolResult> {
   const oauthFetch = createOpenAiOAuthFetch(oauthCredential, { storePath: options.credentialStorePath });
   const sseText = await executeOpenAiOAuthCodexSse({

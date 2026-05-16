@@ -14,8 +14,8 @@
 
 import { join } from 'node:path';
 import { inferProviderFromModel } from '../src/core/llm/providers.js';
-import { resolveProviderApiKey } from '../src/core/runtime/api-keys.js';
-import { createFileHeartbeatCheckpointStore, runStoredHeartbeat } from '../src/core/runtime/heartbeat-store.js';
+import { RuntimeCredentialService } from '../src/core/runtime/credentials/index.js';
+import { createFileHeartbeatCheckpointStore, runStoredHeartbeat } from '../src/core/heartbeat/heartbeat-store.js';
 
 const DEFAULT_EXAMPLE_MODEL = 'gpt-5.1-codex-mini';
 const CHECKPOINT_PATH = join(process.cwd(), '.heddle', 'examples', 'heartbeat-demo-checkpoint.json');
@@ -23,7 +23,7 @@ const CHECKPOINT_PATH = join(process.cwd(), '.heddle', 'examples', 'heartbeat-de
 async function main() {
   const model = process.env.HEDDLE_EXAMPLE_MODEL ?? process.env.OPENAI_MODEL ?? DEFAULT_EXAMPLE_MODEL;
   const provider = inferProviderFromModel(model);
-  const apiKey = resolveProviderApiKey(provider);
+  const apiKey = RuntimeCredentialService.resolveProviderApiKey(provider);
   if (!apiKey) {
     throw new Error(
       `Missing API key for ${provider}. ` +

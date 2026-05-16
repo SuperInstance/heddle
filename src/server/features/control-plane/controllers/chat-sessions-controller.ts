@@ -29,7 +29,7 @@ import type { ChatSession, TurnSummary } from '@/core/chat/types.js';
 import { DEFAULT_OPENAI_MODEL } from '@/core/config.js';
 import { credentialModeFromSource, resolveCompatibleActiveModel } from '@/core/llm/model-policy.js';
 import { inferProviderFromModel } from '@/core/llm/providers.js';
-import { hasProviderCredentialForModel, resolveProviderCredentialSourceForModel } from '@/core/runtime/api-keys.js';
+import { RuntimeCredentialService } from '@/core/runtime/credentials/index.js';
 import type { ToolCall, ToolDefinition } from '@/core/types.js';
 import { ControlPlaneChatSessionEventsController } from './chat-session-events.js';
 import { ControlPlaneChatSessionPresenter } from './chat-session-presenter.js';
@@ -85,7 +85,7 @@ export class ControlPlaneChatSessionsController {
       preferApiKey: args.preferApiKey,
       credentialStorePath: args.credentialStorePath,
     };
-    const apiKeyPresent = args.apiKeyPresent ?? hasProviderCredentialForModel(model, credentialRuntime);
+    const apiKeyPresent = args.apiKeyPresent ?? RuntimeCredentialService.hasCredentialForModel(model, credentialRuntime);
     const engine = createConversationEngine({
       ...engineInput,
       model,
@@ -366,7 +366,7 @@ export class ControlPlaneChatSessionsController {
   }): string {
     const activeModel = this.firstNonEmpty(args.model, process.env.OPENAI_MODEL, process.env.ANTHROPIC_MODEL) ?? DEFAULT_OPENAI_MODEL;
     const provider = inferProviderFromModel(activeModel);
-    const credentialMode = credentialModeFromSource(resolveProviderCredentialSourceForModel(activeModel, {
+    const credentialMode = credentialModeFromSource(RuntimeCredentialService.resolveCredentialSourceForModel(activeModel, {
       preferApiKey: args.preferApiKey,
       credentialStorePath: args.credentialStorePath,
     }));

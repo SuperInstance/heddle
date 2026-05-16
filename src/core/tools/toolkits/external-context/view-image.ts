@@ -22,7 +22,7 @@ import {
 } from '../../../llm/model-policy.js';
 import type { LlmProvider } from '../../../llm/types.js';
 import { DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL } from '../../../config.js';
-import { resolveOAuthCredentialForModel, type ProviderCredentialSource } from '../../../runtime/api-keys.js';
+import { RuntimeCredentialService, type ProviderCredentialSource } from '../../../runtime/credentials/index.js';
 
 type ViewImageInput = {
   path: string;
@@ -119,7 +119,7 @@ async function executeOpenAiImageView(args: {
   const model = args.options.model ?? DEFAULT_OPENAI_MODEL;
   const oauthCredential =
     args.options.providerCredentialSource?.type === 'oauth' ?
-      resolveOAuthCredentialForModel(model, { storePath: args.options.credentialStorePath })
+      RuntimeCredentialService.resolveOAuthCredentialForModel(model, { storePath: args.options.credentialStorePath })
     : undefined;
 
   if (args.options.providerCredentialSource?.type === 'oauth' && !oauthCredential) {

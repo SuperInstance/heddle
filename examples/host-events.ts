@@ -12,7 +12,7 @@
  *   HEDDLE_EXAMPLE_MODEL=gpt-5.1-codex-mini npx tsx examples/host-events.ts
  */
 
-import { runAgentLoop, runAgentHeartbeat, type AgentLoopEvent, type ToolDefinition } from '../src/index.js';
+import { AgentLoopRuntimeService, runAgentHeartbeat, type AgentHeartbeatEvent, type ToolDefinition } from '../src/index.js';
 import type { LlmAdapter, LlmResponse } from '../src/core/llm/types.js';
 
 // ---------------------------------------------------------------------------
@@ -77,9 +77,9 @@ const echoTool: ToolDefinition = {
 // ---------------------------------------------------------------------------
 class StructuredEventLogger {
   private runId: string | null = null;
-  private events: AgentLoopEvent[] = [];
+  private events: AgentHeartbeatEvent[] = [];
 
-  onEvent(event: AgentLoopEvent): void {
+  onEvent(event: AgentHeartbeatEvent): void {
     this.events.push(event);
 
     // Capture runId from first event for correlation
@@ -188,7 +188,7 @@ async function exampleBasicRun(): Promise<void> {
 
   const logger = new StructuredEventLogger();
 
-  await runAgentLoop({
+  await AgentLoopRuntimeService.run({
     goal: 'Simple demo task',
     llm: createMockLlm('success'),
     tools: [],
@@ -210,7 +210,7 @@ async function exampleToolTracking(): Promise<void> {
 
   const logger = new StructuredEventLogger();
 
-  await runAgentLoop({
+  await AgentLoopRuntimeService.run({
     goal: 'Use echo tool',
     llm: createMockLlm('tool-use'),
     tools: [echoTool],

@@ -5,59 +5,66 @@
 // Core loop
 export { AgentRunService } from './core/agent/index.js';
 export type { RunAgentOptions } from './core/agent/index.js';
-export { runAgentLoop } from './core/runtime/agent-loop.js';
-export type { AgentLoopEvent, AgentLoopResult, RunAgentLoopOptions } from './core/runtime/agent-loop.js';
-export { runAgentHeartbeat } from './core/runtime/heartbeat.js';
-export type { AgentHeartbeatResult, HeartbeatDecision, RunAgentHeartbeatOptions } from './core/runtime/heartbeat.js';
+export { AgentLoopCheckpointService, AgentLoopRuntimeService } from './core/runtime/loop/index.js';
+export type { AgentLoopCheckpoint, AgentLoopEvent, AgentLoopResult, AgentLoopState, AgentLoopStatus, RunAgentLoopOptions } from './core/runtime/loop/index.js';
+export { runAgentHeartbeat } from './core/heartbeat/heartbeat.js';
+export type {
+  AgentHeartbeatEvent,
+  AgentHeartbeatResult,
+  HeartbeatDecision,
+  HeartbeatDecisionEvent,
+  HeartbeatEscalationEvent,
+  RunAgentHeartbeatOptions,
+} from './core/heartbeat/heartbeat.js';
 export {
   createFileHeartbeatCheckpointStore,
   runStoredHeartbeat,
   suggestNextHeartbeatDelayMs,
-} from './core/runtime/heartbeat-store.js';
+} from './core/heartbeat/heartbeat-store.js';
 export type {
   FileHeartbeatCheckpointStoreOptions,
   HeartbeatCheckpointStore,
   RunStoredHeartbeatOptions,
   StoredHeartbeatResult,
-} from './core/runtime/heartbeat-store.js';
+} from './core/heartbeat/heartbeat-store.js';
 export {
   createFileHeartbeatTaskStore,
-} from './core/runtime/heartbeat-task-store.js';
+} from './core/heartbeat/heartbeat-task-store.js';
 export type {
   FileHeartbeatTaskStoreOptions,
   HeartbeatTask,
   HeartbeatTaskRunRecord,
   HeartbeatTaskRunRecordEntry,
   HeartbeatTaskStore,
-} from './core/runtime/heartbeat-task-store.js';
+} from './core/heartbeat/heartbeat-task-store.js';
 export {
   runDueHeartbeatTasks,
   runHeartbeatScheduler,
-} from './core/runtime/heartbeat-scheduler.js';
+} from './core/heartbeat/heartbeat-scheduler.js';
 export type {
   HeartbeatSchedulerEvent,
   HeartbeatTaskRunner,
   RunDueHeartbeatTasksOptions,
   RunDueHeartbeatTasksResult,
   RunHeartbeatSchedulerOptions,
-} from './core/runtime/heartbeat-scheduler.js';
+} from './core/heartbeat/heartbeat-scheduler.js';
 export {
   listHeartbeatRunViews,
   listHeartbeatTaskViews,
   loadHeartbeatRunView,
   projectHeartbeatRunView,
   projectHeartbeatTaskView,
-} from './core/runtime/heartbeat-views.js';
+} from './core/heartbeat/heartbeat-views.js';
 export type {
   HeartbeatRunView,
   HeartbeatTaskView,
-} from './core/runtime/heartbeat-views.js';
+} from './core/heartbeat/heartbeat-views.js';
 export {
   heartbeatSchedulerEventToLucidMessages,
   heartbeatRunViewToLucidMessages,
   heartbeatTaskStatusToLucidStatus,
   heartbeatTaskViewToLucidMessages,
-} from './core/runtime/heartbeat-lucid.js';
+} from './core/heartbeat/heartbeat-lucid.js';
 export type {
   LucidAgentMessage,
   LucidAgentProgressNotification,
@@ -65,24 +72,13 @@ export type {
   LucidAgentStatus,
   LucidAgentStatusNotification,
   LucidAdapterOptions,
-} from './core/runtime/heartbeat-lucid.js';
+} from './core/heartbeat/heartbeat-lucid.js';
 export {
-  createAgentLoopCheckpoint,
-  getHistoryFromAgentLoopCheckpoint,
-  getHistoryFromAgentLoopState,
-} from './core/runtime/events.js';
-export type { AgentLoopCheckpoint, AgentLoopState, AgentLoopStatus } from './core/runtime/events.js';
-export {
-  formatMissingProviderCredentialMessage,
-  hasProviderCredentialForModel,
-  resolveApiKeyForModel,
-  resolveOAuthCredentialForModel,
-  resolveProviderApiKey,
-  resolveProviderCredentialSourceForModel,
-} from './core/runtime/api-keys.js';
-export type { ApiKeyRuntime, ProviderCredentialSource } from './core/runtime/api-keys.js';
-export { createDefaultAgentTools } from './core/runtime/default-tools.js';
-export type { DefaultAgentToolsOptions } from './core/runtime/default-tools.js';
+  RuntimeCredentialService,
+} from './core/runtime/credentials/index.js';
+export type { ApiKeyRuntime, ProviderCredentialSource } from './core/runtime/credentials/index.js';
+export { RuntimeToolService } from './core/runtime/tools/index.js';
+export type { DefaultAgentToolsOptions } from './core/runtime/tools/index.js';
 export {
   createAwarenessService,
   createCodingAwarenessProvider,

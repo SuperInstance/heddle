@@ -1,6 +1,6 @@
 import type { ChatArchiveRecord, ChatContextStats, ChatSession } from '@/core/chat/types.js';
 import type { ChatMessage, LlmAdapter, LlmUsage } from '@/core/llm/types.js';
-import type { ProviderCredentialSource } from '@/core/runtime/api-keys.js';
+import type { ProviderCredentialSource } from '@/core/runtime/credentials/index.js';
 
 export type ConversationCompactionSummarizerOptions = {
   provider?: 'openai' | 'anthropic' | 'active';

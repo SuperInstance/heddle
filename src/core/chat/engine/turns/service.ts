@@ -1,4 +1,4 @@
-import { runAgentLoop } from '@/core/runtime/agent-loop.js';
+import { AgentLoopRuntimeService } from '@/core/runtime/loop/index.js';
 import { FileConversationSessionService } from '@/core/chat/engine/sessions/service.js';
 import type { NormalizedConversationEngineConfig } from '@/core/chat/engine/config.js';
 import type {
@@ -105,7 +105,7 @@ export class EngineConversationTurnService implements ConversationTurnService {
         throw new Error(preflight.message);
       }
 
-      const result = await runAgentLoop({
+      const result = await AgentLoopRuntimeService.run({
         ...agentLoopInput,
         goal: args.prompt,
         model: runtime.model,
