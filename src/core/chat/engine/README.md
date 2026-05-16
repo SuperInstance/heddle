@@ -35,6 +35,31 @@ If multiple hosts need the same answer to a question like "what does this
 session store?" or "what reasoning effort is actually in force?", the engine
 should expose one answer rather than letting each host improvise.
 
+## Service Structure Pattern
+
+The current `sessions/`, `turns/`, and `compaction/` domains are the reference
+shape for new engine services and major refactors.
+
+Use this pattern when it fits the domain:
+
+- `README.md` explains the boundary, owned behavior, and where adjacent logic
+  should live.
+- `types.ts` describes the public contract before readers need to inspect
+  implementation detail.
+- `service.ts` contains the main service class and grouped stateful behavior.
+- Repositories are classes that own persistence mechanics and serialization
+  boundaries.
+- Zod schemas or equivalent mature validators own persisted disk shapes instead
+  of ad hoc type guards.
+- Subdomains use classes for grouped behavior. Use static methods for pure
+  domain behavior that does not need an instance.
+- Add a brief top-of-file or class comment for meaningful classes explaining
+  what the class owns and how to decide whether new behavior belongs there.
+- Avoid loose one-off exported functions for domain behavior. Put behavior on
+  the owning service, repository, schema/codec, or focused subdomain class.
+- Use `@/...` imports for cross-domain references; reserve relative imports for
+  same-folder files and local subdomain indexes.
+
 ## Does Not Own
 
 - TUI rendering, React, Ink, server DTOs, or control-plane transport.

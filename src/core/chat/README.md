@@ -56,6 +56,11 @@ That module owns:
 ## Notes For Coding Agents
 
 - Put new programmatic conversation-engine behavior under `src/core/chat/engine`.
+- Treat the current engine services as the reference implementation pattern:
+  class-based services, explicit `types.ts` contracts, class-based
+  repositories, schema/codec-owned persistence validation, and no loose one-off
+  exported domain functions. Meaningful classes should also include a brief
+  responsibility comment so future agents know what belongs there.
 - Keep `src/core/chat/` itself small. If a new module here is not defining a
   shared contract or a real boundary, it probably belongs somewhere else.
 - If a value's meaning must stay consistent across hosts, the owning logic

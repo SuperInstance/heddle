@@ -289,6 +289,19 @@ Examples of shared questions the domain should answer once:
 - how compaction should run;
 - what trace events exist and what they mean.
 
+The current `src/core/chat/engine/` services are the reference code structure
+for this layer. When adding a new service or refactoring an existing one, prefer
+the engine pattern that has emerged there:
+
+- a local `README.md` for service boundary and placement rules;
+- `types.ts` files as the read-first contract;
+- class-based services and repositories for grouped stateful behavior;
+- schema/codec classes or mature validators for persisted disk contracts;
+- static class methods for pure domain behavior that still belongs to the
+  domain;
+- brief class or file-top comments explaining what meaningful classes own;
+- no loose one-off exported functions for service/domain behavior.
+
 ## Refactor Direction
 
 Do not pause feature development for a total rewrite. Use feature work to move
