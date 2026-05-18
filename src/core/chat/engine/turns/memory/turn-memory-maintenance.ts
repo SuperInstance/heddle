@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { AgentLoopResult } from '@/core/runtime/loop/index.js';
 import type { TraceEvent } from '@/core/types.js';
-import { runMaintenanceForRecordedCandidates } from '@/core/memory/maintenance-integration.js';
+import { MemoryMaintenanceIntegrationService } from '@/core/memory/maintenance-integration.js';
 import { TraceSummaryService } from '@/core/observability/index.js';
 import { ChatSessionRecords } from '@/core/chat/engine/sessions/records/index.js';
 import { FileChatSessionRepository } from '@/core/chat/engine/sessions/repository/index.js';
@@ -23,8 +23,10 @@ export class ConversationTurnMemoryMaintenance {
       source: args.source,
       trace: args.result.trace,
     };
-    const maintenance = await runMaintenanceForRecordedCandidates({
-      ...maintenanceInput,
+    const maintenance = await new MemoryMaintenanceIntegrationService(maintenanceInput.memoryRoot).runForRecordedCandidates({
+      llm: maintenanceInput.llm,
+      source: maintenanceInput.source,
+      trace: maintenanceInput.trace,
       maxSteps: 20,
       onTraceEvent: (event) =>
         args.onEvent?.({
@@ -54,8 +56,10 @@ export class ConversationTurnMemoryMaintenance {
 
   static async runBackground(args: ScheduleBackgroundTurnMemoryMaintenanceArgs) {
     const maintenanceInput: RunMemoryMaintenanceCoreArgs = args;
-    const maintenance = await runMaintenanceForRecordedCandidates({
-      ...maintenanceInput,
+    const maintenance = await new MemoryMaintenanceIntegrationService(maintenanceInput.memoryRoot).runForRecordedCandidates({
+      llm: maintenanceInput.llm,
+      source: maintenanceInput.source,
+      trace: maintenanceInput.trace,
       maxSteps: 20,
       onTraceEvent: (event) =>
         args.onEvent?.({

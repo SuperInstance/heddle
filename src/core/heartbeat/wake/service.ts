@@ -6,7 +6,7 @@
  * delegates model/tool stepping to `AgentLoopRuntimeService`.
  */
 import { resolve } from 'node:path';
-import { appendMemoryCatalogSystemContext } from '@/core/memory/catalog.js';
+import { MemoryCatalogService } from '@/core/memory/catalog.js';
 import { AgentLoopCheckpointService, AgentLoopRuntimeService } from '@/core/runtime/loop/index.js';
 import type { RunAgentLoopOptions } from '@/core/runtime/loop/index.js';
 import { HeartbeatDecisionPolicy } from './decision.js';
@@ -74,9 +74,8 @@ export class HeartbeatWakeService {
       ...runtimeOptions
     } = options;
     const memoryDir = providedMemoryDir ?? resolve(workspaceRoot ?? process.cwd(), stateDir ?? '.heddle', 'memory');
-    const systemContext = HeartbeatWakePrompt.appendSystemContext(appendMemoryCatalogSystemContext({
+    const systemContext = HeartbeatWakePrompt.appendSystemContext(new MemoryCatalogService(memoryDir).appendCatalogSystemContext({
       systemContext: providedSystemContext,
-      memoryRoot: memoryDir,
     }));
 
     return {

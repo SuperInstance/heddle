@@ -5,21 +5,11 @@ import { dirname, resolve } from 'node:path';
 import { chdir } from 'node:process';
 import { Command } from 'commander';
 import { DEFAULT_OPENAI_MODEL, LlmAdapterService } from '../index.js';
-import { bootstrapMemoryWorkspace } from '../core/memory/catalog.js';
-import {
-  readPendingKnowledgeCandidates,
-  runKnowledgeMaintenanceForBacklog,
-} from '../core/memory/maintainer.js';
-import {
-  listMemoryNotePaths,
-  loadMemoryStatus,
-  readMemoryNote,
-  searchMemoryNotes,
-} from '../core/memory/visibility.js';
-import {
-  repairMissingMemoryCatalogs,
-  validateMemoryWorkspace,
-} from '../core/memory/validation.js';
+import { MemoryCatalogService } from '../core/memory/catalog.js';
+import { MemoryMaintenanceService } from '../core/memory/maintainer.js';
+import { MemoryValidationService } from '../core/memory/validation.js';
+import { MemoryVisibilityService } from '../core/memory/visibility.js';
+import type { MemoryValidationResult } from '../core/memory/types.js';
 import { RuntimeCredentialService } from '@/core/runtime/credentials/index.js';
 import { AuthCliController } from './auth.js';
 import { AskCliHost } from './ask.js';
@@ -321,9 +311,11 @@ async function runMemoryCli(
   } = {},
 ) {
   const memoryRoot = resolve(options.workspaceRoot, options.stateDir, 'memory');
+  const catalog = new MemoryCatalogService(memoryRoot);
+  const visibility = new MemoryVisibilityService(memoryRoot);
 
   if (command === 'init') {
-    const result = bootstrapMemoryWorkspace({ memoryRoot });
+    const result = catalog.bootstrap();
     process.stdout.write(`Memory root: ${result.memoryRoot}\n`);
     process.stdout.write(
       result.createdPaths.length > 0 ?
@@ -334,7 +326,7 @@ async function runMemoryCli(
   }
 
   if (command === 'status') {
-    const result = await loadMemoryStatus({ memoryRoot });
+    const result = await visibility.loadStatus();
     process.stdout.write(`Memory root: ${result.memoryRoot}\n`);
     process.stdout.write(`Catalog shape: ${result.catalog.ok ? 'ok' : 'missing required catalogs'}\n`);
     process.stdout.write(`Notes: ${result.notes.count}\n`);
@@ -352,7 +344,7 @@ async function runMemoryCli(
   }
 
   if (command === 'list') {
-    const notes = await listMemoryNotePaths({ memoryRoot, path: flags.path });
+    const notes = await visibility.listNotePaths(flags.path);
     process.stdout.write(`Memory root: ${memoryRoot}\n`);
     process.stdout.write(notes.length > 0 ? `${notes.join('\n')}\n` : 'No memory notes found.\n');
     return;
@@ -362,8 +354,7 @@ async function runMemoryCli(
     if (!flags.path) {
       throw new Error('Usage: heddle memory read <path>');
     }
-    process.stdout.write(await readMemoryNote({
-      memoryRoot,
+    process.stdout.write(await visibility.readNote({
       path: flags.path,
       offset: flags.offset,
       maxLines: flags.maxLines,
@@ -376,8 +367,7 @@ async function runMemoryCli(
     if (!flags.query) {
       throw new Error('Usage: heddle memory search <query>');
     }
-    process.stdout.write(await searchMemoryNotes({
-      memoryRoot,
+    process.stdout.write(await visibility.searchNotes({
       query: flags.query,
       path: flags.path,
       maxResults: flags.maxResults,
@@ -392,8 +382,9 @@ async function runMemoryCli(
 
 async function runMemoryValidateCli(options: ResolvedCliOptions, flags: { repair: boolean }) {
   const memoryRoot = resolve(options.workspaceRoot, options.stateDir, 'memory');
+  const validationService = new MemoryValidationService(memoryRoot);
   if (flags.repair) {
-    const repair = await repairMissingMemoryCatalogs({ memoryRoot });
+    const repair = validationService.repairMissingCatalogs();
     process.stdout.write(`Memory root: ${repair.memoryRoot}\n`);
     process.stdout.write(
       repair.createdPaths.length > 0 ?
@@ -402,19 +393,21 @@ async function runMemoryValidateCli(options: ResolvedCliOptions, flags: { repair
     );
   }
 
-  const validation = await validateMemoryWorkspace({ memoryRoot });
+  const validation = await validationService.validate();
   writeMemoryValidation(validation);
 }
 
 async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun: boolean; reconcile: boolean }) {
   const memoryRoot = resolve(options.workspaceRoot, options.stateDir, 'memory');
+  const validationService = new MemoryValidationService(memoryRoot);
+  const maintenance = new MemoryMaintenanceService(memoryRoot);
   if (flags.reconcile) {
-    const repair = await repairMissingMemoryCatalogs({ memoryRoot });
+    const repair = validationService.repairMissingCatalogs();
     if (repair.createdPaths.length > 0) {
       process.stdout.write(`Repaired missing catalogs:\n${repair.createdPaths.map((path) => `- ${path}`).join('\n')}\n`);
     }
   }
-  const pending = await readPendingKnowledgeCandidates({ memoryRoot });
+  const pending = await maintenance.readPendingCandidates();
 
   if (flags.dryRun) {
     process.stdout.write(`Memory root: ${memoryRoot}\n`);
@@ -423,7 +416,7 @@ async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun
       process.stdout.write(`- ${candidate.id}: ${candidate.summary}\n`);
     }
     if (flags.reconcile) {
-      writeMemoryValidation(await validateMemoryWorkspace({ memoryRoot }));
+      writeMemoryValidation(await validationService.validate());
     }
     return;
   }
@@ -432,7 +425,7 @@ async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun
     process.stdout.write(`Memory root: ${memoryRoot}\n`);
     process.stdout.write('No pending memory candidates.\n');
     if (flags.reconcile) {
-      writeMemoryValidation(await validateMemoryWorkspace({ memoryRoot }));
+      writeMemoryValidation(await validationService.validate());
     }
     return;
   }
@@ -443,8 +436,7 @@ async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun
     throw new Error(`Missing provider API key for memory maintainer model: ${model}`);
   }
 
-  const result = await runKnowledgeMaintenanceForBacklog({
-    memoryRoot,
+  const result = await maintenance.runBacklog({
     llm: LlmAdapterService.create({
       model,
       credentials: { apiKey },
@@ -462,11 +454,11 @@ async function runMemoryMaintainCli(options: ResolvedCliOptions, flags: { dryRun
     process.stdout.write(`Missing:\n${result.run.catalogMissing.map((path) => `- ${path}`).join('\n')}\n`);
   }
   if (flags.reconcile) {
-    writeMemoryValidation(await validateMemoryWorkspace({ memoryRoot }));
+    writeMemoryValidation(await validationService.validate());
   }
 }
 
-function writeMemoryValidation(result: Awaited<ReturnType<typeof validateMemoryWorkspace>>) {
+function writeMemoryValidation(result: MemoryValidationResult) {
   const hasErrors = result.issues.some((issue) => issue.severity === 'error');
   const hasWarnings = result.issues.some((issue) => issue.severity === 'warning');
   const label =

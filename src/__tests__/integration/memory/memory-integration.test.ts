@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LlmAdapter, LlmResponse } from '../../../core/llm/types.js';
-import { bootstrapMemoryWorkspace } from '../../../core/memory/catalog.js';
-import { runMaintenanceForRecordedCandidates } from '../../../core/memory/maintenance-integration.js';
+import { MemoryCatalogService } from '../../../core/memory/catalog.js';
+import { MemoryMaintenanceIntegrationService } from '../../../core/memory/maintenance-integration.js';
 import type { TraceEvent } from '../../../core/types.js';
 
 const fakeInfo = {
@@ -21,7 +21,7 @@ const fakeInfo = {
 describe('memory maintenance integration', () => {
   it('maintains candidates recorded in a trace and emits lifecycle events', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-integration-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, '_maintenance', 'candidates.jsonl'), `${JSON.stringify({
       id: 'candidate-integration',
@@ -63,8 +63,7 @@ describe('memory maintenance integration', () => {
       () => ({ content: 'Maintained verification memory.' }),
     ]);
 
-    const result = await runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const result = await new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm,
       source: 'test integration',
       trace: [{
@@ -86,7 +85,7 @@ describe('memory maintenance integration', () => {
 
   it('emits maintenance failure without throwing', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-integration-fail-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, '_maintenance', 'candidates.jsonl'), `${JSON.stringify({
       id: 'candidate-fail',
@@ -102,8 +101,7 @@ describe('memory maintenance integration', () => {
       },
     };
 
-    const result = await runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const result = await new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm,
       source: 'test integration',
       trace: [{
@@ -124,7 +122,7 @@ describe('memory maintenance integration', () => {
 
   it('serializes maintenance runs per memory root', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-integration-queue-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, '_maintenance', 'candidates.jsonl'), [
       JSON.stringify({
@@ -163,15 +161,13 @@ describe('memory maintenance integration', () => {
       },
     };
 
-    const firstRun = runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const firstRun = new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm: firstLlm,
       source: 'first',
       trace: [candidateRecordedTrace('candidate-one')],
     });
     await firstEntered.promise;
-    const secondRun = runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const secondRun = new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm: secondLlm,
       source: 'second',
       trace: [candidateRecordedTrace('candidate-two')],
@@ -186,7 +182,7 @@ describe('memory maintenance integration', () => {
 
   it('fails gracefully when another process holds the maintenance lock', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-integration-lock-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, '_maintenance', 'maintenance.lock'), `${JSON.stringify({
       id: 'other-process',
@@ -209,8 +205,7 @@ describe('memory maintenance integration', () => {
       },
     };
 
-    const result = await runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const result = await new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm,
       source: 'locked',
       trace: [candidateRecordedTrace('candidate-locked')],
@@ -228,7 +223,7 @@ describe('memory maintenance integration', () => {
 
   it('recovers stale maintenance locks', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-integration-stale-lock-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, '_maintenance', 'maintenance.lock'), `${JSON.stringify({
       id: 'stale-process',
@@ -246,8 +241,7 @@ describe('memory maintenance integration', () => {
       () => ({ content: 'Processed after stale lock recovery.' }),
     ]);
 
-    const result = await runMaintenanceForRecordedCandidates({
-      memoryRoot,
+    const result = await new MemoryMaintenanceIntegrationService(memoryRoot).runForRecordedCandidates({
       llm,
       source: 'stale lock',
       trace: [candidateRecordedTrace('candidate-stale-lock')],
