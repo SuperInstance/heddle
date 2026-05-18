@@ -1,16 +1,19 @@
 import type { PropsWithChildren } from 'react';
-import { AppNavigation } from './components/AppNavigation';
-import { SettingsNavigation } from './components/SettingsNavigation';
-import type { AppSurfaceId, NavigationItem, SettingsSectionId } from './types';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@web/components/ui/resizable';
+import { ContextInspector, ConversationWorkspace, SessionSidebar } from '@web/components/panels';
+import { useI18n } from '@web/i18n';
+import type { AppSurfaceId, NavigationItem, SettingsSectionId } from '@web/layout/types';
 
 interface AppFrameProps {
   activeSurfaceId: AppSurfaceId;
   activeSettingsSectionId: SettingsSectionId;
-  appNavigationItems: NavigationItem[];
-  settingsNavigationItems: NavigationItem[];
+  appNavigationItems: readonly NavigationItem[];
+  settingsNavigationItems: readonly NavigationItem[];
   settingsOpen: boolean;
-  onAppNavigation: (id: AppSurfaceId) => void;
-  onSettingsNavigation: (id: SettingsSectionId) => void;
   onOpenSettings: () => void;
   onCloseSettings: () => void;
 }
@@ -23,34 +26,38 @@ export function AppFrame({
   appNavigationItems,
   settingsNavigationItems,
   settingsOpen,
-  onAppNavigation,
-  onSettingsNavigation,
   onOpenSettings,
   onCloseSettings,
   children,
 }: PropsWithChildren<AppFrameProps>) {
-  return (
-    <div className="flex h-dvh bg-background font-sans text-foreground">
-      <a className="sr-only focus:not-sr-only" href="#main-content">Skip to Main Content</a>
-      <aside className="flex w-60 shrink-0 flex-col border-r bg-card" aria-label="Primary navigation">
-        {settingsOpen ? (
-          <SettingsNavigation
-            activeItemId={activeSettingsSectionId}
-            items={settingsNavigationItems}
-            onBack={onCloseSettings}
-            onSelect={onSettingsNavigation}
-          />
-        ) : (
-          <AppNavigation
-            activeItemId={activeSurfaceId}
-            items={appNavigationItems}
-            onOpenSettings={onOpenSettings}
-            onSelect={onAppNavigation}
-          />
-        )}
-      </aside>
+  const { t } = useI18n();
 
-      <main id="main-content" className="min-w-0 flex-1">{children}</main>
+  return (
+    <div className="h-dvh bg-background font-sans text-foreground">
+      <a className="sr-only focus:not-sr-only" href="#main-content">{t('navigation.skipToMain')}</a>
+      <ResizablePanelGroup direction="horizontal">
+        <ResizablePanel defaultSize="16%" minSize="12rem" maxSize="28rem">
+          <SessionSidebar
+            activeSurfaceId={activeSurfaceId}
+            activeSettingsSectionId={activeSettingsSectionId}
+            appNavigationItems={appNavigationItems}
+            settingsNavigationItems={settingsNavigationItems}
+            settingsOpen={settingsOpen}
+            onOpenSettings={onOpenSettings}
+            onCloseSettings={onCloseSettings}
+          />
+        </ResizablePanel>
+
+        <ResizableHandle />
+        <ResizablePanel defaultSize="62%" minSize="32rem">
+          <ConversationWorkspace>{children}</ConversationWorkspace>
+        </ResizablePanel>
+
+        <ResizableHandle />
+        <ResizablePanel defaultSize="22%" minSize="14rem" maxSize="36rem">
+          <ContextInspector />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

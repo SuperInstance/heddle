@@ -1,37 +1,24 @@
-import { useState } from 'react';
-import { AppFrame } from './layout/AppFrame';
-import { APP_NAV_ITEMS, SETTINGS_NAV_ITEMS } from './layout/navigation';
-import type { AppSurfaceId, SettingsSectionId } from './layout/types';
-import { WorkbenchView } from './views/WorkbenchView';
+import { useWorkbenchNavigation } from '@web/hooks/useWorkbenchNavigation';
+import { AppFrame } from '@web/layout/AppFrame';
+import { AppRoutes } from '@web/layout/AppRoutes';
+import { APP_ROUTES, SETTINGS_ROUTES } from '@web/layout/routes';
 
 export function App() {
-  const [activeSurfaceId, setActiveSurfaceId] = useState<AppSurfaceId>('sessions');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeSettingsSectionId, setActiveSettingsSectionId] = useState<SettingsSectionId>('general');
+  const navigation = useWorkbenchNavigation();
 
   return (
     <AppFrame
-      activeSurfaceId={activeSurfaceId}
-      activeSettingsSectionId={activeSettingsSectionId}
-      appNavigationItems={APP_NAV_ITEMS}
-      settingsNavigationItems={SETTINGS_NAV_ITEMS}
-      settingsOpen={settingsOpen}
-      onAppNavigation={(id) => {
-        setActiveSurfaceId(id);
-        setSettingsOpen(false);
-      }}
-      onSettingsNavigation={setActiveSettingsSectionId}
-      onOpenSettings={() => {
-        setSettingsOpen(true);
-      }}
-      onCloseSettings={() => {
-        setSettingsOpen(false);
-      }}
+      activeSurfaceId={navigation.activeSurfaceId}
+      activeSettingsSectionId={navigation.activeSettingsSectionId}
+      appNavigationItems={APP_ROUTES}
+      settingsNavigationItems={SETTINGS_ROUTES}
+      settingsOpen={navigation.settingsOpen}
+      onOpenSettings={navigation.openSettings}
+      onCloseSettings={navigation.closeSettings}
     >
-      <WorkbenchView
-        activeSurfaceId={activeSurfaceId}
-        activeSettingsSectionId={activeSettingsSectionId}
-        settingsOpen={settingsOpen}
+      <AppRoutes
+        activeSurfaceId={navigation.activeSurfaceId}
+        activeSettingsSectionId={navigation.activeSettingsSectionId}
       />
     </AppFrame>
   );
