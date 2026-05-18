@@ -207,9 +207,12 @@ export {
 export type { BuiltInModelGroup } from './core/llm/models/index.js';
 
 // Tools
-export { createToolRegistry } from './core/tools/registry.js';
-export type { ToolRegistry } from './core/tools/registry.js';
-export { executeTool } from './core/tools/execute-tool.js';
+export {
+  ToolBundleComposer,
+  ToolExecutionService,
+  ToolRegistry,
+} from './core/tools/index.js';
+export type { ToolToolkit, ToolToolkitContext } from './core/tools/index.js';
 export { listFilesTool } from './core/tools/toolkits/coding-files/list-files.js';
 export { readFileTool } from './core/tools/toolkits/coding-files/read-file.js';
 export { editFileTool } from './core/tools/toolkits/coding-files/edit-file.js';
@@ -273,9 +276,15 @@ export type {
 } from './core/approvals/remembered-rules/index.js';
 
 // Trace
-export { createTraceRecorder } from './core/trace/recorder.js';
-export type { TraceRecorder } from './core/trace/recorder.js';
-export { formatTraceForConsole } from './core/trace/format.js';
+export { TraceConsoleFormatter, TraceRecorder } from './core/trace/index.js';
+export type { TraceRecordSink } from './core/trace/index.js';
+export { ReviewDiffParser } from './core/review/index.js';
+export type {
+  ReviewDiffFile,
+  ReviewDiffHunk,
+  ReviewDiffLine,
+  ReviewFileStatus,
+} from './core/review/index.js';
 export {
   DEFAULT_TRACE_SUMMARIZERS,
   ConversationActivityProjector,
@@ -331,7 +340,6 @@ export type {
 export { buildSystemPrompt } from './core/prompts/system-prompt.js';
 
 // Utils
-export { createBudget } from './core/utils/budget.js';
-export type { Budget } from './core/utils/budget.js';
+export { AgentStepBudget } from './core/agent/budget/index.js';
 export { HeddleError, ToolExecutionError, LlmError, BudgetExhaustedError } from './core/utils/errors.js';
 export { createLogger, logger } from './core/utils/logger.js';

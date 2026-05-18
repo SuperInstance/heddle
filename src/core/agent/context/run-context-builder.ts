@@ -1,10 +1,10 @@
 import { resolve } from 'node:path';
-import { createToolRegistry } from '@/core/tools/registry.js';
-import { createTraceRecorder } from '@/core/trace/recorder.js';
-import { createBudget } from '@/core/utils/budget.js';
+import { ToolRegistry } from '@/core/tools/index.js';
+import { TraceRecorder } from '@/core/trace/index.js';
 import { buildSystemPrompt } from '@/core/prompts/system-prompt.js';
 import { logger as defaultLogger } from '@/core/utils/logger.js';
 import { DEFAULT_MAX_STEPS } from '../constants.js';
+import { AgentStepBudget } from '../budget/index.js';
 import { AgentHistorySanitizer } from '../history/index.js';
 import { AgentMemoryCheckpointTracker } from '../memory/index.js';
 import { AgentMutationTracker } from '../mutation/index.js';
@@ -17,8 +17,8 @@ import type { ChatMessage } from '@/core/llm/types.js';
  */
 export class AgentRunContextBuilder {
   static create(options: BuildAgentRunContextArgs): AgentRunContext {
-    const registry = createToolRegistry(options.tools);
-    const trace = createTraceRecorder();
+    const registry = new ToolRegistry(options.tools);
+    const trace = new TraceRecorder();
     const now = () => new Date().toISOString();
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
     const toolNames = registry.names();
@@ -42,7 +42,7 @@ export class AgentRunContextBuilder {
         options.onEvent?.(event);
       },
       now,
-      budget: createBudget(maxSteps),
+      budget: new AgentStepBudget(maxSteps),
       seenToolCalls: new Map<string, number>(),
       mutation: AgentMutationTracker.createState(),
       onAssistantStream: options.onAssistantStream,

@@ -66,8 +66,13 @@ tooling, approval policy, memory, situation awareness, traces, and evaluation.
 - `src/core/chat/` defines the shared chat boundary above the engine. It should
   stay small.
 - `src/core/tools/` owns tool definitions, registries, execution, and toolkits.
+- `src/core/commands/` owns slash-command parsing, autocomplete, registration,
+  and cross-host command modules.
 - `src/core/approvals/` owns approval policy chains and remembered rules.
+- `src/core/trace/` owns low-level trace recording and console formatting.
 - `src/core/observability/` owns trace and activity projection.
+- `src/core/review/` owns reusable review projections such as structured Git
+  diff parsing.
 - `src/cli/` owns terminal and TUI host surfaces.
 - `src/server/` owns the daemon/control-plane API.
 - `src/web/` owns the browser control plane.
@@ -118,8 +123,10 @@ scope.
 
 - Agent loop and runtime: `src/core/agent/`, `src/core/runtime/loop/`,
   `src/core/runtime/tools/`.
-- Tool behavior: `src/core/tools/toolkits/`, `src/core/tools/registry.ts`,
-  `src/core/tools/execute-tool.ts`.
+- Tool behavior: `src/core/tools/toolkits/`, `src/core/tools/index.ts`.
+- Slash commands: `src/core/commands/`.
+- Low-level trace capture/formatting: `src/core/trace/`.
+- Review projections: `src/core/review/`.
 - Shell and approvals: `src/core/tools/toolkits/shell-process/`,
   `src/core/approvals/`.
 - TUI approvals and chat: `src/cli/chat/`.
