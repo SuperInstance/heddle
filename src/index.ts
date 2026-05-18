@@ -100,36 +100,35 @@ export {
   DEFAULT_MEMORY_FOLDER_CATALOG_TARGET_BYTES,
   DEFAULT_MEMORY_ROOT_CATALOG_MAX_BYTES,
   DEFAULT_MEMORY_ROOT_CATALOG_TARGET_BYTES,
-  appendMemoryCatalogSystemContext,
-  bootstrapMemoryWorkspace,
-  formatMemoryCatalogSystemContext,
-  loadMemoryRootCatalog,
-  validateMemoryCatalogShape,
+  MemoryCatalogService,
 } from './core/memory/catalog.js';
+export { MemoryMaintenanceRepository } from './core/memory/maintenance-repository.js';
+export { MemoryMaintenanceService } from './core/memory/maintainer.js';
+export { MemoryMaintenanceIntegrationService } from './core/memory/maintenance-integration.js';
+export { MemoryNoteService } from './core/memory/note-service.js';
+export { MemoryValidationService } from './core/memory/validation.js';
+export { MemoryVisibilityService } from './core/memory/visibility.js';
 export type {
   BootstrapMemoryWorkspaceResult,
+  KnowledgeCandidate,
+  KnowledgeCandidateStatusRecord,
+  KnowledgeMaintenanceRunRecord,
+  ListMemoryNotesInput,
   MemoryCatalogLoadResult,
   MemoryCatalogShapeValidation,
   MemoryCategory,
-} from './core/memory/catalog.js';
-export {
-  readPendingKnowledgeCandidates,
-  runKnowledgeMaintenance,
-  runKnowledgeMaintenanceForBacklog,
-} from './core/memory/maintainer.js';
-export type {
-  KnowledgeCandidate,
-  KnowledgeMaintenanceRunRecord,
-  RunKnowledgeMaintenanceOptions,
-  RunKnowledgeMaintenanceResult,
-} from './core/memory/maintainer.js';
-export { createMemoryMaintainerTools } from './core/memory/maintainer-tools.js';
-export { createMemoryNoteTemplate, slugifyMemoryTitle } from './core/memory/templates.js';
-export { runMaintenanceForRecordedCandidates } from './core/memory/maintenance-integration.js';
-export type {
+  MemoryStatusView,
+  MemoryValidationIssue,
+  MemoryValidationResult,
+  ReadMemoryNoteInput,
   RunMaintenanceForRecordedCandidatesOptions,
   RunMaintenanceForRecordedCandidatesResult,
-} from './core/memory/maintenance-integration.js';
+  RunKnowledgeMaintenanceOptions,
+  RunKnowledgeMaintenanceResult,
+  SearchMemoryNotesInput,
+} from './core/memory/types.js';
+export { createMemoryMaintainerTools } from './core/memory/maintainer-tools.js';
+export { createMemoryNoteTemplate, slugifyMemoryTitle } from './core/memory/templates.js';
 
 // Integrations
 export {

@@ -3,11 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  appendMemoryCatalogSystemContext,
-  bootstrapMemoryWorkspace,
   DEFAULT_MEMORY_CATEGORIES,
-  loadMemoryRootCatalog,
-  validateMemoryCatalogShape,
+  MemoryCatalogService,
 } from '../../../core/memory/catalog.js';
 
 describe('memory catalog', () => {
@@ -15,7 +12,8 @@ describe('memory catalog', () => {
     const memoryRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-catalog-'));
     writeFileSync(join(memoryRoot, 'README.md'), '# Existing Memory\n', 'utf8');
 
-    const result = bootstrapMemoryWorkspace({ memoryRoot });
+    const catalog = new MemoryCatalogService(memoryRoot);
+    const result = catalog.bootstrap();
 
     expect(readFileSync(join(memoryRoot, 'README.md'), 'utf8')).toBe('# Existing Memory\n');
     expect(result.createdPaths).toEqual(expect.arrayContaining([
@@ -31,7 +29,7 @@ describe('memory catalog', () => {
     for (const category of DEFAULT_MEMORY_CATEGORIES) {
       expect(existsSync(join(memoryRoot, category.path, 'README.md'))).toBe(true);
     }
-    expect(validateMemoryCatalogShape({ memoryRoot })).toEqual({
+    expect(catalog.validateShape()).toEqual({
       ok: true,
       memoryRoot,
       missing: [],
@@ -41,7 +39,7 @@ describe('memory catalog', () => {
   it('returns bounded missing-catalog guidance when no root catalog exists', () => {
     const memoryRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-missing-'));
 
-    const result = loadMemoryRootCatalog({ memoryRoot, maxBytes: 200 });
+    const result = new MemoryCatalogService(memoryRoot).loadRootCatalog(200);
 
     expect(result.exists).toBe(false);
     expect(result.truncated).toBe(false);
@@ -53,7 +51,7 @@ describe('memory catalog', () => {
     const memoryRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-truncate-'));
     writeFileSync(join(memoryRoot, 'README.md'), `# Memory\n\n${'A'.repeat(200)}`, 'utf8');
 
-    const result = loadMemoryRootCatalog({ memoryRoot, maxBytes: 32 });
+    const result = new MemoryCatalogService(memoryRoot).loadRootCatalog(32);
 
     expect(result.exists).toBe(true);
     expect(result.truncated).toBe(true);
@@ -63,11 +61,11 @@ describe('memory catalog', () => {
 
   it('appends the memory domain model and root catalog to existing system context only', () => {
     const memoryRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-context-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    const catalog = new MemoryCatalogService(memoryRoot);
+    catalog.bootstrap();
 
-    const context = appendMemoryCatalogSystemContext({
+    const context = catalog.appendCatalogSystemContext({
       systemContext: 'Source: AGENTS.md\nRead docs first.',
-      memoryRoot,
     });
 
     expect(context).toContain('Source: AGENTS.md');
@@ -94,7 +92,7 @@ describe('memory catalog', () => {
     const memoryRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-invalid-'));
     writeFileSync(join(memoryRoot, 'README.md'), '# Memory\n', 'utf8');
 
-    const result = validateMemoryCatalogShape({ memoryRoot });
+    const result = new MemoryCatalogService(memoryRoot).validateShape();
 
     expect(result.ok).toBe(false);
     expect(result.missing).toContain('current-state/README.md');

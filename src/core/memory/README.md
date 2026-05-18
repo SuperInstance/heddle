@@ -24,14 +24,29 @@ guidance.
 
 ## Public Entry Points
 
-- `catalog.ts`: catalog bootstrap, load, append system context, and validation.
+- `types.ts`: memory-domain contracts for catalogs, candidates, runs, visibility,
+  validation, and note operations.
+- `schemas.ts`: zod validation for persisted memory JSONL records and locks.
+- `catalog.ts`: `MemoryCatalogService` owns catalog bootstrap, root catalog
+  loading, startup system-context assembly, and required catalog shape.
 - `domain-prompt.ts`: memory-specific system context.
-- `maintainer.ts`: pending candidate reading and maintenance execution.
-- `maintenance-integration.ts`: run maintenance for candidates recorded in a
-  trace.
+- `maintenance-repository.ts`: `MemoryMaintenanceRepository` owns candidate,
+  run, status, and lock file persistence.
+- `maintainer.ts`: `MemoryMaintenanceService` owns pending candidate reads and
+  agent-backed maintenance execution.
+- `maintainer-prompt.ts`: `MemoryMaintainerPrompt` owns static maintainer
+  instructions and dynamic candidate/catalog prompt assembly. Keep static text
+  before dynamic memory content for provider token caching.
+- `maintenance-integration.ts`: `MemoryMaintenanceIntegrationService` owns
+  trace-triggered maintenance scheduling, locking, and lifecycle events.
+- `note-service.ts`: `MemoryNoteService` owns note list/read/search/edit
+  behavior. Tool adapters should call this service, not duplicate file logic.
 - `maintainer-tools.ts`: tools used by maintainer mode.
-- `visibility.ts`: memory status, list, read, and search views for hosts.
-- `templates.ts`: memory note templates.
+- `visibility.ts`: `MemoryVisibilityService` owns host-facing status and note
+  visibility views.
+- `validation.ts`: `MemoryValidationService` owns workspace health checks and
+  safe missing-catalog repair.
+- `templates.ts`: pure memory note template helpers.
 
 ## Extension Points
 
@@ -41,6 +56,8 @@ guidance.
   domain.
 - Add new memory trace summaries through the observability/trace summarizer path
   once it exists.
+- Add persisted memory records by updating `types.ts`, `schemas.ts`, and the
+  owning repository together.
 
 ## Common Changes
 
@@ -50,6 +67,8 @@ guidance.
   maintainer tests.
 - To change maintenance concurrency or locking, update
   `maintenance-integration.ts` and integration coverage.
+- To change note access, update `MemoryNoteService`; keep knowledge tools as
+  adapters over that service.
 
 ## Tests
 
@@ -64,4 +83,7 @@ guidance.
 - Memory is a durable knowledge domain, not scratch context.
 - Live workspace evidence wins over memory for implementation facts.
 - Do not store secrets, speculative guesses, or one-turn command output.
-
+- Keep domain behavior inside the memory service/repository classes. Pure prompt
+  text, templates, and tool composition can remain small helper modules.
+- Do not make memory visibility call memory tools. The dependency direction is
+  tools and hosts -> memory services.

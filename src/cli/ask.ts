@@ -13,7 +13,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  appendMemoryCatalogSystemContext,
   DEFAULT_OPENAI_MODEL,
   type ToolCall,
   type ToolDefinition,
@@ -23,6 +22,7 @@ import {
   createLogger,
   RuntimeCredentialService,
 } from '../index.js';
+import { MemoryCatalogService } from '@/core/memory/catalog.js';
 import type { ResolvedRuntimeHost } from '@/core/runtime/daemon/index.js';
 import { createConversationEngine } from '../core/chat/engine/index.js';
 import type { ConversationEngine } from '../core/chat/engine/index.js';
@@ -69,9 +69,8 @@ export class AskCliHost {
     const maxSteps = options.maxSteps ?? AskCliHost.parsePositiveInt(process.env.HEDDLE_MAX_STEPS) ?? 100;
     const workspaceRoot = options.workspaceRoot ?? process.cwd();
     const stateRoot = join(workspaceRoot, options.stateDir ?? '.heddle');
-    const systemContext = appendMemoryCatalogSystemContext({
+    const systemContext = new MemoryCatalogService(join(stateRoot, 'memory')).appendCatalogSystemContext({
       systemContext: options.systemContext,
-      memoryRoot: join(stateRoot, 'memory'),
     });
     const logger = createLogger({ pretty: true, level: 'debug' });
     const provider = LlmAdapterService.inferProvider(model);

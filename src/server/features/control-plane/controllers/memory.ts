@@ -1,21 +1,16 @@
 import { resolve } from 'node:path';
-import {
-  listMemoryNotePaths,
-  loadMemoryStatus,
-  readMemoryNote,
-  searchMemoryNotes,
-} from '../../../../core/memory/visibility.js';
+import { MemoryVisibilityService } from '../../../../core/memory/visibility.js';
 
 export class ControlPlaneMemoryController {
   static async readStatus(stateRoot: string) {
-    return await loadMemoryStatus({ memoryRoot: ControlPlaneMemoryController.memoryRoot(stateRoot) });
+    return await ControlPlaneMemoryController.memory(stateRoot).loadStatus();
   }
 
   static async listNotes(stateRoot: string, path?: string) {
     const memoryRoot = ControlPlaneMemoryController.memoryRoot(stateRoot);
     return {
       memoryRoot,
-      notes: await listMemoryNotePaths({ memoryRoot, path }),
+      notes: await new MemoryVisibilityService(memoryRoot).listNotePaths(path),
     };
   }
 
@@ -24,8 +19,7 @@ export class ControlPlaneMemoryController {
     return {
       memoryRoot,
       path,
-      content: await readMemoryNote({
-        memoryRoot,
+      content: await new MemoryVisibilityService(memoryRoot).readNote({
         path,
         offset: options?.offset,
         maxLines: options?.maxLines,
@@ -38,8 +32,7 @@ export class ControlPlaneMemoryController {
     return {
       memoryRoot,
       query,
-      matches: await searchMemoryNotes({
-        memoryRoot,
+      matches: await new MemoryVisibilityService(memoryRoot).searchNotes({
         query,
         path: options?.path,
         maxResults: options?.maxResults,
@@ -49,5 +42,9 @@ export class ControlPlaneMemoryController {
 
   private static memoryRoot(stateRoot: string): string {
     return resolve(stateRoot, 'memory');
+  }
+
+  private static memory(stateRoot: string): MemoryVisibilityService {
+    return new MemoryVisibilityService(ControlPlaneMemoryController.memoryRoot(stateRoot));
   }
 }

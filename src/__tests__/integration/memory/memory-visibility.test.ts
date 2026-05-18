@@ -3,24 +3,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pino from 'pino';
 import { describe, expect, it } from 'vitest';
-import { bootstrapMemoryWorkspace } from '../../../core/memory/catalog.js';
-import {
-  listMemoryNotePaths,
-  loadMemoryStatus,
-  readMemoryNote,
-  searchMemoryNotes,
-} from '../../../core/memory/visibility.js';
-import {
-  repairMissingMemoryCatalogs,
-  validateMemoryWorkspace,
-} from '../../../core/memory/validation.js';
+import { MemoryCatalogService } from '../../../core/memory/catalog.js';
+import { MemoryValidationService } from '../../../core/memory/validation.js';
+import { MemoryVisibilityService } from '../../../core/memory/visibility.js';
 import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 import { controlPlaneRouter } from '../../../server/features/control-plane/router.js';
 
 describe('memory visibility', () => {
   it('loads memory status, lists notes, reads notes, and searches notes', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-visibility-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
+    const visibility = new MemoryVisibilityService(memoryRoot);
     await mkdir(join(memoryRoot, '_maintenance'), { recursive: true });
     await writeFile(join(memoryRoot, 'operations', 'verification.md'), '# Verification\n\nRun `yarn build`.\n', 'utf8');
     await writeFile(join(memoryRoot, '_maintenance', 'candidates.jsonl'), `${JSON.stringify({
@@ -43,12 +36,12 @@ describe('memory visibility', () => {
       catalogMissing: [],
     })}\n`, 'utf8');
 
-    await expect(listMemoryNotePaths({ memoryRoot })).resolves.toContain('operations/verification.md');
-    await expect(readMemoryNote({ memoryRoot, path: 'operations/verification.md' })).resolves.toContain('yarn build');
-    await expect(searchMemoryNotes({ memoryRoot, query: 'yarn build' })).resolves.toContain('operations/verification.md');
-    await expect(readMemoryNote({ memoryRoot, path: '../outside.md' })).rejects.toThrow(/must stay inside/);
+    await expect(visibility.listNotePaths()).resolves.toContain('operations/verification.md');
+    await expect(visibility.readNote({ path: 'operations/verification.md' })).resolves.toContain('yarn build');
+    await expect(visibility.searchNotes({ query: 'yarn build' })).resolves.toContain('operations/verification.md');
+    await expect(visibility.readNote({ path: '../outside.md' })).rejects.toThrow(/must stay inside/);
 
-    const status = await loadMemoryStatus({ memoryRoot });
+    const status = await visibility.loadStatus();
     expect(status).toMatchObject({
       catalog: { ok: true },
       candidates: { pending: 1 },
@@ -60,7 +53,7 @@ describe('memory visibility', () => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-visibility-workspace-'));
     const stateRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-visibility-state-'));
     const memoryRoot = join(stateRoot, 'memory');
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await writeFile(join(memoryRoot, 'operations', 'verification.md'), '# Verification\n\nRun `yarn build`.\n', 'utf8');
     const catalog = RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
     const activeWorkspace = catalog.workspaces[0];
@@ -86,7 +79,7 @@ describe('memory visibility', () => {
 
   it('validates memory quality issues and safely repairs missing catalogs', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-memory-validation-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await rm(join(memoryRoot, 'operations', 'README.md'));
     await writeFile(join(memoryRoot, 'operations', 'orphan.md'), '# Orphan\n\nNo catalog link yet.\n', 'utf8');
     await writeFile(join(memoryRoot, 'README.md'), `# Workspace Memory\n\n${'A'.repeat(13 * 1024)}\n`, 'utf8');
@@ -98,7 +91,8 @@ describe('memory visibility', () => {
       summary: 'Pending memory.',
     })}\n`, 'utf8');
 
-    const validation = await validateMemoryWorkspace({ memoryRoot });
+    const validationService = new MemoryValidationService(memoryRoot);
+    const validation = await validationService.validate();
     expect(validation.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'missing_catalog', path: 'operations/README.md' }),
       expect.objectContaining({ type: 'oversized_catalog', path: 'README.md' }),
@@ -107,10 +101,10 @@ describe('memory visibility', () => {
     ]));
     expect(validation.ok).toBe(false);
 
-    const repair = await repairMissingMemoryCatalogs({ memoryRoot });
+    const repair = validationService.repairMissingCatalogs();
     expect(repair.createdPaths).toContain('operations/README.md');
 
-    const repaired = await validateMemoryWorkspace({ memoryRoot });
+    const repaired = await validationService.validate();
     expect(repaired.issues).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'missing_catalog', path: 'operations/README.md' }),
     ]));

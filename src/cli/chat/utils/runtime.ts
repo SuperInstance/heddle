@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path';
-import { appendMemoryCatalogSystemContext, DEFAULT_OPENAI_MODEL, LlmAdapterService } from '../../../index.js';
+import { DEFAULT_OPENAI_MODEL, LlmAdapterService } from '../../../index.js';
 import type { LlmProvider } from '../../../index.js';
+import { MemoryCatalogService } from '@/core/memory/catalog.js';
 import type { ResolvedRuntimeHost } from '@/core/runtime/daemon/index.js';
 import { ProviderCredentialRepository } from '@/core/auth/index.js';
 import {
@@ -96,9 +97,8 @@ export function resolveChatRuntimeConfig(options: ChatCliOptions): ChatRuntimeCo
     memoryDir,
     directShellApproval: options.directShellApproval ?? 'never',
     searchIgnoreDirs: options.searchIgnoreDirs ?? [],
-    systemContext: appendMemoryCatalogSystemContext({
+    systemContext: new MemoryCatalogService(memoryDir).appendCatalogSystemContext({
       systemContext: options.systemContext,
-      memoryRoot: memoryDir,
     }),
     runtimeHost: options.runtimeHost,
   };

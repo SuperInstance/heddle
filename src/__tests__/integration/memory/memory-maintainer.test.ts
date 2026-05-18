@@ -4,13 +4,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage, LlmAdapter, LlmResponse } from '../../../core/llm/types.js';
 import type { ToolDefinition } from '../../../core/types.js';
-import { bootstrapMemoryWorkspace } from '../../../core/memory/catalog.js';
+import { MemoryCatalogService } from '../../../core/memory/catalog.js';
 import { createMemoryMaintainerTools } from '../../../core/memory/maintainer-tools.js';
-import {
-  readPendingKnowledgeCandidates,
-  runKnowledgeMaintenance,
-  type KnowledgeCandidate,
-} from '../../../core/memory/maintainer.js';
+import { MemoryMaintenanceService } from '../../../core/memory/maintainer.js';
+import type { KnowledgeCandidate } from '../../../core/memory/types.js';
 
 const fakeInfo = {
   provider: 'openai' as const,
@@ -26,7 +23,7 @@ const fakeInfo = {
 describe('memory maintainer', () => {
   it('creates a new cataloged note from a candidate and records the run', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-maintainer-create-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     const seenTools: string[][] = [];
     const llm = scriptedMaintainer([
       (_messages, tools) => {
@@ -60,8 +57,7 @@ describe('memory maintainer', () => {
       () => ({ content: 'Created operations/verification.md and updated operations/README.md.' }),
     ]);
 
-    const result = await runKnowledgeMaintenance({
-      memoryRoot,
+    const result = await new MemoryMaintenanceService(memoryRoot).run({
       observations: [candidate('candidate-1', 'The canonical verification command is yarn build.')],
       llm,
       source: 'test',
@@ -89,7 +85,7 @@ describe('memory maintainer', () => {
 
   it('updates an existing note instead of creating a duplicate', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-maintainer-update-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     await writeFile(join(memoryRoot, 'operations', 'verification.md'), '# Verification\n\nRun tests with `yarn test`.\n', 'utf8');
     const llm = scriptedMaintainer([
       () => ({
@@ -111,8 +107,7 @@ describe('memory maintainer', () => {
       () => ({ content: 'Updated operations/verification.md.' }),
     ]);
 
-    await runKnowledgeMaintenance({
-      memoryRoot,
+    await new MemoryMaintenanceService(memoryRoot).run({
       observations: [candidate('candidate-2', 'The canonical build check is yarn build.')],
       llm,
       source: 'test',
@@ -124,7 +119,7 @@ describe('memory maintainer', () => {
 
   it('lets the maintainer judge low-importance candidates but prefilters secret-like candidates', async () => {
     const memoryRoot = await mkdtemp(join(tmpdir(), 'heddle-maintainer-skip-'));
-    bootstrapMemoryWorkspace({ memoryRoot });
+    new MemoryCatalogService(memoryRoot).bootstrap();
     let calls = 0;
     const llm = scriptedMaintainer([
       () => {
@@ -133,8 +128,7 @@ describe('memory maintainer', () => {
       },
     ]);
 
-    const result = await runKnowledgeMaintenance({
-      memoryRoot,
+    const result = await new MemoryMaintenanceService(memoryRoot).run({
       observations: [
         { ...candidate('candidate-low', 'Temporary scratch note.'), importance: 'low' },
         candidate('candidate-secret', 'The API key is sk-test-secret-value-123456'),
@@ -159,7 +153,7 @@ describe('memory maintainer', () => {
       '',
     ].join('\n'), 'utf8');
 
-    const pending = await readPendingKnowledgeCandidates({ memoryRoot });
+    const pending = await new MemoryMaintenanceService(memoryRoot).readPendingCandidates();
 
     expect(pending.map((item) => item.id)).toEqual(['candidate-pending']);
   });

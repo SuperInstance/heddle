@@ -1,7 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  appendMemoryCatalogSystemContext,
   DEFAULT_OPENAI_MODEL,
   LlmAdapterService,
   createLogger,
@@ -10,7 +9,8 @@ import {
   RuntimeCredentialService,
   type RunResult,
 } from '../../../../index.js';
-import { runMaintenanceForRecordedCandidates } from '../../../../core/memory/maintenance-integration.js';
+import { MemoryCatalogService } from '../../../../core/memory/catalog.js';
+import { MemoryMaintenanceIntegrationService } from '../../../../core/memory/maintenance-integration.js';
 
 // Legacy control-plane one-shot ask path. New ask callers should create a
 // `retention: "one_off"` chat session and submit through the session turn API
@@ -58,15 +58,13 @@ export class ControlPlaneAskController {
       stateDir: ControlPlaneAskController.relativeStateDir(args.workspaceRoot, args.stateRoot),
       searchIgnoreDirs: args.searchIgnoreDirs,
       memoryDir,
-      systemContext: appendMemoryCatalogSystemContext({
+      systemContext: new MemoryCatalogService(memoryDir).appendCatalogSystemContext({
         systemContext: args.systemContext,
-        memoryRoot: memoryDir,
       }),
       includePlanTool: false,
       llm,
     });
-    const maintenance = await runMaintenanceForRecordedCandidates({
-      memoryRoot: memoryDir,
+    const maintenance = await new MemoryMaintenanceIntegrationService(memoryDir).runForRecordedCandidates({
       llm,
       source: 'control plane ask',
       trace: result.trace,

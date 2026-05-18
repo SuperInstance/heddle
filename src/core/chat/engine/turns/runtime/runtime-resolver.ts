@@ -5,7 +5,7 @@ import {
   RuntimeCredentialService,
 } from '@/core/runtime/credentials/index.js';
 import { appendAwarenessDomainSystemContext } from '@/core/awareness/domain-prompt.js';
-import { appendMemoryCatalogSystemContext } from '@/core/memory/catalog.js';
+import { MemoryCatalogService } from '@/core/memory/catalog.js';
 import type { ApiKeyRuntime } from '@/core/runtime/credentials/index.js';
 import type { ChatTurnRuntime, ResolveConversationTurnRuntimeArgs } from './types.js';
 
@@ -48,9 +48,8 @@ export class ConversationTurnRuntimeResolver {
       apiKey,
       providerCredentialSource,
       memoryDir,
-      systemContext: appendAwarenessDomainSystemContext(appendMemoryCatalogSystemContext({
+      systemContext: appendAwarenessDomainSystemContext(new MemoryCatalogService(memoryDir).appendCatalogSystemContext({
         systemContext: config.systemContext,
-        memoryRoot: memoryDir,
       })),
       reasoningEffort: session.reasoningEffort,
       llm: LlmAdapterService.create({
