@@ -27,7 +27,7 @@ export function SessionSidebar({
   const { t } = useI18n();
 
   return (
-    <aside className="v2-panel-surface flex h-full min-w-0 flex-col text-sm" aria-label={t('navigation.primaryAriaLabel')}>
+    <div className="flex h-full min-w-0 flex-col text-sm" role="navigation" aria-label={t('navigation.primaryAriaLabel')}>
       {settingsOpen ? (
         <SettingsNavigation
           activeItemId={activeSettingsSectionId}
@@ -41,6 +41,6 @@ export function SessionSidebar({
           onOpenSettings={onOpenSettings}
         />
       )}
-    </aside>
+    </div>
   );
 }

@@ -1,3 +1,10 @@
+import {
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+} from '@web/components/ui/sidebar';
 import { useI18n } from '@web/i18n';
 import type { AppRoute } from '@web/layout/routes';
 import type { AppSurfaceId } from '@web/layout/types';
@@ -18,10 +25,22 @@ export function AppNavigation({ activeItemId, items, onOpenSettings }: AppNaviga
 
   return (
     <>
-      <div className="v2-panel-divider border-b py-2 pl-10 pr-3 text-sm font-medium text-foreground">Heddle</div>
+      <SidebarHeader className="v2-panel-divider h-12 justify-center border-b px-2 py-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">Heddle</span>
+        </div>
+      </SidebarHeader>
       <MainNavigationSection activeItemId={activeItemId} items={items} />
-      <SidebarContentRegion ariaLabel={t('navigation.sessionListAriaLabel')} />
-      <SidebarSettingsEntry onOpenSettings={onOpenSettings} />
+      <SidebarContent>
+        <SidebarContentRegion ariaLabel={t('navigation.sessionListAriaLabel')} />
+      </SidebarContent>
+      <SidebarFooter className="v2-panel-divider border-t p-1.5">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarSettingsEntry onOpenSettings={onOpenSettings} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </>
   );
 }

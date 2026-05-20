@@ -1,3 +1,4 @@
+import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem } from '@web/components/ui/sidebar';
 import type { AppRoute } from '@web/layout/routes';
 import type { AppSurfaceId } from '@web/layout/types';
 import { useI18n } from '@web/i18n';
@@ -14,16 +15,23 @@ export function MainNavigationSection({ activeItemId, items }: MainNavigationSec
   const { t } = useI18n();
 
   return (
-    <nav className="v2-sidebar-section" aria-label={t('navigation.mainAriaLabel')}>
-      {items.map((item) => (
-        <SidebarLink
-          key={item.id}
-          active={item.id === activeItemId}
-          href={item.href}
-          label={t(item.labelKey)}
-          surfaceId={item.id}
-        />
-      ))}
-    </nav>
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <nav aria-label={t('navigation.mainAriaLabel')}>
+          <SidebarMenu>
+            {items.map((item) => (
+              <SidebarMenuItem key={item.id}>
+                <SidebarLink
+                  active={item.id === activeItemId}
+                  href={item.href}
+                  label={t(item.labelKey)}
+                  surfaceId={item.id}
+                />
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </nav>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }

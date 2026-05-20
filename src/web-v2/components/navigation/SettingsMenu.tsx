@@ -5,6 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@web/components/ui/popover';
+import { SidebarMenuButton } from '@web/components/ui/sidebar';
 import { LanguageSelect } from './LanguageSelect';
 import { useI18n } from '@web/i18n';
 
@@ -20,14 +21,10 @@ export function SettingsMenu({ onOpenSettings }: SettingsMenuProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          className="v2-nav-row w-full"
-          type="button"
-          variant="ghost"
-        >
-          <Settings className="size-3.5" aria-hidden="true" />
-          {t('navigation.settings')}
-        </Button>
+        <SidebarMenuButton tooltip={t('navigation.settings')}>
+          <Settings aria-hidden="true" />
+          <span>{t('navigation.settings')}</span>
+        </SidebarMenuButton>
       </PopoverTrigger>
       <PopoverContent
         align="start"

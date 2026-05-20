@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { MessageSquare, ListTodo } from 'lucide-react';
-import { cn } from '@web/lib/utils';
+import { SidebarMenuButton } from '@web/components/ui/sidebar';
 import type { AppSurfaceId } from '@web/layout/types';
 
 interface SidebarLinkProps {
@@ -15,17 +15,15 @@ export function SidebarLink({ active, href, label, surfaceId }: SidebarLinkProps
   const Icon = surfaceId ? sidebarIconBySurface[surfaceId] : undefined;
 
   return (
-    <Link
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'v2-nav-row',
-        active && 'v2-nav-row-active',
-      )}
-      to={href}
-    >
-      {Icon && <Icon className="size-3.5" aria-hidden="true" />}
-      {label}
-    </Link>
+    <SidebarMenuButton asChild isActive={active} tooltip={label}>
+      <Link
+        aria-current={active ? 'page' : undefined}
+        to={href}
+      >
+        {Icon && <Icon aria-hidden="true" />}
+        <span>{label}</span>
+      </Link>
+    </SidebarMenuButton>
   );
 }
 
