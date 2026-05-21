@@ -442,6 +442,19 @@ export class ControlPlaneChatSessionsController {
 
 export const controlPlaneChatSessionsController = new ControlPlaneChatSessionsController();
 
+/**
+ * Per-subscription delivery queue for control-plane session events.
+ *
+ * The controller uses EventEmitter for in-process fanout, while tRPC
+ * subscriptions consume an AsyncIterable. This queue is the transport adapter
+ * between those two shapes: it buffers events when the browser is not awaiting
+ * the next item yet, wakes pending readers when an event arrives, and closes
+ * cleanly when the subscription is aborted.
+ *
+ * Boundary: this class must stay transport/infrastructure-only. It should not
+ * inspect or transform conversation activities; event vocabulary belongs to the
+ * conversation engine and control-plane event publisher.
+ */
 class ControlPlaneSessionEventQueue implements AsyncIterable<ControlPlaneSessionEventEnvelope> {
   private readonly events: ControlPlaneSessionEventEnvelope[] = [];
   private readonly waiters: Array<(event: ControlPlaneSessionEventEnvelope | undefined) => void> = [];
