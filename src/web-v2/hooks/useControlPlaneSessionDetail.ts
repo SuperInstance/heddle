@@ -13,7 +13,6 @@ type ControlPlaneSessionDetailState = {
   running: boolean;
   error?: string;
   liveStatus?: string;
-  liveStreamConnected: boolean;
   submitPrompt: (prompt: string) => Promise<void>;
 };
 
@@ -46,10 +45,8 @@ export function useControlPlaneSessionDetail(sessionId: string | undefined): Con
     running,
     error: loader.error,
     liveStatus,
-    liveStreamConnected: events.streamConnected,
     submitPrompt: promptSubmit.submitPrompt,
   }), [
-    events.streamConnected,
     liveStatus,
     loader.error,
     loader.loading,

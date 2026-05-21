@@ -37,15 +37,10 @@ export function useControlPlaneSessionPromptSubmit({
       return;
     }
 
-    if (!streamConnected) {
-      setLiveStatus('Connecting to the live session stream...');
-      return;
-    }
-
     setSubmitting(true);
     setRunning(true);
     setError(undefined);
-    setLiveStatus('Heddle is working...');
+    setLiveStatus(streamConnected ? 'Heddle is working...' : 'Heddle is working... reconnecting live stream if needed.');
     setSession((current) => SessionMessageController.appendOptimisticUserTurn(current, trimmed));
 
     try {

@@ -37,6 +37,13 @@ export function useControlPlaneSessionEvents({
     }
 
     if (event.type === 'ready') {
+      setStreamConnected(true);
+      setLiveStatus(undefined);
+      return;
+    }
+
+    if (event.type === 'heartbeat') {
+      setStreamConnected(true);
       setLiveStatus(undefined);
       return;
     }
