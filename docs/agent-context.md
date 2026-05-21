@@ -89,6 +89,9 @@ When a companion notes repo is present, treat the live Heddle codebase as the im
   custom implementations. Use established libraries for query/mutation/subscription
   state, date formatting, validation, and common collections where appropriate,
   and only design custom infrastructure for clearly unique requirements.
+- In web-v2, session listing and session detail APIs must be accessed through
+  React Query + `@trpc/react-query` (including loading/error/cache/subscription
+  state), not custom loader hooks that fetch imperatively.
 - Before non-trivial features, state the user-facing problem, expected benefit,
   and why the added complexity is justified.
 - Do not add safety, coordination, or architectural mechanisms for edge cases

@@ -1,5 +1,4 @@
 import {
-  createTRPCProxyClient,
   httpBatchLink,
   httpSubscriptionLink,
   splitLink,
@@ -22,10 +21,6 @@ const trpcLinks = [
 
 export const trpcReact = createTRPCReact<AppRouter>();
 
-export const trpc = createTRPCProxyClient<AppRouter>({
-  links: trpcLinks,
-});
-
 export function createControlPlaneTrpcClient() {
   return trpcReact.createClient({
     links: trpcLinks,
@@ -40,10 +35,3 @@ export type ControlPlaneSessionDetail = RouterOutputs['controlPlane']['session']
 export type ControlPlaneSessionEventEnvelope = AsyncIterableValue<RouterOutputs['controlPlane']['sessionEvents']>;
 export type ControlPlaneSessionMessage = NonNullable<ControlPlaneSessionDetail>['messages'][number];
 export type ControlPlaneSessionSendPromptResult = RouterOutputs['controlPlane']['sessionSendPrompt'];
-
-export async function sendControlPlaneSessionPrompt(
-  sessionId: string,
-  prompt: string,
-): Promise<ControlPlaneSessionSendPromptResult> {
-  return await trpc.controlPlane.sessionSendPrompt.mutate({ sessionId, prompt });
-}

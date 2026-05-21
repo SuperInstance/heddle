@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { sendControlPlaneSessionPrompt, type ControlPlaneSessionDetail } from '@web/api/client';
+import { trpcReact, type ControlPlaneSessionDetail } from '@web/api/client';
 import { SessionMessageController } from '@web/controllers/session-messages';
 
 type UseControlPlaneSessionPromptSubmitArgs = {
@@ -26,6 +26,7 @@ export function useControlPlaneSessionPromptSubmit({
   setLiveStatus,
 }: UseControlPlaneSessionPromptSubmitArgs): ControlPlaneSessionPromptSubmitState {
   const [submitting, setSubmitting] = useState(false);
+  const sessionSendPromptMutation = trpcReact.controlPlane.sessionSendPrompt.useMutation();
 
   useEffect(() => {
     setSubmitting(false);
@@ -44,7 +45,7 @@ export function useControlPlaneSessionPromptSubmit({
     setSession((current) => SessionMessageController.appendOptimisticUserTurn(current, trimmed));
 
     try {
-      const result = await sendControlPlaneSessionPrompt(sessionId, trimmed);
+      const result = await sessionSendPromptMutation.mutateAsync({ sessionId, prompt: trimmed });
       setSession(result.session);
       setRunning(false);
       setLiveStatus(undefined);
@@ -55,7 +56,16 @@ export function useControlPlaneSessionPromptSubmit({
     } finally {
       setSubmitting(false);
     }
-  }, [sessionId, setError, setLiveStatus, setRunning, setSession, streamConnected, submitting]);
+  }, [
+    sessionId,
+    setError,
+    setLiveStatus,
+    setRunning,
+    setSession,
+    streamConnected,
+    submitting,
+    sessionSendPromptMutation,
+  ]);
 
   return {
     submitting,
