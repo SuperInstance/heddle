@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import type { ConversationActivity, ConversationActivityHandlerMap } from '@/core/chat/engine/live/index.js';
-import type { ControlPlaneSessionDetail } from '@web/api/client';
+import { skipToken } from '@tanstack/react-query';
 import {
-  SessionEventStreamController,
+  trpcReact,
+  type ControlPlaneSessionDetail,
   type ControlPlaneSessionEventEnvelope,
-} from '@web/controllers/session-events';
+} from '@web/api/client';
 import { SessionMessageController } from '@web/controllers/session-messages';
 import type { RefreshControlPlaneSession } from './useControlPlaneSessionLoader';
 
@@ -36,15 +36,8 @@ export function useControlPlaneSessionEvents({
       return;
     }
 
-    if (event.type === 'ready') {
-      setStreamConnected(true);
-      setLiveStatus(undefined);
-      return;
-    }
-
-    if (event.type === 'heartbeat') {
-      setStreamConnected(true);
-      setLiveStatus(undefined);
+    if (event.type === 'session.updated') {
+      void refresh(event.sessionId, { silent: true });
       return;
     }
 
@@ -61,6 +54,23 @@ export function useControlPlaneSessionEvents({
     }));
   }, [refresh, setLiveStatus, setRunning, setSession]);
 
+  const subscription = trpcReact.controlPlane.sessionEvents.useSubscription(
+    sessionId ? { sessionId } : skipToken,
+    {
+      onStarted: () => {
+        setStreamConnected(true);
+      },
+      onData: applySessionEvent,
+      onError: (error) => {
+        setStreamConnected(false);
+        setLiveStatus(error.message);
+      },
+      onComplete: () => {
+        setStreamConnected(false);
+      },
+    },
+  );
+
   useEffect(() => {
     if (!sessionId) {
       setRunning(false);
@@ -71,16 +81,11 @@ export function useControlPlaneSessionEvents({
 
     setRunning(false);
     setLiveStatus(undefined);
-    setStreamConnected(false);
-    return SessionEventStreamController.subscribe(sessionId, (event) => {
-      if (event.type === 'session.updated') {
-        void refresh(sessionId, { silent: true });
-        return;
-      }
+  }, [sessionId, setLiveStatus, setRunning]);
 
-      applySessionEvent(event);
-    }, setStreamConnected);
-  }, [applySessionEvent, refresh, sessionId, setLiveStatus, setRunning]);
+  useEffect(() => {
+    setStreamConnected(subscription.status === 'pending');
+  }, [subscription.status]);
 
   return { streamConnected };
 }
@@ -93,7 +98,15 @@ type SessionActivityContext = {
   setLiveStatus: Dispatch<SetStateAction<string | undefined>>;
 };
 
-const sessionActivityHandlers: ConversationActivityHandlerMap<SessionActivityContext> = {
+type ControlPlaneSessionActivity = Extract<ControlPlaneSessionEventEnvelope, { type: 'session.event' }>['activities'][number];
+type SessionActivityHandlerMap = {
+  [ActivityType in ControlPlaneSessionActivity['type']]?: (
+    activity: Extract<ControlPlaneSessionActivity, { type: ActivityType }>,
+    context: SessionActivityContext,
+  ) => void;
+};
+
+const sessionActivityHandlers: SessionActivityHandlerMap = {
   'assistant.stream': (activity, { setSession, setLiveStatus }) => {
     setSession((current) => (
       SessionMessageController.upsertLiveAssistantMessage(
@@ -138,8 +151,8 @@ const sessionActivityHandlers: ConversationActivityHandlerMap<SessionActivityCon
   },
 };
 
-function applySessionActivity(activity: ConversationActivity, context: SessionActivityContext) {
-  const handler = sessionActivityHandlers[activity.type] as ((activity: ConversationActivity, context: SessionActivityContext) => void) | undefined;
+function applySessionActivity(activity: ControlPlaneSessionActivity, context: SessionActivityContext) {
+  const handler = sessionActivityHandlers[activity.type] as ((activity: ControlPlaneSessionActivity, context: SessionActivityContext) => void) | undefined;
   handler?.(activity, context);
 }
 

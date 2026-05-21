@@ -162,6 +162,14 @@ export type ControlPlaneSessionLiveEvent = {
   activities: ConversationActivity[];
 };
 
+export type ControlPlaneSessionEventEnvelope =
+  | (ControlPlaneSessionLiveEvent & { type: 'session.event' })
+  | {
+    type: 'session.updated' | 'waiting';
+    sessionId: string;
+    timestamp: string;
+  };
+
 export type ControlPlaneState = {
   workspaceRoot: string;
   stateRoot: string;

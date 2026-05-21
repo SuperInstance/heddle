@@ -40,7 +40,6 @@ export function App() {
         selectedSession={selectedSession.session}
         selectedSessionLoading={selectedSession.loading}
         selectedSessionSubmitting={selectedSession.submitting}
-        selectedSessionRunning={selectedSession.running}
         selectedSessionLiveStatus={selectedSession.liveStatus}
         selectedSessionError={selectedSession.error}
         onSubmitSessionPrompt={selectedSession.submitPrompt}

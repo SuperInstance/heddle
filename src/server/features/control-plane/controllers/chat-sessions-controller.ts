@@ -13,6 +13,7 @@
  * the engine turn boundary.
  */
 import { EventEmitter } from 'node:events';
+import { watch } from 'node:fs';
 import { join } from 'node:path';
 import { PendingToolApprovalRequests } from '@/core/approvals/index.js';
 import { createConversationEngine } from '@/core/chat/engine/conversation-engine.js';
@@ -39,6 +40,7 @@ import type {
   ChatSessionView,
   ChatTurnReview,
   ControlPlanePendingApproval,
+  ControlPlaneSessionEventEnvelope,
   ControlPlaneSessionLiveEvent,
 } from '../types.js';
 
@@ -159,6 +161,50 @@ export class ControlPlaneChatSessionsController {
     return () => {
       this.sessionEventBus.off(sessionId, listener);
     };
+  }
+
+  async *subscribeLiveEvents(args: {
+    stateRoot: string;
+    sessionId: string;
+    signal?: AbortSignal;
+  }): AsyncGenerator<ControlPlaneSessionEventEnvelope> {
+    const queue = new ControlPlaneSessionEventQueue();
+    const unsubscribe = this.subscribeToEvents(args.sessionId, (event) => {
+      queue.push({
+        ...event,
+        type: 'session.event',
+      });
+    });
+    const abort = () => queue.close();
+    args.signal?.addEventListener('abort', abort, { once: true });
+
+    let watcher: ReturnType<typeof watch> | undefined;
+    try {
+      watcher = watch(this.resolveFilePath(args.stateRoot, args.sessionId), { persistent: false }, () => {
+        queue.push({
+          type: 'session.updated',
+          sessionId: args.sessionId,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    } catch {
+      queue.push({
+        type: 'waiting',
+        sessionId: args.sessionId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      for await (const event of queue) {
+        yield event;
+      }
+    } finally {
+      unsubscribe();
+      watcher?.close();
+      args.signal?.removeEventListener('abort', abort);
+      queue.close();
+    }
   }
 
   getPendingApproval(sessionId: string): ControlPlanePendingApproval | undefined {
@@ -361,3 +407,45 @@ export class ControlPlaneChatSessionsController {
 }
 
 export const controlPlaneChatSessionsController = new ControlPlaneChatSessionsController();
+
+class ControlPlaneSessionEventQueue implements AsyncIterable<ControlPlaneSessionEventEnvelope> {
+  private readonly events: ControlPlaneSessionEventEnvelope[] = [];
+  private readonly waiters: Array<(event: ControlPlaneSessionEventEnvelope | undefined) => void> = [];
+  private closed = false;
+
+  push(event: ControlPlaneSessionEventEnvelope): void {
+    if (this.closed) {
+      return;
+    }
+
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      waiter(event);
+      return;
+    }
+
+    this.events.push(event);
+  }
+
+  close(): void {
+    if (this.closed) {
+      return;
+    }
+
+    this.closed = true;
+    this.waiters.splice(0).forEach((waiter) => waiter(undefined));
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<ControlPlaneSessionEventEnvelope> {
+    while (!this.closed || this.events.length > 0) {
+      const event = this.events.shift() ?? await new Promise<ControlPlaneSessionEventEnvelope | undefined>((resolve) => {
+        this.waiters.push(resolve);
+      });
+      if (!event) {
+        break;
+      }
+
+      yield event;
+    }
+  }
+}

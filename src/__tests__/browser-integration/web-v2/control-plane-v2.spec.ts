@@ -12,7 +12,11 @@ const trpc = createTRPCProxyClient<AppRouter>({
 });
 
 test('loads the web v2 shell sections', async ({ page }) => {
+  const sessionEvents = page.waitForResponse((response) => (
+    response.url().includes('/trpc/controlPlane.sessionEvents') && response.status() === 200
+  ));
   await page.goto('/sessions');
+  await sessionEvents;
 
   await expect(page.getByRole('complementary', { name: 'Primary navigation' })).toBeVisible();
   await expect(page.getByRole('main')).toBeVisible();

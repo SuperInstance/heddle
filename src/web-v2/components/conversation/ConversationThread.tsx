@@ -6,7 +6,6 @@ interface ConversationThreadProps {
   session: ControlPlaneSessionDetail;
   loading: boolean;
   submitting: boolean;
-  running: boolean;
   liveStatus?: string;
   error?: string;
   emptyTitle: string;
@@ -18,7 +17,6 @@ export function ConversationThread({
   session,
   loading,
   submitting,
-  running,
   liveStatus,
   error,
   emptyTitle,
@@ -63,7 +61,6 @@ export function ConversationThread({
       </div>
       <div className="v2-composer-region">
         <ConversationComposer
-          disabled={running}
           submitting={submitting}
           onSubmitPrompt={onSubmitPrompt}
         />
