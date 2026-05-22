@@ -255,6 +255,8 @@ export class ControlPlaneChatSessionsController {
     }
 
     this.pendingApprovals.delete(sessionId);
+    // This resolves the promise created by ToolApprovalService.requestHumanApproval.
+    // The paused agent turn resumes immediately after this call returns.
     pending.resolve(decision.approved
       ? { type: 'approve', reason: decision.reason }
       : { type: 'deny', reason: decision.reason });
@@ -350,6 +352,8 @@ export class ControlPlaneChatSessionsController {
             tool,
             workspaceRoot: args.workspaceRoot,
             storePending: ({ request, resolve }) => {
+              // Keep the resolver in memory while the browser renders the
+              // request. sessionResolveApproval later calls this resolver.
               this.pendingApprovals.set(sessionId, {
                 approval: request,
                 resolve,

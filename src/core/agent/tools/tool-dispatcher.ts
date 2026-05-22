@@ -38,6 +38,9 @@ export class AgentToolDispatcher {
         tool,
         workspaceRoot: args.workspaceRoot,
       },
+      // This await is the execution gate. Host implementations resolve
+      // approveToolCall only after the user approves or denies the request, so
+      // no approval-gated tool executes before the decision is returned.
       requestHumanApproval: approveToolCall ? async () => {
         live.traceActivity({
           trace: { type: HeddleEventType.toolApprovalRequested, call, step, timestamp: now() },
@@ -51,6 +54,8 @@ export class AgentToolDispatcher {
             },
           },
         });
+        // Control-plane hosts keep this promise resolver in memory and expose
+        // the pending request through an API until the browser resolves it.
         const humanDecision = await approveToolCall(call, tool);
         live.traceActivity({
           trace: {

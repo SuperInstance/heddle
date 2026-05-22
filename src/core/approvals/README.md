@@ -66,6 +66,43 @@ Hosts should render that request as-is and return a `ToolApprovalUserDecision`.
 Hosts should not rebuild summaries, create remembered rules, read/write the
 approval rules file, or call `previewEditFileInput` for approval UI.
 
+The "blocking" mechanism is a normal awaited promise. The resolver for that
+promise is handed to the host/controller and stored in host-local pending state.
+Until a user action calls that resolver, the agent tool dispatcher remains
+paused before executing the tool.
+
+```ts
+const decision = await new Promise<ToolApprovalUserDecision>((resolve) => {
+  storePending({
+    request,
+    resolve, // saved by the host/controller
+  });
+});
+```
+
+For the browser control plane, the resolver is stored on the server, not in the
+browser. The browser later calls an API mutation, and that mutation resolves the
+server-held promise.
+
+```mermaid
+flowchart TD
+  Dispatcher["AgentToolDispatcher"]
+  Service["ToolApprovalService"]
+  Controller["ControlPlaneChatSessionsController"]
+  Browser["web-v2"]
+  Tool["ToolExecutionService"]
+  Denied["approval-denied tool result"]
+
+  Dispatcher -->|"await resolve(...)"| Service
+  Service -->|"storePending(request, resolve)"| Controller
+  Controller -->|"sessionPendingApproval"| Browser
+  Browser -->|"sessionResolveApproval"| Controller
+  Controller -->|"resolve pending promise"| Service
+  Service -->|"approved"| Dispatcher
+  Dispatcher --> Tool
+  Service -->|"denied"| Denied
+```
+
 ## Pending Approval Storage
 
 Pending approvals are live runtime coordination state. They are not persisted to

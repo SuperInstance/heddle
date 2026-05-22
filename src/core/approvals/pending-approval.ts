@@ -9,6 +9,8 @@ import type { RequestPendingToolApprovalArgs, ToolApprovalUserDecision } from '.
 export class PendingToolApprovalRequests {
   static request(args: RequestPendingToolApprovalArgs): Promise<ToolApprovalUserDecision> {
     return new Promise<ToolApprovalUserDecision>((resolve) => {
+      // The caller stores this resolver next to the request. Resolving it later
+      // resumes the approval-gated tool call that is awaiting this promise.
       args.storePending?.({ request: args.request, resolve });
     });
   }

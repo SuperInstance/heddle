@@ -80,6 +80,9 @@ export class ToolApprovalService {
 
   async requestHumanApproval(args: RequestToolApprovalThroughServiceArgs): Promise<ToolApprovalDecision> {
     const request = await this.createRequest(args);
+    // Pending approval is an in-memory promise handoff. The service creates the
+    // request payload, then waits until the host/controller resolves it with a
+    // user decision.
     const decision = await PendingToolApprovalRequests.request({
       request,
       storePending: args.storePending,
