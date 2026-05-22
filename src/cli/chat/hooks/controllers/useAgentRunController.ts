@@ -2,21 +2,21 @@ import { useMemo } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Logger } from 'pino';
 import type { ChatMessage, LlmAdapter, RunResult, ToolDefinition } from '../../../../index.js';
-import type { ReasoningEffort } from '../../../../core/llm/types.js';
+import type { ReasoningEffort } from '@/core/llm/types.js';
 import {
   createLogger,
   LlmAdapterService,
   RuntimeToolService,
-} from '../../../../index.js';
-import type { CyberLoopObserverAnnotation } from '../../../../index.js';
-import type { EditFilePreview } from '../../../../core/tools/toolkits/coding-files/edit-file.js';
-import type { PlanItem } from '../../../../core/tools/toolkits/internal/update-plan.js';
+} from '@/index.js';
+import type { CyberLoopObserverAnnotation } from '@/index.js';
+import type { EditFilePreview } from '@/core/tools/toolkits/coding-files/edit-file.js';
+import type { PlanItem } from '@/core/tools/toolkits/internal/update-plan.js';
 import {
   RuntimeCredentialService,
 } from '@/core/runtime/credentials/index.js';
 import { ToolApprovalService } from '@/core/approvals/index.js';
-import { ChatSessionRecords, ChatSessionTitles } from '../../../../core/chat/engine/sessions/records/index.js';
-import type { ConversationSessionService } from '../../../../core/chat/engine/types.js';
+import { ChatSessionRecords, ChatSessionTitles } from '@/core/chat/engine/sessions/records/index.js';
+import type { ConversationSessionService } from '@/core/chat/engine/types.js';
 import { normalizeSessionTitle } from '../../utils/format.js';
 import type { ApprovalChoice, ChatSession, LiveEvent, PendingApproval } from '../../state/types.js';
 import type { ChatRuntimeConfig } from '../../utils/runtime.js';
