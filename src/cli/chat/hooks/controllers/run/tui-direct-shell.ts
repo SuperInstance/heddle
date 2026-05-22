@@ -101,7 +101,7 @@ export async function executeTuiDirectShell(args: {
           throw new Error('run_shell_mutate tool is not registered');
         }
 
-        const approval = await ToolApprovalService.resolve({
+        const approval = await approvalService.resolve({
           policies: [
             () => ({ type: 'request', reason: 'Direct shell mutation requires approval' }),
             ToolApprovalPolicies.rememberedProjectRule({

@@ -33,14 +33,6 @@ export type ToolApprovalServiceOptions = {
 export class ToolApprovalService {
   constructor(private readonly options: ToolApprovalServiceOptions = {}) {}
 
-  static async evaluate(args: EvaluateToolApprovalPoliciesArgs): Promise<ToolApprovalPolicyDecision | undefined> {
-    return new ToolApprovalService().evaluate(args);
-  }
-
-  static async resolve(args: ResolveToolApprovalArgs): Promise<ToolApprovalDecision> {
-    return new ToolApprovalService().resolve(args);
-  }
-
   async evaluate(args: EvaluateToolApprovalPoliciesArgs): Promise<ToolApprovalPolicyDecision | undefined> {
     for (const policy of args.policies) {
       const decision = await policy(args.context);

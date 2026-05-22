@@ -31,7 +31,7 @@ export class AgentToolDispatcher {
       return undefined;
     }
 
-    const approval = await ToolApprovalService.resolve({
+    const approval = await new ToolApprovalService().resolve({
       policies: [...ToolApprovalPolicies.default(), ...(args.approvalPolicies ?? [])],
       context: {
         call,
