@@ -39,6 +39,25 @@ export function ApprovalPanel({ approval, resolving, error, onResolve }: Approva
         </dl>
       </div>
 
+      {approval.editPreview ? (
+        <details className="v2-approval-disclosure">
+          <summary>
+            {approval.editPreview.action}: {approval.editPreview.path}
+            {approval.editPreview.truncated ? ` (${t('approval.truncated')})` : ''}
+          </summary>
+          <pre className="v2-approval-code">{approval.editPreview.diff}</pre>
+        </details>
+      ) : null}
+
+      {rawPayload ? (
+        <details className="v2-approval-disclosure">
+          <summary>{t('approval.payload')}</summary>
+          <pre className="v2-approval-code">{rawPayload}</pre>
+        </details>
+      ) : null}
+
+      {error ? <p className="v2-approval-error" role="alert">{error}</p> : null}
+
       <div className="v2-approval-actions">
         <Button
           type="button"
@@ -75,25 +94,6 @@ export function ApprovalPanel({ approval, resolving, error, onResolve }: Approva
           {t('approval.deny')}
         </Button>
       </div>
-
-      {approval.editPreview ? (
-        <details className="v2-approval-disclosure">
-          <summary>
-            {approval.editPreview.action}: {approval.editPreview.path}
-            {approval.editPreview.truncated ? ` (${t('approval.truncated')})` : ''}
-          </summary>
-          <pre className="v2-approval-code">{approval.editPreview.diff}</pre>
-        </details>
-      ) : null}
-
-      {rawPayload ? (
-        <details className="v2-approval-disclosure">
-          <summary>{t('approval.payload')}</summary>
-          <pre className="v2-approval-code">{rawPayload}</pre>
-        </details>
-      ) : null}
-
-      {error ? <p className="v2-approval-error" role="alert">{error}</p> : null}
     </section>
   );
 }
