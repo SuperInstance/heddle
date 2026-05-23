@@ -59,7 +59,7 @@ export function AppRoutes({
       {APP_ROUTES.map((route) => (
         <Route
           key={route.id}
-          path={route.href}
+          path={route.id === 'sessions' ? `${route.href}/:sessionId?` : route.href}
           element={(
             <WorkbenchView
               activeSurfaceId={route.id}

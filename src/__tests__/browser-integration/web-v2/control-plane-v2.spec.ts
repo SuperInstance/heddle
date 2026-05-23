@@ -63,7 +63,7 @@ test('navigates primary and settings routes without hash routing', async ({ page
   await expect(page.getByTestId('web-v2-workbench-title')).toHaveText('Memory Status');
 
   await page.getByRole('button', { name: 'Back to App' }).click();
-  await expect(page).toHaveURL(/\/sessions$/);
+  await expect(page).toHaveURL(/\/sessions(\/[^/]+)?$/);
   await expect(page.getByTestId('web-v2-surface-sessions')).toBeVisible();
 });
 
@@ -73,6 +73,7 @@ test('submits a prompt and renders the mocked session response', async ({ page }
   await page.goto('/sessions');
   const sessionListItem = page.getByRole('button', { name: /Web v2 submit smoke/ });
   await sessionListItem.click();
+  await expect(page).toHaveURL(new RegExp(`/sessions/${session.id}$`));
   await expect(sessionListItem).toHaveAttribute('aria-current', 'true');
   await expect(sessionListItem).toHaveClass(/bg-sidebar-accent/);
   await page.getByRole('textbox', { name: 'Message' }).fill('Run the web v2 submit smoke');
@@ -93,6 +94,7 @@ test('updates session model and reasoning settings from the composer controls', 
 
   await page.goto('/sessions');
   await page.getByRole('button', { name: /Web v2 settings smoke/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/sessions/${session.id}$`));
 
   await page.getByRole('combobox', { name: 'Model' }).click();
   await page.getByRole('option', { name: /^gpt-5\.5$/ }).click();
