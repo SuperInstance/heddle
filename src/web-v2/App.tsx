@@ -3,6 +3,7 @@ import { trpcReact } from '@web/api/client';
 import { TaskCreateDialog, TaskRunDetailsPanel, type TaskCreateInput } from '@web/components/tasks';
 import { ContextInspector } from '@web/components/panels';
 import { useControlPlaneErrorToasts } from '@web/hooks/useControlPlaneErrorToasts';
+import { useControlPlaneHeartbeatEvents } from '@web/hooks/useControlPlaneHeartbeatEvents';
 import { useControlPlaneSessionDetail } from '@web/hooks/useControlPlaneSessionDetail';
 import { useControlPlaneTaskDetail } from '@web/hooks/useControlPlaneTaskDetail';
 import { useControlPlaneTaskRunDetail } from '@web/hooks/useControlPlaneTaskRunDetail';
@@ -23,6 +24,7 @@ export function App() {
   const createSessionMutation = trpcReact.controlPlane.sessionCreate.useMutation();
   const createTaskMutation = trpcReact.controlPlane.heartbeatTaskCreate.useMutation();
   const runTaskNowMutation = trpcReact.controlPlane.heartbeatTaskRunNow.useMutation();
+  const taskEvents = useControlPlaneHeartbeatEvents();
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [taskCreateError, setTaskCreateError] = useState<string | undefined>();
   const sidebarSessions = useMemo(
@@ -30,12 +32,13 @@ export function App() {
     [stateQuery.data?.sessions],
   );
   const sidebarTasks = useMemo(
-    () => tasksQuery.data?.tasks ?? [],
-    [tasksQuery.data?.tasks],
+    () => (tasksQuery.data?.tasks ?? []).map((task) => applyLiveTaskState(task, taskEvents.liveTasks[task.taskId])),
+    [taskEvents.liveTasks, tasksQuery.data?.tasks],
   );
   const selectedSessionId = navigation.selectedSessionId;
   const selectedSession = useControlPlaneSessionDetail(selectedSessionId);
   const selectedTask = useControlPlaneTaskDetail(navigation.selectedTaskId, navigation.selectedTaskRunId);
+  const selectedTaskView = selectedTask.task ? applyLiveTaskState(selectedTask.task, taskEvents.liveTasks[selectedTask.task.taskId]) : undefined;
   const selectedTaskRunId = navigation.selectedTaskRunId ?? selectedTask.selectedRun?.runId;
   const selectedTaskRun = useControlPlaneTaskRunDetail(navigation.selectedTaskId, selectedTaskRunId);
   useControlPlaneErrorToasts({
@@ -69,6 +72,7 @@ export function App() {
       content: (
         <TaskRunDetailsPanel
           error={selectedTaskRun.error}
+          liveTask={selectedTaskView}
           loading={selectedTaskRun.loading}
           run={selectedTaskRun.run}
         />
@@ -96,11 +100,9 @@ export function App() {
       await utils.controlPlane.heartbeatTasks.invalidate();
       await utils.controlPlane.state.invalidate();
       if (options.runNow) {
-        const runResult = await runTaskNowMutation.mutateAsync({ taskId: created.task.taskId });
+        taskEvents.markTaskRunQueued(created.task.taskId);
+        await runTaskNowMutation.mutateAsync({ taskId: created.task.taskId });
         await invalidateTaskViews(created.task.taskId);
-        if (runResult.run) {
-          navigation.selectTaskRun(created.task.taskId, runResult.run.runId);
-        }
       }
       setTaskCreateOpen(false);
     } catch (error) {
@@ -115,11 +117,9 @@ export function App() {
     }
 
     const taskId = navigation.selectedTaskId;
-    const runResult = await runTaskNowMutation.mutateAsync({ taskId });
+    taskEvents.markTaskRunQueued(taskId);
+    await runTaskNowMutation.mutateAsync({ taskId });
     await invalidateTaskViews(taskId);
-    if (runResult.run) {
-      navigation.selectTaskRun(taskId, runResult.run.runId);
-    }
   }
 
   async function invalidateTaskViews(taskId: string) {
@@ -174,12 +174,12 @@ export function App() {
         selectedSessionModelOptions={selectedSession.modelOptions}
         selectedSessionSettingsUpdating={selectedSession.settingsUpdating}
         selectedSessionSettingsError={selectedSession.settingsError}
-        selectedTask={selectedTask.task}
+        selectedTask={selectedTaskView}
         selectedTaskRuns={selectedTask.runs}
         selectedTaskRunId={selectedTaskRunId}
         selectedTaskLoading={selectedTask.loading}
         selectedTaskError={selectedTask.error}
-        selectedTaskRunSubmitting={runTaskNowMutation.isPending}
+        selectedTaskRunSubmitting={runTaskNowMutation.isPending || selectedTaskView?.status === 'running'}
         onSubmitSessionPrompt={selectedSession.submitPrompt}
         onUpdateSessionModel={selectedSession.updateModel}
         onUpdateSessionReasoningEffort={selectedSession.updateReasoningEffort}
@@ -197,4 +197,22 @@ export function App() {
       />
     </AppFrame>
   );
+}
+
+function applyLiveTaskState(
+  task: NonNullable<ReturnType<typeof useControlPlaneTaskDetail>['task']>,
+  live: ReturnType<typeof useControlPlaneHeartbeatEvents>['liveTasks'][string] | undefined,
+) {
+  if (!live) {
+    return task;
+  }
+
+  return {
+    ...task,
+    status: live.status,
+    progress: live.progress,
+    updatedAt: live.updatedAt,
+    runId: live.runId ?? task.runId,
+    lastRunId: live.runId ?? task.lastRunId,
+  };
 }

@@ -155,6 +155,37 @@ describe('heartbeat scheduler', () => {
     });
   });
 
+  it('does not start a second run for a task that is already running', async () => {
+    let runnerCalls = 0;
+
+    const result = await HeartbeatSchedulerService.runDueTasks({
+      store: createMemoryTaskStore({
+        tasks: [{
+          id: 'running-task',
+          task: 'Already running work.',
+          enabled: true,
+          schedule: {
+            intervalMs: 60_000,
+            nextRunAt: '2026-04-12T23:59:00.000Z',
+          },
+          state: {
+            status: 'running',
+            resumable: true,
+            progress: 'Still running.',
+          },
+        }],
+      }),
+      now: () => NOW,
+      runner: async () => {
+        runnerCalls++;
+        return createHeartbeatResult('continue');
+      },
+    });
+
+    expect(result).toMatchObject({ checked: 0, ran: 0, failed: 0 });
+    expect(runnerCalls).toBe(0);
+  });
+
   it('includes result details on finished task events', async () => {
     const events: HeartbeatSchedulerEvent[] = [];
 

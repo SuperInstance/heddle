@@ -46,7 +46,7 @@ export class HeartbeatSchedulerService {
     };
   }
 
-  // Checks all stored tasks once, picks enabled tasks whose nextRunAt is due, and delegates each selected task to the runner service.
+  // Scans stored tasks once, picks enabled tasks whose nextRunAt is due, and delegates each selected task to the runner service.
   static async runDueTasks(options: RunDueHeartbeatTasksOptions): Promise<RunDueHeartbeatTasksResult> {
     const now = options.now?.() ?? new Date();
     const tasks = await options.store.listTasks();
@@ -66,7 +66,7 @@ export class HeartbeatSchedulerService {
     }
 
     return {
-      checked: tasks.length,
+      checked: dueTasks.length,
       ran: records.length,
       failed,
       records,
@@ -96,6 +96,9 @@ export class HeartbeatSchedulerService {
   // Decides whether a task should be selected by the scheduler at the current time.
   private static isTaskDue(task: HeartbeatTask, now: Date): boolean {
     if (!task.enabled) {
+      return false;
+    }
+    if (task.state?.status === 'running') {
       return false;
     }
 

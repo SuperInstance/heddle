@@ -1,5 +1,5 @@
 import type { DaemonOwnerRecord } from '@/core/runtime/daemon/index.js';
-import type { HeartbeatRunView, HeartbeatTaskView } from '@/core/heartbeat/index.js';
+import type { HeartbeatRunView, HeartbeatSchedulerEvent, HeartbeatTaskView } from '@/core/heartbeat/index.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import type { MemoryStatusView } from '@/core/memory/types.js';
 import type { ReviewDiffFile } from '@/core/review/index.js';
@@ -160,6 +160,19 @@ export type ControlPlaneSessionEventEnvelope =
   | {
     type: 'session.updated' | 'waiting';
     sessionId: string;
+    timestamp: string;
+  };
+
+export type ControlPlaneHeartbeatEventEnvelope =
+  | {
+    type: 'heartbeat.event';
+    workspaceId: string;
+    timestamp: string;
+    event: HeartbeatSchedulerEvent;
+  }
+  | {
+    type: 'ready' | 'heartbeat';
+    workspaceId: string;
     timestamp: string;
   };
 

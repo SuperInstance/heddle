@@ -88,6 +88,8 @@ export class HeartbeatLucidPresenter {
           HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(event.status), event.timestamp),
           HeartbeatLucidPresenter.progressMessage(agentId, event.progress, event.timestamp),
         ];
+      case 'heartbeat.task.agent_event':
+        return [];
       case 'heartbeat.task.finished': {
         const { task, result } = event.record;
         return [

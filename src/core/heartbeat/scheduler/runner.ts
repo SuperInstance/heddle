@@ -49,6 +49,7 @@ export class HeartbeatTaskRunnerService {
         checkpoint,
         runner: options.runner,
         runtime: options.runtime,
+        onEvent: options.onEvent,
       });
       await options.store.saveCheckpoint(task, result.checkpoint);
       const nextTask = HeartbeatTaskStateProjector.afterResult({
@@ -106,6 +107,7 @@ export class HeartbeatTaskRunnerService {
     checkpoint: AgentLoopState | AgentLoopCheckpoint | undefined;
     runner?: HeartbeatTaskRunner;
     runtime?: HeartbeatTaskRunnerRuntimeOptions;
+    onEvent?: (event: HeartbeatSchedulerEvent) => void;
   }): Promise<AgentHeartbeatResult> {
     return args.runner ?
       await args.runner(args.task, args.checkpoint)
@@ -116,6 +118,7 @@ export class HeartbeatTaskRunnerService {
     task: HeartbeatTask;
     checkpoint: AgentLoopState | AgentLoopCheckpoint | undefined;
     runtime?: HeartbeatTaskRunnerRuntimeOptions;
+    onEvent?: (event: HeartbeatSchedulerEvent) => void;
   }): RunAgentHeartbeatOptions {
     const model = args.task.runtime?.model ?? args.runtime?.model ?? process.env.OPENAI_MODEL ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_OPENAI_MODEL;
     const credentialOptions = {
@@ -136,7 +139,15 @@ export class HeartbeatTaskRunnerService {
       apiKey: RuntimeCredentialService.resolveApiKeyForModel(model, credentialOptions),
       stateDir: args.task.runtime?.stateDir ?? args.runtime?.stateDir,
       approveToolCall: HeartbeatTaskRunnerService.denyInteractiveToolCall,
-      onEvent: args.runtime?.onAgentEvent,
+      onEvent: (event) => {
+        args.runtime?.onAgentEvent?.(event);
+        args.onEvent?.({
+          type: 'heartbeat.task.agent_event',
+          taskId: args.task.id,
+          event,
+          timestamp: 'timestamp' in event && typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
+        });
+      },
     };
   }
 

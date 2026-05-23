@@ -1,18 +1,21 @@
-import type { ControlPlaneHeartbeatRun } from '@web/api/client';
+import type { ControlPlaneHeartbeatRun, ControlPlaneHeartbeatTaskView } from '@web/api/client';
 import { AssistantMarkdown } from '@web/components/conversation/AssistantMarkdown';
 import { formatTaskTimestamp, formatUsage } from './task-format';
 
 interface TaskRunDetailsPanelProps {
   run: ControlPlaneHeartbeatRun['run'];
+  liveTask?: ControlPlaneHeartbeatTaskView;
   loading: boolean;
   error?: string;
 }
 
 export function TaskRunDetailsPanel({
   run,
+  liveTask,
   loading,
   error,
 }: TaskRunDetailsPanelProps) {
+  const showLiveTask = liveTask?.status === 'running' || liveTask?.progress?.startsWith('Task queued');
   return (
     <div className="v2-task-inspector flex h-full min-w-0 flex-col">
       <header className="v2-panel-divider border-b px-4 py-3">
@@ -20,6 +23,11 @@ export function TaskRunDetailsPanel({
         <p className="v2-type-panel-subtitle text-muted-foreground">Selected task run</p>
       </header>
       <div className="v2-scrollbar-hidden min-h-0 flex-1 overflow-auto px-4 py-4">
+        {showLiveTask ? (
+          <div className="mb-5">
+            <TaskDetailBlock title={liveTask.status === 'running' ? 'Running now' : 'Latest task status'} body={liveTask.progress ?? liveTask.status} />
+          </div>
+        ) : null}
         {loading ? (
           <TaskInspectorEmpty title="Loading run" body="Reading the selected heartbeat run." />
         ) : error ? (

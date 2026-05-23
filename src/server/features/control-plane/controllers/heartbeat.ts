@@ -1,6 +1,7 @@
 import {
   FileHeartbeatTaskService,
   HeartbeatTaskRunnerService,
+  type HeartbeatSchedulerEvent,
   type HeartbeatTaskRunner,
 } from '@/core/heartbeat/index.js';
 
@@ -31,6 +32,7 @@ type RunHeartbeatTaskNowArgs = {
   searchIgnoreDirs?: string[];
   systemContext?: string;
   runner?: HeartbeatTaskRunner;
+  onEvent?: (event: HeartbeatSchedulerEvent) => void;
 };
 
 export class ControlPlaneHeartbeatController {
@@ -89,6 +91,7 @@ export class ControlPlaneHeartbeatController {
       store: tasks,
       taskId: args.taskId,
       runner: args.runner,
+      onEvent: args.onEvent,
       runtime: args.runner ? undefined : {
         apiKey: args.apiKey,
         apiKeyProvider: args.apiKey ? 'explicit' : undefined,

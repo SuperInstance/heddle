@@ -9,6 +9,7 @@ import { controlPlaneChatSessionsController } from './controllers/chat-sessions-
 import { ControlPlaneAskController } from './controllers/ask.js';
 import { ControlPlaneStateController } from './controllers/control-plane-state.js';
 import { ControlPlaneHeartbeatController } from './controllers/heartbeat.js';
+import { controlPlaneHeartbeatEventsController } from './controllers/heartbeat-events.js';
 import { ControlPlaneMemoryController } from './controllers/memory.js';
 import { ControlPlaneLayoutSnapshotsController } from './controllers/layout-snapshots.js';
 import { ControlPlaneWorkspaceFilesController } from './controllers/workspace-files.js';
@@ -323,6 +324,12 @@ export const controlPlaneRouter = router({
       runLimit: input.runLimit,
     });
   }),
+  heartbeatEvents: procedure.subscription(({ ctx, signal }) => {
+    return controlPlaneHeartbeatEventsController.subscribe({
+      workspaceId: ctx.activeWorkspace.id,
+      signal,
+    });
+  }),
   heartbeatRuns: procedure.input(heartbeatRunsInputSchema).query(async ({ ctx, input }) => {
     return {
       runs: await ControlPlaneHeartbeatController.listRuns(ctx.activeWorkspace.stateRoot, {
@@ -370,12 +377,34 @@ export const controlPlaneRouter = router({
     };
   }),
   heartbeatTaskRunNow: procedure.input(heartbeatTaskRunNowInputSchema).mutation(async ({ ctx, input }) => {
-    return await ControlPlaneHeartbeatController.runTaskNow(ctx.activeWorkspace.stateRoot, {
+    const task = await ControlPlaneHeartbeatController.triggerTaskRun(ctx.activeWorkspace.stateRoot, input.taskId);
+    controlPlaneHeartbeatEventsController.publish({
+      workspaceId: ctx.activeWorkspace.id,
+      event: {
+        type: 'heartbeat.task.due',
+        taskId: input.taskId,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    void ControlPlaneHeartbeatController.runTaskNow(ctx.activeWorkspace.stateRoot, {
       ...input,
       workspaceRoot: ctx.activeWorkspace.anchorRoot,
       stateDir: ctx.activeWorkspace.stateRoot,
       preferApiKey: input.preferApiKey ?? ctx.preferApiKey,
+      onEvent: (event) => controlPlaneHeartbeatEventsController.publish({
+        workspaceId: ctx.activeWorkspace.id,
+        event,
+      }),
+    }).catch((error: unknown) => {
+      ctx.logger.error({ error, taskId: input.taskId }, 'Failed to run heartbeat task from control plane');
     });
+
+    return {
+      accepted: true,
+      task,
+      run: null,
+    };
   }),
   workspaceFileSearch: procedure.input(fileSearchInputSchema).query(async ({ ctx, input }) => {
     return {
