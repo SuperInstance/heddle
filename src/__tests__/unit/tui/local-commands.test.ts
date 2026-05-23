@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { autocompleteLocalCommand, getLocalCommandHints, isLikelyLocalCommand, runLocalCommand } from '../../../cli/chat/state/local-commands.js';
 import { ProviderCredentialRepository } from '../../../core/auth/index.js';
-import { FileHeartbeatTaskRepository } from '@/core/heartbeat/index.js';
+import { FileHeartbeatTaskService } from '@/core/heartbeat/index.js';
 
 const absoluteScreenshotFixturePath = join(process.cwd(), 'src/__tests__/fixtures/screenshot.png');
 
@@ -736,7 +736,7 @@ describe('runLocalCommand', () => {
     mkdirSync(workspaceRoot, { recursive: true });
     const stateRoot = join(workspaceRoot, '.heddle');
     const heartbeatRoot = join(stateRoot, 'heartbeat');
-    const heartbeatStore = new FileHeartbeatTaskRepository({ dir: heartbeatRoot });
+    const heartbeatStore = new FileHeartbeatTaskService({ dir: heartbeatRoot });
 
     const task = {
       id: 'repo-check',

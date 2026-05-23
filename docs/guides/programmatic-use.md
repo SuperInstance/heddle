@@ -316,7 +316,7 @@ For repeated local or hosted wake cycles, Heddle also exports:
 
 - `HeartbeatSchedulerService.runDueTasks`
 - `HeartbeatSchedulerService.runLoop`
-- `FileHeartbeatTaskRepository`
+- `FileHeartbeatTaskService`
 - `FileHeartbeatCheckpointRepository`
 - `StoredHeartbeatService.run`
 - `HeartbeatDecisionPolicy.suggestNextDelayMs`

@@ -15,12 +15,15 @@ operator-facing heartbeat views.
 - `checkpoint/`: `StoredHeartbeatService` and
   `FileHeartbeatCheckpointRepository` own checkpoint-backed one-off heartbeat
   execution.
-- `tasks/`: `FileHeartbeatTaskRepository` owns durable task/checkpoint/run
-  storage through zod-backed schemas; `HeartbeatTaskStateProjector` owns task
-  state transitions after success or failure.
-- `scheduler/`: `HeartbeatSchedulerService` owns due-task selection and the
-  scheduler loop; `HeartbeatTaskRunnerService` is the narrow task-to-wake
-  translation boundary.
+- `tasks/`: `FileHeartbeatTaskService` is the persistence boundary for durable
+  task/checkpoint/run storage and task/run projections. It is the only
+  non-repository service that should instantiate `FileHeartbeatTaskRepository`.
+  `HeartbeatTaskStateProjector` owns task state transitions after success or
+  failure.
+- `scheduler/`: `HeartbeatSchedulerService` owns due-task selection, manual
+  task runs, and the periodic scheduler loop. Daemon, CLI, and future hosts
+  should start or run the scheduler through this service instead of constructing
+  task repositories or duplicating loop logic.
 - `views/`: `HeartbeatViewsPresenter` and `HeartbeatLucidPresenter` own
   operator-facing heartbeat projections.
 

@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { LlmAdapterService } from '../src/core/llm/index.js';
 import { RuntimeCredentialService } from '../src/core/runtime/credentials/index.js';
 import {
-  FileHeartbeatTaskRepository,
+  FileHeartbeatTaskService,
   HeartbeatSchedulerService,
   type HeartbeatSchedulerEvent,
   type HeartbeatTask,
@@ -38,7 +38,7 @@ async function main() {
     );
   }
 
-  const store = new FileHeartbeatTaskRepository({ dir: STORE_DIR });
+  const store = new FileHeartbeatTaskService({ dir: STORE_DIR });
   await ensureDemoTask(store, model);
 
   const result = await HeartbeatSchedulerService.runDueTasks({

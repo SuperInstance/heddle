@@ -48,7 +48,7 @@ For repeated wake cycles, Heddle also exposes a local-first scheduler core:
 
 - `HeartbeatSchedulerService.runDueTasks`
 - `HeartbeatSchedulerService.runLoop`
-- `FileHeartbeatTaskRepository`
+- `FileHeartbeatTaskService`
 
 `HeartbeatSchedulerService.runDueTasks` returns durable run records, and
 `heartbeat.task.finished` events include the same run record. If you need a

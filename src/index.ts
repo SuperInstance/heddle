@@ -27,10 +27,10 @@ export type {
   StoredHeartbeatResult,
 } from './core/heartbeat/checkpoint/index.js';
 export {
-  FileHeartbeatTaskRepository,
+  FileHeartbeatTaskService,
 } from './core/heartbeat/tasks/index.js';
 export type {
-  FileHeartbeatTaskRepositoryOptions,
+  FileHeartbeatTaskServiceOptions,
   HeartbeatTask,
   HeartbeatTaskRunRecord,
   HeartbeatTaskRunRecordEntry,

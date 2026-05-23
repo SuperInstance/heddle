@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  FileHeartbeatTaskRepository,
+  FileHeartbeatTaskService,
   HeartbeatSchedulerService,
   type HeartbeatSchedulerEvent,
   type HeartbeatTask,
@@ -196,7 +196,7 @@ describe('heartbeat scheduler', () => {
 
   it('stores tasks and checkpoints in a local heartbeat directory', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'heddle-heartbeat-scheduler-'));
-    const store = new FileHeartbeatTaskRepository({ dir });
+    const store = new FileHeartbeatTaskService({ dir });
     const task: HeartbeatTask = {
       id: 'local-task',
       task: 'Local task.',
@@ -219,7 +219,7 @@ describe('heartbeat scheduler', () => {
 
   it('lists stored heartbeat run records newest first', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'heddle-heartbeat-runs-'));
-    const store = new FileHeartbeatTaskRepository({ dir });
+    const store = new FileHeartbeatTaskService({ dir });
     const task: HeartbeatTask = {
       id: 'local-task',
       task: 'Local task.',

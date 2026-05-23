@@ -5,17 +5,60 @@
  * task state projection, and run-record persistence.
  */
 import { HeartbeatTaskStateProjector } from '../tasks/index.js';
-import type { HeartbeatTask, HeartbeatTaskRunRecord } from '../tasks/index.js';
+import { FileHeartbeatTaskService, type HeartbeatTask, type HeartbeatTaskRunRecord } from '../tasks/index.js';
+import { DEFAULT_OPENAI_MODEL } from '@/core/config.js';
+import { RuntimeCredentialService } from '@/core/runtime/credentials/index.js';
+import type { AgentLoopCheckpoint, AgentLoopState } from '@/core/runtime/loop/index.js';
+import { HeartbeatAutonomousApprovalPolicy } from './approval.js';
 import { HeartbeatTaskRunnerService } from './runner.js';
 import type {
+  HeartbeatSchedulerHandle,
+  HeartbeatTaskRunner,
   RunDueHeartbeatTasksOptions,
   RunDueHeartbeatTasksResult,
   RunHeartbeatSchedulerOptions,
+  RunWorkspaceHeartbeatSchedulerOnceOptions,
+  RunWorkspaceHeartbeatSchedulerLoopOptions,
+  StartHeartbeatSchedulerOptions,
 } from './types.js';
 
 const DEFAULT_FAILURE_RETRY_MS = 5 * 60_000;
+const DEFAULT_SCHEDULER_POLL_INTERVAL_MS = 60_000;
 
 export class HeartbeatSchedulerService {
+  static start(options: StartHeartbeatSchedulerOptions): HeartbeatSchedulerHandle {
+    const controller = new AbortController();
+    void HeartbeatSchedulerService.runWorkspaceLoop({
+      ...options,
+      signal: controller.signal,
+    }).catch((error: unknown) => {
+      options.onError?.(error);
+    });
+
+    return {
+      stop: () => controller.abort(),
+    };
+  }
+
+  static async runWorkspaceLoop(options: RunWorkspaceHeartbeatSchedulerLoopOptions): Promise<void> {
+    await HeartbeatSchedulerService.runLoop({
+      store: new FileHeartbeatTaskService({ stateRoot: options.stateRoot }),
+      runner: HeartbeatSchedulerService.createWorkspaceTaskRunner(options),
+      pollIntervalMs: options.pollIntervalMs ?? DEFAULT_SCHEDULER_POLL_INTERVAL_MS,
+      signal: options.signal,
+      sleep: options.sleep,
+      onEvent: options.onEvent,
+    });
+  }
+
+  static async runDueWorkspaceTasks(options: RunWorkspaceHeartbeatSchedulerOnceOptions): Promise<RunDueHeartbeatTasksResult> {
+    return await HeartbeatSchedulerService.runDueTasks({
+      store: new FileHeartbeatTaskService({ stateRoot: options.stateRoot }),
+      runner: HeartbeatSchedulerService.createWorkspaceTaskRunner(options),
+      onEvent: options.onEvent,
+    });
+  }
+
   static async runDueTasks(options: RunDueHeartbeatTasksOptions): Promise<RunDueHeartbeatTasksResult> {
     const now = options.now?.() ?? new Date();
     const tasks = await options.store.listTasks();
@@ -91,6 +134,36 @@ export class HeartbeatSchedulerService {
 
     const nextRunAt = Date.parse(task.schedule.nextRunAt);
     return Number.isFinite(nextRunAt) && nextRunAt <= now.getTime();
+  }
+
+  private static createWorkspaceTaskRunner(options: RunWorkspaceHeartbeatSchedulerOnceOptions): HeartbeatTaskRunner {
+    return async (
+      task: HeartbeatTask,
+      checkpoint: AgentLoopState | AgentLoopCheckpoint | undefined,
+    ) => {
+      const model = task.runtime?.model ?? options.model ?? process.env.OPENAI_MODEL ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_OPENAI_MODEL;
+      const credentialOptions = { preferApiKey: options.preferApiKey };
+      if (!RuntimeCredentialService.hasCredentialForModel(model, credentialOptions)) {
+        throw new Error(RuntimeCredentialService.formatMissingCredentialMessage(model));
+      }
+
+      const apiKey = RuntimeCredentialService.resolveApiKeyForModel(model, credentialOptions);
+      return await HeartbeatTaskRunnerService.run({
+        task,
+        checkpoint,
+        heartbeat: {
+          model,
+          apiKey,
+          maxSteps: options.maxSteps,
+          workspaceRoot: options.workspaceRoot,
+          stateDir: options.stateRoot,
+          searchIgnoreDirs: options.searchIgnoreDirs,
+          systemContext: options.systemContext,
+          onEvent: options.onAgentEvent,
+          approveToolCall: HeartbeatAutonomousApprovalPolicy.denyInteractiveToolCall,
+        },
+      });
+    };
   }
 
   private static async runTask(

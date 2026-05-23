@@ -56,3 +56,28 @@ export type RunHeartbeatSchedulerOptions = RunDueHeartbeatTasksOptions & {
   signal?: AbortSignal;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 };
+
+export type HeartbeatSchedulerHandle = {
+  stop: () => void;
+};
+
+export type StartHeartbeatSchedulerOptions = {
+  workspaceRoot: string;
+  stateRoot: string;
+  preferApiKey?: boolean;
+  model?: string;
+  maxSteps?: number;
+  searchIgnoreDirs?: string[];
+  systemContext?: string;
+  onAgentEvent?: RunAgentHeartbeatOptions['onEvent'];
+  pollIntervalMs?: number;
+  onEvent?: (event: HeartbeatSchedulerEvent) => void;
+  onError?: (error: unknown) => void;
+};
+
+export type RunWorkspaceHeartbeatSchedulerOnceOptions = Omit<StartHeartbeatSchedulerOptions, 'pollIntervalMs'>;
+
+export type RunWorkspaceHeartbeatSchedulerLoopOptions = StartHeartbeatSchedulerOptions & {
+  signal?: AbortSignal;
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+};
