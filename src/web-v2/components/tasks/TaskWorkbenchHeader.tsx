@@ -48,6 +48,7 @@ export function TaskWorkbenchHeader({ running, task, onEdit, onDelete, onRunNow 
             type="button"
             variant="ghost"
             size="icon"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/50 disabled:text-muted-foreground"
             disabled={task.state.status === 'running'}
             aria-label={t('tasks.delete.open')}
             onClick={onDelete}
