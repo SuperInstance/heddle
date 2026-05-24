@@ -17,6 +17,7 @@
   },
   "composer": {
     "addContext": "添加上下文",
+    "contextMenu": "上下文",
     "drift": {
       "ariaLabel": "语义漂移",
       "disabled": "漂移关闭",
@@ -32,6 +33,7 @@
       "title": "语义漂移",
       "updating": "更新中"
     },
+    "executionMenu": "执行设置",
     "fileMentions": {
       "empty": "未找到文件：",
       "listboxLabel": "文件建议",
@@ -53,6 +55,8 @@
       "ultrahigh": "超高"
     },
     "reasoningEffort": "推理强度",
+    "noModelMatches": "没有匹配的模型",
+    "searchModels": "搜索模型",
     "send": "发送"
   },
   "diffPreview": {

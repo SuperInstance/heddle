@@ -17,6 +17,7 @@
   },
   "composer": {
     "addContext": "加入脈絡",
+    "contextMenu": "脈絡",
     "drift": {
       "ariaLabel": "語意漂移",
       "disabled": "漂移關閉",
@@ -32,6 +33,7 @@
       "title": "語意漂移",
       "updating": "更新中"
     },
+    "executionMenu": "執行設定",
     "fileMentions": {
       "empty": "找不到檔案：",
       "listboxLabel": "檔案建議",
@@ -53,6 +55,8 @@
       "ultrahigh": "超高"
     },
     "reasoningEffort": "推理強度",
+    "noModelMatches": "沒有符合的模型",
+    "searchModels": "搜尋模型",
     "send": "送出"
   },
   "diffPreview": {

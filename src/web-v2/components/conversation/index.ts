@@ -4,4 +4,7 @@ export { ConversationComposer } from './ConversationComposer';
 export { ConversationMessage } from './ConversationMessage';
 export { ConversationThread } from './ConversationThread';
 export { FileMentionMenu } from './FileMentionMenu';
-export { SessionDriftControl } from './SessionDriftControl';
+export {
+  SessionDriftMenuSection,
+  SessionDriftStatusGlyph,
+} from './SessionDriftControl';

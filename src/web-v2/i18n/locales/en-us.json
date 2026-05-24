@@ -17,6 +17,7 @@
   },
   "composer": {
     "addContext": "Add context",
+    "contextMenu": "Context",
     "drift": {
       "ariaLabel": "Semantic drift",
       "disabled": "Drift off",
@@ -32,6 +33,7 @@
       "title": "Semantic drift",
       "updating": "Updating"
     },
+    "executionMenu": "Execution settings",
     "fileMentions": {
       "empty": "No files found for",
       "listboxLabel": "File suggestions",
@@ -53,6 +55,8 @@
       "ultrahigh": "Ultra high"
     },
     "reasoningEffort": "Reasoning effort",
+    "noModelMatches": "No matching models",
+    "searchModels": "Search models",
     "send": "Send"
   },
   "diffPreview": {

@@ -1,10 +1,6 @@
+import { useId } from 'react';
 import { Activity } from 'lucide-react';
-import { Button } from '@web/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@web/components/ui/popover';
+import { Switch } from '@web/components/ui/switch';
 import type { I18nMessageKey } from '@web/i18n';
 import { useI18n } from '@web/i18n';
 import { cn } from '@web/lib/utils';
@@ -29,104 +25,97 @@ const driftMessageKeys = {
   enableAction: 'composer.drift.enableAction',
   disableAction: 'composer.drift.disableAction',
   updating: 'composer.drift.updating',
-} as const;
+} as const satisfies Record<string, I18nMessageKey>;
 
-const driftLevelMessageKeys: Record<SessionDriftLevel, string> = {
+const driftLevelMessageKeys = {
   unknown: 'composer.drift.signalUnknown',
   low: 'composer.drift.signalLow',
   medium: 'composer.drift.signalMedium',
   high: 'composer.drift.signalHigh',
-};
+} as const satisfies Record<SessionDriftLevel, I18nMessageKey>;
 
-export function SessionDriftControl({
+const driftLevelToneClasses = {
+  unknown: 'v2-drift-status-unknown',
+  low: 'v2-drift-status-low',
+  medium: 'v2-drift-status-medium',
+  high: 'v2-drift-status-high',
+} as const satisfies Record<SessionDriftLevel, string>;
+
+function useDriftCopy(driftEnabled: boolean, driftLevel: SessionDriftLevel, updating?: boolean) {
+  const { t } = useI18n();
+  const statusLabel = t(driftEnabled ? driftMessageKeys.enabled : driftMessageKeys.disabled);
+  const signalLabel = t(driftLevelMessageKeys[driftLevel]);
+  const nextDriftEnabled = !driftEnabled;
+  const actionLabel = updating
+    ? t(driftMessageKeys.updating)
+    : t(nextDriftEnabled ? driftMessageKeys.enableAction : driftMessageKeys.disableAction);
+
+  return {
+    actionLabel,
+    ariaLabel: t(driftMessageKeys.ariaLabel),
+    note: t(driftMessageKeys.note),
+    signalLabel,
+    statusLabel,
+    title: t(driftMessageKeys.title),
+  };
+}
+
+export function SessionDriftStatusGlyph({
+  driftEnabled,
+  driftLevel = 'unknown',
+}: Pick<SessionDriftControlProps, 'driftEnabled' | 'driftLevel'>) {
+  if (!driftEnabled) {
+    return null;
+  }
+
+  return (
+    <Activity
+      aria-hidden="true"
+      data-icon="inline-end"
+      className={cn('v2-drift-status-glyph', driftLevelToneClasses[driftLevel])}
+    />
+  );
+}
+
+export function SessionDriftMenuSection({
   driftEnabled,
   driftLevel = 'unknown',
   disabled,
   updating,
   onUpdateDriftEnabled,
 }: SessionDriftControlProps) {
-  const { t } = useI18n();
+  const switchId = useId();
   const actionDisabled = disabled || updating;
-  const nextDriftEnabled = !driftEnabled;
-  const statusLabel = t((driftEnabled ? driftMessageKeys.enabled : driftMessageKeys.disabled) as I18nMessageKey);
-  const signalLabel = t(driftLevelMessageKeys[driftLevel] as I18nMessageKey);
-  const triggerLabel = driftEnabled ? signalLabel : statusLabel;
-  const actionLabel = updating
-    ? t(driftMessageKeys.updating as I18nMessageKey)
-    : t((nextDriftEnabled ? driftMessageKeys.enableAction : driftMessageKeys.disableAction) as I18nMessageKey);
+  const copy = useDriftCopy(driftEnabled, driftLevel, updating);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="none"
-          className={cn(
-            'v2-drift-control',
-            driftEnabled && 'v2-drift-control-enabled',
-            driftEnabled && driftLevel === 'medium' && 'v2-drift-control-medium',
-            driftEnabled && driftLevel === 'high' && 'v2-drift-control-high',
-          )}
-          aria-label={`${t(driftMessageKeys.ariaLabel as I18nMessageKey)}: ${statusLabel}, ${signalLabel}`}
-          aria-pressed={driftEnabled}
+    <div className="v2-drift-menu-section">
+      <div className="v2-drift-menu-row">
+        <Activity
+          aria-hidden="true"
+          data-icon="inline-start"
+          className={cn('v2-drift-menu-icon', driftEnabled && driftLevelToneClasses[driftLevel])}
+        />
+        <label htmlFor={switchId} className="v2-drift-menu-copy">
+          <span className="v2-drift-menu-title">{copy.title}</span>
+          <span className="v2-drift-menu-status">
+            {copy.signalLabel}
+          </span>
+        </label>
+        <Switch
+          id={switchId}
+          checked={driftEnabled}
+          disabled={actionDisabled}
+          aria-label={`${copy.ariaLabel}: ${copy.statusLabel}, ${copy.signalLabel}`}
           aria-busy={updating || undefined}
-          disabled={disabled}
-        >
-          <Activity aria-hidden="true" data-icon="inline-start" />
-          <span className="truncate">{triggerLabel}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="top"
-        sideOffset={8}
-        className="w-64 p-2"
-        aria-label={t(driftMessageKeys.ariaLabel as I18nMessageKey)}
-      >
-        <div className="flex flex-col gap-2">
-          <div className="flex min-w-0 items-start gap-2 px-1.5 py-1">
-            <Activity aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="v2-type-nav-primary truncate text-foreground">
-                {t(driftMessageKeys.title as I18nMessageKey)}
-              </p>
-              <p className="v2-type-caption text-pretty text-muted-foreground">
-                {t(driftMessageKeys.signal as I18nMessageKey)}: {signalLabel}
-              </p>
-            </div>
-            <span className="v2-type-caption ml-auto shrink-0 rounded-sm border border-border bg-muted/20 px-1.5 py-0.5 text-muted-foreground">
-              {statusLabel}
-            </span>
-          </div>
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-auto w-full justify-between px-2.5 py-2 text-left"
-            role="switch"
-            aria-checked={driftEnabled}
-            disabled={actionDisabled}
-            onClick={() => {
-              void onUpdateDriftEnabled(nextDriftEnabled);
-            }}
-          >
-            <span className="v2-type-nav-primary truncate">{actionLabel}</span>
-            <span
-              aria-hidden="true"
-              className={cn(
-                'inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-border bg-muted/30 p-0.5',
-                driftEnabled && 'justify-end bg-primary',
-              )}
-            >
-              <span className="size-4 rounded-full bg-background shadow-sm" />
-            </span>
-          </Button>
-          <p className="v2-type-caption px-1.5 pb-1 text-pretty text-muted-foreground">
-            {t(driftMessageKeys.note as I18nMessageKey)}
-          </p>
-        </div>
-      </PopoverContent>
-    </Popover>
+          onCheckedChange={(checked) => {
+            void onUpdateDriftEnabled(checked);
+          }}
+        />
+      </div>
+      <p className="v2-drift-menu-note text-pretty">
+        {copy.note}
+      </p>
+    </div>
   );
 }
