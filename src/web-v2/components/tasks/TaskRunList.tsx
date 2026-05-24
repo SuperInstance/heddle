@@ -2,6 +2,8 @@ import type { ControlPlaneHeartbeatRunView, ControlPlaneHeartbeatTaskView } from
 import { cn } from '@web/lib/utils';
 import { formatTaskTimestamp, runDisplaySummary } from './task-format';
 
+export const LIVE_TASK_RUN_ID = 'live';
+
 interface TaskRunListProps {
   runs: ControlPlaneHeartbeatRunView[];
   liveTask?: ControlPlaneHeartbeatTaskView;
@@ -29,7 +31,11 @@ export function TaskRunList({
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {showLiveRun ? (
-        <TaskLiveRunListItem task={liveTask} />
+        <TaskLiveRunListItem
+          task={liveTask}
+          selected={selectedRunId === LIVE_TASK_RUN_ID}
+          onSelectRun={onSelectRun}
+        />
       ) : null}
       {runs.map((run) => (
         <TaskRunListItem
@@ -43,9 +49,25 @@ export function TaskRunList({
   );
 }
 
-function TaskLiveRunListItem({ task }: { task: ControlPlaneHeartbeatTaskView }) {
+function TaskLiveRunListItem({
+  task,
+  selected,
+  onSelectRun,
+}: {
+  task: ControlPlaneHeartbeatTaskView;
+  selected: boolean;
+  onSelectRun: (runId: string) => void;
+}) {
   return (
-    <div className="v2-task-run-row min-w-0 bg-accent/40 text-left">
+    <button
+      type="button"
+      aria-current={selected}
+      className={cn(
+        'v2-task-run-row min-w-0 bg-accent/40 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-1 focus-visible:ring-ring',
+        selected && 'bg-accent/55',
+      )}
+      onClick={() => onSelectRun(LIVE_TASK_RUN_ID)}
+    >
       <span className="flex min-w-0 items-center gap-2">
         <span className="v2-type-nav-primary truncate text-foreground">
           {task.state.runId ? `Run ${task.state.runId}` : 'Running now'}
@@ -60,7 +82,7 @@ function TaskLiveRunListItem({ task }: { task: ControlPlaneHeartbeatTaskView }) 
           {task.state.progress ?? 'Heartbeat runner is working...'}
         </span>
       </span>
-    </div>
+    </button>
   );
 }
 

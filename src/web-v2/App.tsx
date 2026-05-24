@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { trpcReact } from '@web/api/client';
-import { TaskCreateDialog, TaskDeleteDialog, TaskRunDetailsPanel, type TaskCreateInput } from '@web/components/tasks';
+import { LIVE_TASK_RUN_ID, TaskCreateDialog, TaskDeleteDialog, TaskRunDetailsPanel, type TaskCreateInput } from '@web/components/tasks';
 import { ContextInspector } from '@web/components/panels';
 import { useControlPlaneErrorToasts } from '@web/hooks/useControlPlaneErrorToasts';
 import { useControlPlaneHeartbeatEvents } from '@web/hooks/useControlPlaneHeartbeatEvents';
@@ -46,7 +46,10 @@ export function App() {
   const selectedTask = useControlPlaneTaskDetail(navigation.selectedTaskId, navigation.selectedTaskRunId);
   const selectedTaskView = selectedTask.task ? applyLiveTaskState(selectedTask.task, taskEvents.liveTasks[selectedTask.task.taskId]) : undefined;
   const selectedTaskRunId = navigation.selectedTaskRunId ?? selectedTask.selectedRun?.runId;
-  const selectedTaskRun = useControlPlaneTaskRunDetail(navigation.selectedTaskId, selectedTaskRunId);
+  const selectedTaskRun = useControlPlaneTaskRunDetail(
+    navigation.selectedTaskId,
+    selectedTaskRunId === LIVE_TASK_RUN_ID ? undefined : selectedTaskRunId,
+  );
   useControlPlaneErrorToasts({
     stateError: stateQuery.error,
     sessionError: selectedSession.error,
@@ -80,7 +83,8 @@ export function App() {
           error={selectedTaskRun.error}
           liveTask={selectedTaskView}
           loading={selectedTaskRun.loading}
-          run={selectedTaskRun.run}
+          run={selectedTaskRunId === LIVE_TASK_RUN_ID ? null : selectedTaskRun.run}
+          showingLiveRun={selectedTaskRunId === LIVE_TASK_RUN_ID}
         />
       ),
     },
@@ -169,6 +173,7 @@ export function App() {
 
     const taskId = navigation.selectedTaskId;
     taskEvents.markTaskRunQueued(taskId);
+    navigation.selectTaskRun(taskId, LIVE_TASK_RUN_ID, { replace: true });
     await runTaskNowMutation.mutateAsync({ taskId });
   }
 
@@ -282,6 +287,9 @@ function applyLiveTaskState(
   if (!live) {
     return task;
   }
+  if (isStaleLiveTaskState(task, live)) {
+    return task;
+  }
 
   return {
     ...task,
@@ -293,4 +301,18 @@ function applyLiveTaskState(
       runId: live.runId ?? task.state.runId,
     },
   };
+}
+
+function isStaleLiveTaskState(
+  task: NonNullable<ReturnType<typeof useControlPlaneTaskDetail>['task']>,
+  live: ReturnType<typeof useControlPlaneHeartbeatEvents>['liveTasks'][string],
+) {
+  const taskUpdatedAt = Date.parse(task.state.updatedAt ?? '');
+  const liveUpdatedAt = Date.parse(live.updatedAt);
+  return (
+    live.status !== 'running' &&
+    Number.isFinite(taskUpdatedAt) &&
+    Number.isFinite(liveUpdatedAt) &&
+    taskUpdatedAt > liveUpdatedAt
+  );
 }

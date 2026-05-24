@@ -7,6 +7,7 @@ interface TaskRunDetailsPanelProps {
   liveTask?: ControlPlaneHeartbeatTaskView;
   loading: boolean;
   error?: string;
+  showingLiveRun?: boolean;
 }
 
 export function TaskRunDetailsPanel({
@@ -14,6 +15,7 @@ export function TaskRunDetailsPanel({
   liveTask,
   loading,
   error,
+  showingLiveRun = false,
 }: TaskRunDetailsPanelProps) {
   const showLiveTask = liveTask?.state.status === 'running' || liveTask?.state.progress?.startsWith('Task queued');
   return (
@@ -23,12 +25,27 @@ export function TaskRunDetailsPanel({
         <p className="v2-type-panel-subtitle text-muted-foreground">Selected task run</p>
       </header>
       <div className="v2-scrollbar-hidden min-h-0 flex-1 overflow-auto px-4 py-4">
-        {showLiveTask ? (
+        {showLiveTask && !showingLiveRun ? (
           <div className="mb-5">
             <TaskDetailBlock title={liveTask.state.status === 'running' ? 'Running now' : 'Latest task status'} body={liveTask.state.progress ?? liveTask.state.status} />
           </div>
         ) : null}
-        {loading ? (
+        {showingLiveRun ? (
+          liveTask ? (
+            <div className="flex min-w-0 flex-col gap-5">
+              <TaskDetailBlock title={liveTask.state.status === 'running' ? 'Running now' : 'Latest task status'} body={liveTask.state.progress ?? liveTask.state.status} />
+              <TaskDetailRows
+                rows={[
+                  ['status', liveTask.state.status],
+                  ['run', liveTask.state.runId ?? 'pending'],
+                  ['checkpoint', liveTask.state.loadedCheckpoint ? 'loaded' : 'pending'],
+                ]}
+              />
+            </div>
+          ) : (
+            <TaskInspectorEmpty title="No live run" body="The live run is no longer active." />
+          )
+        ) : loading ? (
           <TaskInspectorEmpty title="Loading run" body="Reading the selected heartbeat run." />
         ) : error ? (
           <TaskInspectorEmpty title="Run unavailable" body={error} />
