@@ -17,18 +17,26 @@ export type ControlPlaneSessionLoaderState = {
   refresh: RefreshControlPlaneSession;
 };
 
+type UseControlPlaneSessionLoaderArgs = {
+  workspaceId?: string;
+  sessionId?: string;
+};
+
 // Loads persisted session detail through React Query and preserves browser-only
 // transient messages during silent refreshes.
-export function useControlPlaneSessionLoader(sessionId: string | undefined): ControlPlaneSessionLoaderState {
+export function useControlPlaneSessionLoader({
+  workspaceId,
+  sessionId,
+}: UseControlPlaneSessionLoaderArgs): ControlPlaneSessionLoaderState {
   const [session, setSession] = useState<ControlPlaneSessionDetail>(null);
   const [manualLoading, setManualLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const latestRefreshMode = useRef<'normal' | 'silent' | null>(null);
 
   const sessionQuery = trpcReact.controlPlane.session.useQuery(
-    sessionId ? { id: sessionId } : skipToken,
+    sessionId && workspaceId ? { id: sessionId, workspaceId } : skipToken,
     {
-      enabled: Boolean(sessionId),
+      enabled: Boolean(sessionId && workspaceId),
     },
   );
 
@@ -63,7 +71,7 @@ export function useControlPlaneSessionLoader(sessionId: string | undefined): Con
   }, [sessionId, sessionQuery]);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId || !workspaceId) {
       setSession(null);
       setManualLoading(false);
       setError(undefined);
@@ -87,7 +95,7 @@ export function useControlPlaneSessionLoader(sessionId: string | undefined): Con
       return querySession;
     });
     latestRefreshMode.current = null;
-  }, [sessionId, sessionQuery.data]);
+  }, [sessionId, sessionQuery.data, workspaceId]);
 
   useEffect(() => {
     if (sessionQuery.error) {

@@ -43,7 +43,10 @@ export class ChatSessionEventsRestController {
       send('heartbeat', { sessionId, timestamp: new Date().toISOString() });
     }, 15000);
 
-    const unsubscribe = controlPlaneChatSessionsController.subscribeToEvents(sessionId, (payload) => {
+    const unsubscribe = controlPlaneChatSessionsController.subscribeToEvents({
+      workspaceId: workspaceContext.activeWorkspace.id,
+      sessionId,
+    }, (payload) => {
       send('session.event', payload);
     });
 

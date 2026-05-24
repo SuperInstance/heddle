@@ -39,24 +39,34 @@ const SUPPORTED_IMAGE_TYPES = {
 /**
  * Owns browser-uploaded session image storage for the local control plane.
  *
- * Images are persisted under the active workspace state root so the runtime can
+ * Images are persisted under the selected workspace state root so the runtime can
  * later inspect them through the existing filesystem-backed view_image tool.
  */
 export class ChatSessionImageUploadService {
   constructor(private readonly options: ChatSessionImageUploadServiceOptions) {}
 
-  resolveActiveWorkspace(): WorkspaceDescriptor {
-    return RuntimeWorkspaceService.resolveContext({
+  resolveWorkspace(request: Request): WorkspaceDescriptor {
+    const workspaceContext = RuntimeWorkspaceService.resolveContext({
       workspaceRoot: this.options.workspaceRoot,
       stateRoot: this.options.stateRoot,
-    }).activeWorkspace;
+    });
+    const workspaceId = this.readWorkspaceId(request);
+    if (!workspaceId) {
+      return workspaceContext.activeWorkspace;
+    }
+
+    const workspace = workspaceContext.workspaces.find((candidate) => candidate.id === workspaceId);
+    if (!workspace) {
+      throw new ChatSessionUploadError(404, `Workspace not found: ${workspaceId}`);
+    }
+    return workspace;
   }
 
   async resolveUploadDirectory(request: Request): Promise<string> {
     const sessionId = this.readSessionId(request);
-    const activeWorkspace = this.resolveActiveWorkspace();
-    this.requireSession(activeWorkspace, sessionId);
-    const uploadDirectory = join(activeWorkspace.stateRoot, 'uploads', 'sessions', sessionId);
+    const workspace = this.resolveWorkspace(request);
+    this.requireSession(workspace, sessionId);
+    const uploadDirectory = join(workspace.stateRoot, 'uploads', 'sessions', sessionId);
     await mkdir(uploadDirectory, { recursive: true });
     return uploadDirectory;
   }
@@ -71,8 +81,8 @@ export class ChatSessionImageUploadService {
 
   completeUploads(request: Request): ChatSessionImageUploadResult {
     const sessionId = this.readSessionId(request);
-    const activeWorkspace = this.resolveActiveWorkspace();
-    this.requireSession(activeWorkspace, sessionId);
+    const workspace = this.resolveWorkspace(request);
+    this.requireSession(workspace, sessionId);
 
     const files = this.readUploadedFiles(request.files);
     if (!files.length) {
@@ -83,17 +93,18 @@ export class ChatSessionImageUploadService {
       throw new ChatSessionUploadError(400, `Upload at most ${CHAT_SESSION_IMAGE_UPLOAD_LIMITS.maxFiles} images at a time.`);
     }
 
-    const uploadRoot = resolve(activeWorkspace.stateRoot, 'uploads', 'sessions', sessionId);
+    const uploadRoot = resolve(workspace.stateRoot, 'uploads', 'sessions', sessionId);
     return {
       uploads: files.map((file) => this.projectUploadedFile(uploadRoot, file)),
     };
   }
 
-  private requireSession(activeWorkspace: WorkspaceDescriptor, sessionId: string): void {
+  private requireSession(workspace: WorkspaceDescriptor, sessionId: string): void {
     const session = controlPlaneChatSessionsController.readDetail({
-      workspaceRoot: activeWorkspace.anchorRoot,
-      stateRoot: activeWorkspace.stateRoot,
-      sessionStoragePath: resolve(activeWorkspace.stateRoot, 'chat-sessions.catalog.json'),
+      workspaceRoot: workspace.workspaceRoot,
+      stateRoot: workspace.stateRoot,
+      sessionStoragePath: resolve(workspace.stateRoot, 'chat-sessions.catalog.json'),
+      workspaceId: workspace.id,
     }, sessionId);
     if (!session) {
       throw new ChatSessionUploadError(404, `Chat session not found: ${sessionId}`);
@@ -144,6 +155,12 @@ export class ChatSessionImageUploadService {
     }
 
     return sessionId;
+  }
+
+  private readWorkspaceId(request: Request): string | undefined {
+    const rawWorkspaceId = request.query.workspaceId;
+    const workspaceId = typeof rawWorkspaceId === 'string' ? rawWorkspaceId.trim() : '';
+    return workspaceId || undefined;
   }
 
   private decodeOriginalFilename(originalName: string): string {

@@ -26,6 +26,7 @@ type FileMentionToken = {
 type TextareaRef = RefObject<HTMLTextAreaElement | null>;
 
 export type UseFileMentionAutocompleteOptions = {
+  workspaceId?: string;
   value: string;
   onValueChange: (value: string) => void;
   textareaRef?: TextareaRef;
@@ -36,6 +37,7 @@ export type UseFileMentionAutocompleteOptions = {
 };
 
 export function useFileMentionAutocomplete({
+  workspaceId,
   value,
   onValueChange,
   textareaRef,
@@ -82,12 +84,14 @@ export function useFileMentionAutocomplete({
     return () => window.clearTimeout(timeout);
   }, [debounceMs, disabled, mentionToken]);
 
-  const queryInput = debouncedMentionToken ? {
+  const queryInput = debouncedMentionToken && workspaceId ? {
+    workspaceId,
     query: debouncedMentionToken.query,
     limit,
   } : skipToken;
 
   const fileSearchQuery = trpcReact.controlPlane.workspaceFileSearch.useQuery(queryInput, {
+    enabled: Boolean(workspaceId && debouncedMentionToken),
     staleTime: 10_000,
   });
 
@@ -100,8 +104,8 @@ export function useFileMentionAutocomplete({
   );
 
   const suggestions = useMemo(
-    () => queryIsCurrent ? fileSearchQuery.data?.files ?? [] : [],
-    [fileSearchQuery.data?.files, queryIsCurrent],
+    () => queryIsCurrent && !fileSearchQuery.isFetching ? fileSearchQuery.data?.files ?? [] : [],
+    [fileSearchQuery.data?.files, fileSearchQuery.isFetching, queryIsCurrent],
   );
   const activeOptionId = mentionToken && suggestions[activeIndex] ? `${optionIdPrefix}-${activeIndex}` : undefined;
   const loading = Boolean(mentionToken) && (!queryIsCurrent || fileSearchQuery.isFetching);
@@ -120,6 +124,10 @@ export function useFileMentionAutocomplete({
     setDebouncedMentionToken(null);
     setActiveIndex(0);
   }, []);
+
+  useEffect(() => {
+    close();
+  }, [close, workspaceId]);
 
   const insertMention = useCallback((suggestion: FileMentionSuggestion) => {
     if (!mentionToken || disabled) {

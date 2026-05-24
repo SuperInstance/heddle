@@ -3,6 +3,7 @@ import { trpcReact, type ControlPlaneSessionDetail } from '@web/api/client';
 import { SessionMessageController } from '@web/controllers/session-messages';
 
 type UseControlPlaneSessionPromptSubmitArgs = {
+  workspaceId?: string;
   sessionId?: string;
   streamConnected: boolean;
   setSession: Dispatch<SetStateAction<ControlPlaneSessionDetail>>;
@@ -18,6 +19,7 @@ export type ControlPlaneSessionPromptSubmitState = {
 
 // Owns prompt mutation state and optimistic conversation updates for web-v2.
 export function useControlPlaneSessionPromptSubmit({
+  workspaceId,
   sessionId,
   streamConnected,
   setSession,
@@ -34,7 +36,7 @@ export function useControlPlaneSessionPromptSubmit({
 
   const submitPrompt = useCallback(async (prompt: string) => {
     const trimmed = prompt.trim();
-    if (!sessionId || !trimmed || submitting) {
+    if (!workspaceId || !sessionId || !trimmed || submitting) {
       return;
     }
 
@@ -45,7 +47,7 @@ export function useControlPlaneSessionPromptSubmit({
     setSession((current) => SessionMessageController.appendOptimisticUserTurn(current, trimmed));
 
     try {
-      const result = await sessionSendPromptMutation.mutateAsync({ sessionId, prompt: trimmed });
+      const result = await sessionSendPromptMutation.mutateAsync({ workspaceId, sessionId, prompt: trimmed });
       setSession(result.session);
       setRunning(false);
       setLiveStatus(undefined);
@@ -58,6 +60,7 @@ export function useControlPlaneSessionPromptSubmit({
     }
   }, [
     sessionId,
+    workspaceId,
     setError,
     setLiveStatus,
     setRunning,

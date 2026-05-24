@@ -9,7 +9,7 @@ import { ControlPlaneMemoryController } from './memory.js';
 
 export class ControlPlaneStateController {
   static async load(context: HeddleServerContext): Promise<ControlPlaneState> {
-    const workspaceRoot = context.activeWorkspace.anchorRoot;
+    const workspaceRoot = context.activeWorkspace.workspaceRoot;
     const stateRoot = context.activeWorkspace.stateRoot;
     const [tasks, memory] = await Promise.all([
       ControlPlaneHeartbeatController.listTasks(stateRoot),

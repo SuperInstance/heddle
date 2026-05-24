@@ -9,6 +9,7 @@ import { SessionMessageController } from '@web/controllers/session-messages';
 import type { RefreshControlPlaneSession } from './useControlPlaneSessionLoader';
 
 type UseControlPlaneSessionEventsArgs = {
+  workspaceId?: string;
   sessionId?: string;
   refresh: RefreshControlPlaneSession;
   refreshPendingApproval: (sessionId: string) => void;
@@ -24,6 +25,7 @@ export type ControlPlaneSessionEventsState = {
 // Subscribes to the selected session's live event stream and applies only the
 // web-v2 conversation state transitions that this interface currently renders.
 export function useControlPlaneSessionEvents({
+  workspaceId,
   sessionId,
   refresh,
   refreshPendingApproval,
@@ -34,9 +36,9 @@ export function useControlPlaneSessionEvents({
   const utils = trpcReact.useUtils();
   const [streamConnected, setStreamConnected] = useState(false);
   const invalidateWorkspaceDiff = useCallback(() => {
-    void utils.controlPlane.workspaceChanges.invalidate();
+    void utils.controlPlane.workspaceChanges.invalidate(workspaceId ? { workspaceId } : undefined);
     void utils.controlPlane.workspaceFileDiff.invalidate();
-  }, [utils]);
+  }, [utils, workspaceId]);
   const applySessionEvent = useCallback((event: ControlPlaneSessionEventEnvelope) => {
     if (event.type === 'waiting') {
       setLiveStatus('Waiting for the session event stream...');
@@ -64,7 +66,7 @@ export function useControlPlaneSessionEvents({
   }, [invalidateWorkspaceDiff, refresh, refreshPendingApproval, setLiveStatus, setRunning, setSession]);
 
   const subscription = trpcReact.controlPlane.sessionEvents.useSubscription(
-    sessionId ? { sessionId } : skipToken,
+    sessionId && workspaceId ? { sessionId, workspaceId } : skipToken,
     {
       onStarted: () => {
         setStreamConnected(true);
@@ -81,7 +83,7 @@ export function useControlPlaneSessionEvents({
   );
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId || !workspaceId) {
       setRunning(false);
       setLiveStatus(undefined);
       setStreamConnected(false);
@@ -90,7 +92,7 @@ export function useControlPlaneSessionEvents({
 
     setRunning(false);
     setLiveStatus(undefined);
-  }, [sessionId, setLiveStatus, setRunning]);
+  }, [sessionId, setLiveStatus, setRunning, workspaceId]);
 
   useEffect(() => {
     setStreamConnected(subscription.status === 'pending');
