@@ -7,6 +7,7 @@
  * decides how that task is executed and recorded.
  */
 import dayjs from 'dayjs';
+import { ToolApprovalPolicies } from '@/core/approvals/index.js';
 import { DEFAULT_OPENAI_MODEL } from '@/core/config.js';
 import { RuntimeCredentialService } from '@/core/runtime/credentials/index.js';
 import type { AgentLoopCheckpoint, AgentLoopState } from '@/core/runtime/loop/index.js';
@@ -149,6 +150,10 @@ export class HeartbeatTaskRunnerService {
       model,
       apiKey: RuntimeCredentialService.resolveApiKeyForModel(model, credentialOptions),
       stateDir: args.task.runtime?.stateDir ?? args.runtime?.stateDir,
+      approvalPolicies: [
+        ToolApprovalPolicies.unattendedLocalAutomation(),
+        ...(args.runtime?.approvalPolicies ?? []),
+      ],
       approveToolCall: HeartbeatTaskRunnerService.denyInteractiveToolCall,
       onEvent: (event) => {
         args.runtime?.onAgentEvent?.(event);

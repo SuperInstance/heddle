@@ -51,6 +51,7 @@ export type HeartbeatTaskRunnerRuntimeOptions = {
   maxSteps?: number;
   tools?: RunAgentHeartbeatOptions['tools'];
   includeDefaultTools?: RunAgentHeartbeatOptions['includeDefaultTools'];
+  approvalPolicies?: RunAgentHeartbeatOptions['approvalPolicies'];
   searchIgnoreDirs?: string[];
   systemContext?: string;
   onAgentEvent?: RunAgentHeartbeatOptions['onEvent'];
