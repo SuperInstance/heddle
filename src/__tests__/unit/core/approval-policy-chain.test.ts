@@ -120,6 +120,54 @@ describe('approval policy chain', () => {
     });
   });
 
+  it('allows unattended local automation for read and edit file tools', async () => {
+    const service = new ToolApprovalService();
+    const editOutside = context({
+      call: {
+        id: 'call-edit',
+        tool: 'edit_file',
+        input: { path: '../heartbeat-liveness-check.txt', content: 'ok', createIfMissing: true },
+      },
+      tool: {
+        name: 'edit_file',
+        description: 'edits files',
+        requiresApproval: true,
+        parameters: {},
+        execute: async () => ({ ok: true }),
+      },
+    });
+
+    await expect(service.resolve({
+      policies: [
+        ...ToolApprovalPolicies.default(),
+        ToolApprovalPolicies.unattendedLocalAutomation(),
+      ],
+      context: editOutside,
+      requestHumanApproval: async () => ({ approved: false, reason: 'should not request human approval' }),
+    })).resolves.toEqual({
+      approved: true,
+      reason: 'Allowed for unattended local automation',
+    });
+  });
+
+  it('blocks catastrophically dangerous shell commands for unattended local automation', async () => {
+    const service = new ToolApprovalService();
+
+    await expect(service.resolve({
+      policies: [
+        ...ToolApprovalPolicies.default(),
+        ToolApprovalPolicies.unattendedLocalAutomation(),
+      ],
+      context: context({
+        call: { id: 'call-rm', tool: 'run_shell_mutate', input: { command: 'rm -rf ~' } },
+      }),
+      requestHumanApproval: async () => ({ approved: true, reason: 'should not request human approval' }),
+    })).resolves.toEqual({
+      approved: false,
+      reason: 'Command not allowed. This command appears catastrophically destructive (home/root/disk-level) and is blocked even in approval-gated mutate mode.',
+    });
+  });
+
   it('lets remembered outside-workspace read_file approvals satisfy request policies before human approval', async () => {
     const service = new ToolApprovalService();
     const human = vi.fn(async () => ({ approved: false, reason: 'should not run' }));

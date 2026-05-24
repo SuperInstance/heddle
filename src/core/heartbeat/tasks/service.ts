@@ -1,12 +1,18 @@
 import { resolve } from 'node:path';
+import dayjs from 'dayjs';
+import omit from 'lodash/omit.js';
+import orderBy from 'lodash/orderBy.js';
 import { FileHeartbeatTaskRepository } from './repository.js';
 import type {
   FileHeartbeatTaskRepositoryOptions,
   HeartbeatTask,
+  HeartbeatTaskState,
+  HeartbeatTaskRunRecord,
   HeartbeatTaskRunRecordEntry,
   HeartbeatTaskStore,
 } from './types.js';
-import type { HeartbeatRunView, HeartbeatTaskView } from '../views/index.js';
+import type { HeartbeatRunView, HeartbeatTaskResultView, HeartbeatTaskView } from '../views/index.js';
+import type { AgentHeartbeatResult } from '../agent/index.js';
 
 export type FileHeartbeatTaskServiceOptions =
   | { stateRoot: string }
@@ -29,6 +35,17 @@ export type CreateHeartbeatTaskInput = {
   systemContext?: string;
 };
 
+export type UpdateHeartbeatTaskInput = {
+  name?: string;
+  task?: string;
+  enabled?: boolean;
+  intervalMs?: number;
+  model?: string | null;
+  maxSteps?: number | null;
+  searchIgnoreDirs?: string[];
+  systemContext?: string;
+};
+
 /**
  * Heartbeat task service.
  *
@@ -37,7 +54,7 @@ export type CreateHeartbeatTaskInput = {
  * service, not the file repository.
  */
 export class FileHeartbeatTaskService implements HeartbeatTaskStore {
-  private readonly repository: HeartbeatTaskStore;
+  private readonly repository: FileHeartbeatTaskRepository;
 
   constructor(options: FileHeartbeatTaskServiceOptions) {
     this.repository = new FileHeartbeatTaskRepository({
@@ -74,7 +91,11 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
   }
 
   async listTaskViews() {
-    return (await this.listTasks()).map((task) => FileHeartbeatTaskService.projectTaskView(task));
+    return orderBy(
+      (await this.listTasks()).map((task) => FileHeartbeatTaskService.projectTaskView(task)),
+      [(task) => FileHeartbeatTaskService.taskLastRunTime(task)],
+      ['desc'],
+    );
   }
 
   async listRunViews(options: { taskId?: string; limit?: number } = {}) {
@@ -84,7 +105,7 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
 
   async createTask(input: CreateHeartbeatTaskInput) {
     const tasks = await this.listTasks();
-    const now = new Date();
+    const now = dayjs();
     const id = input.id ?? FileHeartbeatTaskService.createTaskId(input.name ?? input.task, tasks.map((task) => task.id));
     if (tasks.some((task) => task.id === id)) {
       throw new Error(`Heartbeat task already exists: ${id}`);
@@ -99,7 +120,7 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
       enabled: input.enabled ?? true,
       schedule: {
         intervalMs,
-        nextRunAt: input.defer === false ? new Date(now.getTime() - 1_000).toISOString() : new Date(now.getTime() + intervalMs).toISOString(),
+        nextRunAt: (input.defer === false ? now.subtract(1, 'second') : now.add(intervalMs, 'millisecond')).toISOString(),
       },
       runtime: {
         model: input.model,
@@ -116,6 +137,48 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
     };
 
     await this.saveTask(task);
+    return FileHeartbeatTaskService.projectTaskView(task);
+  }
+
+  async updateTask(taskId: string, input: UpdateHeartbeatTaskInput) {
+    const task = await this.requireTask(taskId);
+    const now = dayjs();
+    const intervalMs = input.intervalMs ?? task.schedule.intervalMs;
+    const running = task.state?.status === 'running';
+    const nextTask: HeartbeatTask = {
+      ...task,
+      name: input.name ?? task.name,
+      task: input.task?.trim() ?? task.task,
+      enabled: input.enabled ?? task.enabled,
+      schedule: {
+        ...task.schedule,
+        intervalMs,
+        nextRunAt: running ? task.schedule.nextRunAt : now.add(intervalMs, 'millisecond').toISOString(),
+      },
+      runtime: {
+        ...task.runtime,
+        model: input.model === undefined ? task.runtime?.model : input.model ?? undefined,
+        maxSteps: input.maxSteps === undefined ? task.runtime?.maxSteps : input.maxSteps ?? undefined,
+        searchIgnoreDirs: input.searchIgnoreDirs ?? task.runtime?.searchIgnoreDirs,
+        systemContext: input.systemContext ?? task.runtime?.systemContext,
+      },
+      state: {
+        ...task.state,
+        updatedAt: now.toISOString(),
+      },
+    };
+
+    await this.saveTask(nextTask);
+    return FileHeartbeatTaskService.projectTaskView(nextTask);
+  }
+
+  async deleteTask(taskId: string) {
+    const task = await this.requireTask(taskId);
+    if (task.state?.status === 'running') {
+      throw new Error(`Heartbeat task ${taskId} is running. Wait for the run to finish before deleting it.`);
+    }
+
+    await this.repository.deleteTask(task);
     return FileHeartbeatTaskService.projectTaskView(task);
   }
 
@@ -146,7 +209,7 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
 
   async setTaskEnabled(taskId: string, enabled: boolean) {
     const task = await this.requireTask(taskId);
-    const now = new Date();
+    const now = dayjs();
     const status = enabled ? (task.state?.status ?? 'waiting') : (task.state?.status === 'running' ? 'running' : 'idle');
     const nextTask: HeartbeatTask = {
       ...task,
@@ -155,7 +218,7 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
         ...task.schedule,
         nextRunAt:
           enabled ?
-            task.schedule.nextRunAt ?? new Date(now.getTime() - 1_000).toISOString()
+            task.schedule.nextRunAt ?? now.subtract(1, 'second').toISOString()
           : undefined,
       },
       state: {
@@ -174,13 +237,13 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
       throw new Error(`Heartbeat task ${taskId} is disabled. Enable it before triggering a run.`);
     }
 
-    const now = new Date();
+    const now = dayjs();
     const status = task.state?.status === 'running' ? 'running' : 'waiting';
     const nextTask: HeartbeatTask = {
       ...task,
       schedule: {
         ...task.schedule,
-        nextRunAt: new Date(now.getTime() - 1_000).toISOString(),
+        nextRunAt: now.subtract(1, 'second').toISOString(),
       },
       state: {
         ...task.state,
@@ -213,37 +276,57 @@ export class FileHeartbeatTaskService implements HeartbeatTaskStore {
     return FileHeartbeatTaskService.projectRunView(run);
   }
 
-  private static projectTaskView(task: HeartbeatTask): HeartbeatTaskView {
-    const result = task.state?.result;
+  static projectTaskView(task: HeartbeatTask): HeartbeatTaskView {
+    const state = FileHeartbeatTaskService.projectTaskStateView(task.state);
     return {
       ...task,
-      ...task.schedule,
-      ...task.runtime,
-      ...task.state,
       taskId: task.id,
-      status: task.state?.status ?? 'idle',
-      lastRunAt: task.state?.runAt,
-      lastRunId: task.state?.runId,
-      decision: result?.decision,
-      summary: result?.summary,
-      outcome: result?.state.outcome,
-      usage: result?.state.usage,
+      state,
     };
   }
 
-  private static projectRunView(run: HeartbeatTaskRunRecordEntry): HeartbeatRunView {
+  static projectRunView(run: HeartbeatTaskRunRecordEntry): HeartbeatRunView {
     return {
-      ...FileHeartbeatTaskService.projectTaskView(run.record.task),
-      ...run,
-      id: run.id,
-      taskId: run.taskId,
-      runId: run.runId,
-      decision: run.record.result.decision,
-      summary: run.record.result.summary,
-      outcome: run.record.result.state.outcome,
-      loadedCheckpoint: run.record.loadedCheckpoint,
-      usage: run.record.result.state.usage,
+      ...omit(run, ['record', 'path']),
+      ...FileHeartbeatTaskService.projectRunRecordView(run.record),
     };
+  }
+
+  static projectRunRecordView(record: HeartbeatTaskRunRecord): HeartbeatRunView {
+    const runId = record.result.state.runId;
+    return {
+      id: runId,
+      taskId: record.task.id,
+      runId,
+      workspaceId: record.task.workspaceId,
+      createdAt: record.result.state.finishedAt,
+      task: FileHeartbeatTaskService.projectTaskView(record.task),
+      result: FileHeartbeatTaskService.projectResultView(record.result),
+      loadedCheckpoint: record.loadedCheckpoint,
+    };
+  }
+
+  private static projectTaskStateView(state: HeartbeatTaskState | undefined): HeartbeatTaskView['state'] {
+    const result = state?.result;
+    return {
+      ...omit(state ?? {}, ['result']),
+      status: state?.status ?? 'idle',
+      result: result ? FileHeartbeatTaskService.projectResultView(result) : undefined,
+    };
+  }
+
+  private static projectResultView(result: AgentHeartbeatResult): HeartbeatTaskResultView {
+    return {
+      decision: result.decision,
+      summary: result.summary,
+      outcome: result.state.outcome,
+      usage: result.state.usage,
+    };
+  }
+
+  private static taskLastRunTime(task: HeartbeatTaskView): number {
+    const runAt = task.state.runAt ? dayjs(task.state.runAt) : undefined;
+    return runAt?.isValid() ? runAt.valueOf() : 0;
   }
 
   private static resolveHeartbeatRoot(options: FileHeartbeatTaskServiceOptions): string {

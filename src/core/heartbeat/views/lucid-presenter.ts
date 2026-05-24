@@ -4,6 +4,7 @@
  * Adapts heartbeat task, run, and scheduler projections into Lucid-style agent
  * notifications. This is an integration projection, not scheduler policy.
  */
+import dayjs from 'dayjs';
 import type { HeartbeatSchedulerEvent } from '../scheduler/index.js';
 import type { HeartbeatTaskStatus } from '../tasks/index.js';
 import type {
@@ -36,17 +37,17 @@ export class HeartbeatLucidPresenter {
     options: LucidAdapterOptions = {},
   ): LucidAgentMessage[] {
     const agentId = HeartbeatLucidPresenter.resolveAgentId(task.taskId, options);
-    const timestamp = task.lastRunAt ?? task.nextRunAt ?? new Date().toISOString();
+    const timestamp = task.state.runAt ?? task.schedule.nextRunAt ?? dayjs().toISOString();
     const messages: LucidAgentMessage[] = [
-      HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(task.status), timestamp),
+      HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(task.state.status), timestamp),
     ];
 
-    if (task.progress) {
-      messages.push(HeartbeatLucidPresenter.progressMessage(agentId, task.progress, timestamp));
+    if (task.state.progress) {
+      messages.push(HeartbeatLucidPresenter.progressMessage(agentId, task.state.progress, timestamp));
     }
 
-    if (task.summary) {
-      messages.push(HeartbeatLucidPresenter.responseMessage(agentId, task.summary, timestamp));
+    if (task.state.result?.summary) {
+      messages.push(HeartbeatLucidPresenter.responseMessage(agentId, task.state.result.summary, timestamp));
     }
 
     return messages;
@@ -59,14 +60,14 @@ export class HeartbeatLucidPresenter {
     const agentId = HeartbeatLucidPresenter.resolveAgentId(run.taskId, options);
     const timestamp = run.createdAt;
     const messages: LucidAgentMessage[] = [
-      HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(run.status), timestamp),
+      HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(run.task.state.status), timestamp),
     ];
 
-    if (run.progress) {
-      messages.push(HeartbeatLucidPresenter.progressMessage(agentId, run.progress, timestamp));
+    if (run.task.state.progress) {
+      messages.push(HeartbeatLucidPresenter.progressMessage(agentId, run.task.state.progress, timestamp));
     }
 
-    messages.push(HeartbeatLucidPresenter.responseMessage(agentId, run.summary, timestamp));
+    messages.push(HeartbeatLucidPresenter.responseMessage(agentId, run.result.summary, timestamp));
     return messages;
   }
 
@@ -88,6 +89,8 @@ export class HeartbeatLucidPresenter {
           HeartbeatLucidPresenter.statusMessage(agentId, HeartbeatLucidPresenter.taskStatusToLucidStatus(event.status), event.timestamp),
           HeartbeatLucidPresenter.progressMessage(agentId, event.progress, event.timestamp),
         ];
+      case 'heartbeat.task.agent_event':
+        return [];
       case 'heartbeat.task.finished': {
         const { task, result } = event.record;
         return [

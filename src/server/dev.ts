@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { createHeddleServerApp } from './app.js';
+import { listenHeddleDaemon } from './index.js';
 import { createServerLogger } from './logger.js';
 
 const host = process.env.HEDDLE_SERVER_HOST ?? '127.0.0.1';
@@ -12,26 +12,13 @@ const logger = createServerLogger({
   logFilePath: process.env.HEDDLE_SERVER_LOG_FILE,
 });
 
-const app = createHeddleServerApp({
+await listenHeddleDaemon({
+  host,
+  port,
   workspaceRoot,
   stateRoot,
   logger,
-});
-
-const server = app.listen(port, host, () => {
-  logger.info({
-    host,
-    port,
-    workspaceRoot,
-    stateRoot,
-    apiPath: '/trpc',
-    url: `http://${host}:${port}`,
-  }, 'Heddle dev server started');
-});
-
-server.once('error', (error) => {
-  logger.error({ error }, 'Heddle dev server failed');
-  throw error;
+  serveAssets: false,
 });
 
 function parsePort(raw: string | undefined): number | undefined {

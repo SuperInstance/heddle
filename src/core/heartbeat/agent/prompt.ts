@@ -4,8 +4,14 @@
  * Owns the autonomous heartbeat instructions that are added around a durable
  * task before it is handed to the generic runtime loop.
  */
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration.js';
+import type { HeartbeatRunnerAgentRunContext } from './types.js';
+
+dayjs.extend(duration);
+
 export class HeartbeatRunnerAgentPrompt {
-  static buildGoal(task: string): string {
+  static buildGoal(task: string, runContext?: HeartbeatRunnerAgentRunContext): string {
     return `# Heartbeat Run
 
 Work autonomously on the task if there is useful, safe progress to make now.
@@ -18,7 +24,7 @@ End your response with exactly one decision line:
 
 ## Durable Task
 
-${task}`;
+${task}${HeartbeatRunnerAgentPrompt.formatRunContext(runContext)}`;
   }
 
   static appendSystemContext(systemContext: string | undefined): string {
@@ -34,5 +40,33 @@ Escalate only when human input, credentials, policy approval, or risky judgment 
 The required final decision line is: \`HEARTBEAT_DECISION: continue | pause | complete | escalate\``;
 
     return systemContext ? `${heartbeatContext}\n\n${systemContext}` : heartbeatContext;
+  }
+
+  private static formatRunContext(context: HeartbeatRunnerAgentRunContext | undefined): string {
+    if (!context) {
+      return '';
+    }
+
+    return `
+
+## Current Run Context
+
+- Current date time: ${context.currentDateTime}
+- Run interval: ${HeartbeatRunnerAgentPrompt.formatInterval(context.intervalMs)}
+- Previous run: ${context.previousRunAt ?? 'none'}${context.previousRunId ? ` (${context.previousRunId})` : ''}
+- Next scheduled run: ${context.nextRunAt ?? 'not scheduled'}`;
+  }
+
+  private static formatInterval(intervalMs: number): string {
+    const interval = dayjs.duration(Math.max(1, intervalMs));
+    const totalMinutes = dayjs.duration(interval.asMilliseconds()).asMinutes();
+    const roundedMinutes = Math.max(1, Math.round(totalMinutes));
+    if (roundedMinutes < 60) {
+      return `${roundedMinutes}m`;
+    }
+
+    const hours = Math.floor(dayjs.duration(roundedMinutes, 'minutes').asHours());
+    const minutes = roundedMinutes % 60;
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
   }
 }

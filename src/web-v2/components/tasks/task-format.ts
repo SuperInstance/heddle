@@ -1,5 +1,8 @@
 import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration.js';
 import type { ControlPlaneHeartbeatRunView, ControlPlaneHeartbeatTaskView } from '@web/api/client';
+
+dayjs.extend(duration);
 
 export const TASK_STATUS_TONE = {
   idle: 'muted',
@@ -8,7 +11,7 @@ export const TASK_STATUS_TONE = {
   blocked: 'warning',
   complete: 'success',
   failed: 'danger',
-} as const satisfies Record<ControlPlaneHeartbeatTaskView['status'], 'active' | 'danger' | 'muted' | 'success' | 'warning'>;
+} as const satisfies Record<ControlPlaneHeartbeatTaskView['state']['status'], 'active' | 'danger' | 'muted' | 'success' | 'warning'>;
 
 export function taskDisplayName(task: Pick<ControlPlaneHeartbeatTaskView, 'name' | 'task'>): string {
   return task.name ?? task.task;
@@ -19,12 +22,13 @@ export function formatTaskInterval(intervalMs: number | undefined): string {
     return 'not scheduled';
   }
 
-  const minutes = Math.round(intervalMs / 60_000);
+  const interval = dayjs.duration(intervalMs);
+  const minutes = Math.round(interval.asMinutes());
   if (minutes < 60) {
     return `every ${minutes}m`;
   }
 
-  const hours = Math.round(minutes / 60);
+  const hours = Math.round(dayjs.duration(minutes, 'minutes').asHours());
   return `every ${hours}h`;
 }
 
@@ -33,10 +37,10 @@ export function formatTaskTimestamp(value: string | undefined): string {
 }
 
 export function runDisplaySummary(run: ControlPlaneHeartbeatRunView): string {
-  return run.summary || run.outcome || run.progress || run.decision;
+  return run.result.summary || run.result.outcome || run.task.state.progress || run.result.decision;
 }
 
-export function formatUsage(usage: ControlPlaneHeartbeatRunView['usage']): string {
+export function formatUsage(usage: ControlPlaneHeartbeatRunView['result']['usage']): string {
   if (!usage) {
     return 'none';
   }

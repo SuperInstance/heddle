@@ -1,18 +1,23 @@
-import type { ControlPlaneHeartbeatRun } from '@web/api/client';
+import type { ControlPlaneHeartbeatRun, ControlPlaneHeartbeatTaskView } from '@web/api/client';
 import { AssistantMarkdown } from '@web/components/conversation/AssistantMarkdown';
 import { formatTaskTimestamp, formatUsage } from './task-format';
 
 interface TaskRunDetailsPanelProps {
   run: ControlPlaneHeartbeatRun['run'];
+  liveTask?: ControlPlaneHeartbeatTaskView;
   loading: boolean;
   error?: string;
+  showingLiveRun?: boolean;
 }
 
 export function TaskRunDetailsPanel({
   run,
+  liveTask,
   loading,
   error,
+  showingLiveRun = false,
 }: TaskRunDetailsPanelProps) {
+  const showLiveTask = liveTask?.state.status === 'running' || liveTask?.state.progress?.startsWith('Task queued');
   return (
     <div className="v2-task-inspector flex h-full min-w-0 flex-col">
       <header className="v2-panel-divider border-b px-4 py-3">
@@ -20,26 +25,45 @@ export function TaskRunDetailsPanel({
         <p className="v2-type-panel-subtitle text-muted-foreground">Selected task run</p>
       </header>
       <div className="v2-scrollbar-hidden min-h-0 flex-1 overflow-auto px-4 py-4">
-        {loading ? (
+        {showLiveTask && !showingLiveRun ? (
+          <div className="mb-5">
+            <TaskDetailBlock title={liveTask.state.status === 'running' ? 'Running now' : 'Latest task status'} body={liveTask.state.progress ?? liveTask.state.status} />
+          </div>
+        ) : null}
+        {showingLiveRun ? (
+          liveTask ? (
+            <div className="flex min-w-0 flex-col gap-5">
+              <TaskDetailBlock title={liveTask.state.status === 'running' ? 'Running now' : 'Latest task status'} body={liveTask.state.progress ?? liveTask.state.status} />
+              <TaskDetailRows
+                rows={[
+                  ['status', liveTask.state.status],
+                  ['started', formatTaskTimestamp(liveTask.state.runAt)],
+                  ['checkpoint', liveTask.state.loadedCheckpoint ? 'loaded' : 'pending'],
+                ]}
+              />
+            </div>
+          ) : (
+            <TaskInspectorEmpty title="No live run" body="The live run is no longer active." />
+          )
+        ) : loading ? (
           <TaskInspectorEmpty title="Loading run" body="Reading the selected heartbeat run." />
         ) : error ? (
           <TaskInspectorEmpty title="Run unavailable" body={error} />
         ) : run ? (
           <div className="flex min-w-0 flex-col gap-5">
             <section className="min-w-0">
-              <p className="v2-type-body-strong truncate text-foreground">{run.runId}</p>
-              <p className="v2-type-caption mt-1 text-muted-foreground">{formatTaskTimestamp(run.createdAt)}</p>
+              <p className="v2-type-body-strong truncate text-foreground">{formatTaskTimestamp(run.createdAt)}</p>
             </section>
             <TaskDetailRows
               rows={[
-                ['decision', run.decision],
-                ['outcome', run.outcome],
-                ['usage', formatUsage(run.usage)],
+                ['decision', run.result.decision],
+                ['outcome', run.result.outcome],
+                ['usage', formatUsage(run.result.usage)],
                 ['checkpoint', run.loadedCheckpoint ? 'loaded' : 'not loaded'],
               ]}
             />
-            <TaskMarkdownBlock title="Task result" body={run.summary} />
-            {run.progress ? <TaskDetailBlock title="Progress" body={run.progress} /> : null}
+            <TaskMarkdownBlock title="Task result" body={run.result.summary} />
+            {run.task.state.progress ? <TaskDetailBlock title="Progress" body={run.task.state.progress} /> : null}
             {run.error ? <TaskDetailBlock title="Error" body={run.error} /> : null}
           </div>
         ) : (

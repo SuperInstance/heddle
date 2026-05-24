@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import dayjs from 'dayjs';
 import { z } from 'zod';
 import { BUILT_IN_MODEL_GROUPS, ModelPolicyService } from '../../../core/llm/models/index.js';
 import { LlmAdapterService } from '../../../core/llm/index.js';
@@ -9,12 +10,14 @@ import { controlPlaneChatSessionsController } from './controllers/chat-sessions-
 import { ControlPlaneAskController } from './controllers/ask.js';
 import { ControlPlaneStateController } from './controllers/control-plane-state.js';
 import { ControlPlaneHeartbeatController } from './controllers/heartbeat.js';
+import { controlPlaneHeartbeatEventsController } from './controllers/heartbeat-events.js';
 import { ControlPlaneMemoryController } from './controllers/memory.js';
 import { ControlPlaneLayoutSnapshotsController } from './controllers/layout-snapshots.js';
 import { ControlPlaneWorkspaceFilesController } from './controllers/workspace-files.js';
 import { ControlPlaneWorkspaceDiffController } from './controllers/workspace-diff.js';
 import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 import { FileDaemonRegistryRepository, RuntimeDaemonRegistryService } from '@/core/runtime/daemon/index.js';
+import { FileHeartbeatTaskService } from '@/core/heartbeat/index.js';
 
 const sessionInputSchema = z.object({
   id: z.string().min(1),
@@ -106,6 +109,16 @@ const heartbeatTaskCreateInputSchema = z.object({
   searchIgnoreDirs: z.array(z.string().min(1)).optional(),
   systemContext: z.string().min(1).optional(),
 });
+
+const heartbeatTaskUpdateInputSchema = heartbeatTaskCreateInputSchema
+  .omit({ id: true, defer: true })
+  .extend({
+    taskId: z.string().min(1),
+    name: z.string().min(1).optional(),
+    task: z.string().min(1).optional(),
+    model: z.string().min(1).optional().nullable(),
+    maxSteps: z.number().int().min(1).max(500).optional().nullable(),
+  });
 
 const heartbeatTaskDetailInputSchema = z.object({
   taskId: z.string().min(1),
@@ -318,9 +331,25 @@ export const controlPlaneRouter = router({
       }),
     };
   }),
+  heartbeatTaskUpdate: procedure.input(heartbeatTaskUpdateInputSchema).mutation(async ({ ctx, input }) => {
+    return {
+      task: await ControlPlaneHeartbeatController.updateTask(ctx.activeWorkspace.stateRoot, input.taskId, input),
+    };
+  }),
+  heartbeatTaskDelete: procedure.input(heartbeatTaskInputSchema).mutation(async ({ ctx, input }) => {
+    return {
+      task: await new FileHeartbeatTaskService({ stateRoot: ctx.activeWorkspace.stateRoot }).deleteTask(input.taskId),
+    };
+  }),
   heartbeatTask: procedure.input(heartbeatTaskDetailInputSchema).query(async ({ ctx, input }) => {
     return await ControlPlaneHeartbeatController.readTask(ctx.activeWorkspace.stateRoot, input.taskId, {
       runLimit: input.runLimit,
+    });
+  }),
+  heartbeatEvents: procedure.subscription(({ ctx, signal }) => {
+    return controlPlaneHeartbeatEventsController.subscribe({
+      workspaceId: ctx.activeWorkspace.id,
+      signal,
     });
   }),
   heartbeatRuns: procedure.input(heartbeatRunsInputSchema).query(async ({ ctx, input }) => {
@@ -370,12 +399,34 @@ export const controlPlaneRouter = router({
     };
   }),
   heartbeatTaskRunNow: procedure.input(heartbeatTaskRunNowInputSchema).mutation(async ({ ctx, input }) => {
-    return await ControlPlaneHeartbeatController.runTaskNow(ctx.activeWorkspace.stateRoot, {
+    const task = await ControlPlaneHeartbeatController.triggerTaskRun(ctx.activeWorkspace.stateRoot, input.taskId);
+    controlPlaneHeartbeatEventsController.publish({
+      workspaceId: ctx.activeWorkspace.id,
+      event: {
+        type: 'heartbeat.task.due',
+        taskId: input.taskId,
+        timestamp: dayjs().toISOString(),
+      },
+    });
+
+    void ControlPlaneHeartbeatController.runTaskNow(ctx.activeWorkspace.stateRoot, {
       ...input,
       workspaceRoot: ctx.activeWorkspace.anchorRoot,
       stateDir: ctx.activeWorkspace.stateRoot,
       preferApiKey: input.preferApiKey ?? ctx.preferApiKey,
+      onEvent: (event) => controlPlaneHeartbeatEventsController.publish({
+        workspaceId: ctx.activeWorkspace.id,
+        event,
+      }),
+    }).catch((error: unknown) => {
+      ctx.logger.error({ error, taskId: input.taskId }, 'Failed to run heartbeat task from control plane');
     });
+
+    return {
+      accepted: true,
+      task,
+      run: null,
+    };
   }),
   workspaceFileSearch: procedure.input(fileSearchInputSchema).query(async ({ ctx, input }) => {
     return {

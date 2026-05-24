@@ -1,5 +1,5 @@
 import type { AgentLoopCheckpoint, AgentLoopState } from '@/core/runtime/loop/index.js';
-import type { AgentHeartbeatResult, RunAgentHeartbeatOptions } from '../agent/index.js';
+import type { AgentHeartbeatEvent, AgentHeartbeatResult, RunAgentHeartbeatOptions } from '../agent/index.js';
 import type { HeartbeatTask, HeartbeatTaskRunRecord, HeartbeatTaskStatus, HeartbeatTaskStore } from '../tasks/index.js';
 
 export type HeartbeatSchedulerEvent =
@@ -12,6 +12,12 @@ export type HeartbeatSchedulerEvent =
       loadedCheckpoint: boolean;
       status: HeartbeatTaskStatus;
       progress: string;
+      timestamp: string;
+    }
+  | {
+      type: 'heartbeat.task.agent_event';
+      taskId: string;
+      event: AgentHeartbeatEvent;
       timestamp: string;
     }
   | {
@@ -45,6 +51,7 @@ export type HeartbeatTaskRunnerRuntimeOptions = {
   maxSteps?: number;
   tools?: RunAgentHeartbeatOptions['tools'];
   includeDefaultTools?: RunAgentHeartbeatOptions['includeDefaultTools'];
+  approvalPolicies?: RunAgentHeartbeatOptions['approvalPolicies'];
   searchIgnoreDirs?: string[];
   systemContext?: string;
   onAgentEvent?: RunAgentHeartbeatOptions['onEvent'];

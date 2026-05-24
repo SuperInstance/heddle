@@ -5,8 +5,9 @@
  * Scheduler and host code should depend on this repository contract instead of
  * reading heartbeat JSON files directly.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import dayjs from 'dayjs';
 import type { AgentLoopCheckpoint } from '@/core/runtime/loop/index.js';
 import { AgentLoopCheckpointSchema, HeartbeatTaskRunRecordSchema, HeartbeatTaskSchema } from './schemas.js';
 import { HeartbeatTaskStateProjector } from './task-state.js';
@@ -46,6 +47,13 @@ export class FileHeartbeatTaskRepository implements HeartbeatTaskStore {
     writeFileSync(path, `${JSON.stringify(HeartbeatTaskSchema.parse(HeartbeatTaskStateProjector.normalize(task)), null, 2)}\n`);
   }
 
+  async deleteTask(task: HeartbeatTask): Promise<void> {
+    const safeTaskId = FileHeartbeatTaskRepository.safeTaskFileName(task.id);
+    rmSync(join(this.tasksDir, `${safeTaskId}.json`), { force: true });
+    rmSync(this.checkpointPathForTask(task), { force: true });
+    await this.deleteRunRecordsForTask(task.id);
+  }
+
   async loadCheckpoint(task: HeartbeatTask): Promise<AgentLoopCheckpoint | undefined> {
     const path = this.checkpointPathForTask(task);
     if (!existsSync(path)) {
@@ -67,7 +75,7 @@ export class FileHeartbeatTaskRepository implements HeartbeatTaskStore {
   }
 
   async saveRunRecord(record: HeartbeatTaskRunRecord): Promise<void> {
-    const timestamp = new Date().toISOString().replaceAll(':', '-');
+    const timestamp = dayjs().toISOString().replaceAll(':', '-');
     const path = join(this.runsDir, `${timestamp}-${FileHeartbeatTaskRepository.safeTaskFileName(record.task.id)}.json`);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, `${JSON.stringify(HeartbeatTaskRunRecordSchema.parse(record), null, 2)}\n`);
@@ -89,6 +97,11 @@ export class FileHeartbeatTaskRepository implements HeartbeatTaskStore {
   async loadRunRecord(id: string): Promise<HeartbeatTaskRunRecordEntry | undefined> {
     const entries = await this.listRunRecords();
     return entries.find((entry) => entry.id === id || entry.runId === id);
+  }
+
+  private async deleteRunRecordsForTask(taskId: string): Promise<void> {
+    const entries = await this.listRunRecords({ taskId });
+    entries.forEach((entry) => rmSync(entry.path, { force: true }));
   }
 
   private readTaskFile(path: string): HeartbeatTask[] {

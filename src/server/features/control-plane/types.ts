@@ -1,5 +1,5 @@
 import type { DaemonOwnerRecord } from '@/core/runtime/daemon/index.js';
-import type { HeartbeatRunView, HeartbeatTaskView } from '@/core/heartbeat/index.js';
+import type { HeartbeatDecision, HeartbeatRunView, HeartbeatTaskStatus, HeartbeatTaskView } from '@/core/heartbeat/index.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import type { MemoryStatusView } from '@/core/memory/types.js';
 import type { ReviewDiffFile } from '@/core/review/index.js';
@@ -160,6 +160,64 @@ export type ControlPlaneSessionEventEnvelope =
   | {
     type: 'session.updated' | 'waiting';
     sessionId: string;
+    timestamp: string;
+  };
+
+export type ControlPlaneHeartbeatAgentEvent = {
+  type: string;
+  timestamp?: string;
+  runId?: string;
+  tool?: string;
+  done?: boolean;
+  decision?: HeartbeatDecision;
+  outcome?: string;
+  step?: number;
+};
+
+export type ControlPlaneHeartbeatEvent =
+  | { type: 'heartbeat.scheduler.started'; timestamp: string }
+  | { type: 'heartbeat.scheduler.stopped'; reason: 'aborted' | 'completed' | 'error'; timestamp: string }
+  | { type: 'heartbeat.task.due'; taskId: string; timestamp: string }
+  | {
+    type: 'heartbeat.task.started';
+    taskId: string;
+    loadedCheckpoint: boolean;
+    status: HeartbeatTaskStatus;
+    progress: string;
+    timestamp: string;
+  }
+  | {
+    type: 'heartbeat.task.agent_event';
+    taskId: string;
+    event: ControlPlaneHeartbeatAgentEvent;
+    timestamp: string;
+  }
+  | {
+    type: 'heartbeat.task.finished';
+    taskId: string;
+    record: HeartbeatRunView;
+    timestamp: string;
+  }
+  | {
+    type: 'heartbeat.task.failed';
+    taskId: string;
+    error: string;
+    status: HeartbeatTaskStatus;
+    progress: string;
+    nextRunAt?: string;
+    timestamp: string;
+  };
+
+export type ControlPlaneHeartbeatEventEnvelope =
+  | {
+    type: 'heartbeat.event';
+    workspaceId: string;
+    timestamp: string;
+    event: ControlPlaneHeartbeatEvent;
+  }
+  | {
+    type: 'ready' | 'heartbeat';
+    workspaceId: string;
     timestamp: string;
   };
 

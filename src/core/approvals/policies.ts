@@ -1,5 +1,9 @@
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { ToolCall } from '@/core/types.js';
+import {
+  classifyShellCommandPolicy,
+  DEFAULT_MUTATE_RULES,
+} from '@/core/tools/toolkits/shell-process/shell-policy.js';
 import type { ToolApprovalPolicy, ToolApprovalPolicyContext, ToolApprovalSurface } from './types.js';
 
 /**
@@ -44,6 +48,29 @@ export class ToolApprovalPolicies {
     };
   }
 
+  static unattendedLocalAutomation(): ToolApprovalPolicy {
+    return ({ call }) => {
+      if (['read_file', 'list_files', 'search_files', 'edit_file'].includes(call.tool)) {
+        return { type: 'allow', reason: 'Allowed for unattended local automation' };
+      }
+
+      const command = ToolApprovalPolicies.getShellCommand(call);
+      if (!command) {
+        return undefined;
+      }
+
+      const policy = classifyShellCommandPolicy(command, {
+        toolName: 'run_shell_mutate',
+        rules: DEFAULT_MUTATE_RULES,
+        allowUnknown: true,
+      });
+
+      return 'error' in policy
+        ? { type: 'deny', reason: policy.error }
+        : { type: 'allow', reason: policy.reason };
+    };
+  }
+
   static isOutsideWorkspaceInspectionCall(args: {
     call: ToolCall;
     workspaceRoot?: string;
@@ -71,5 +98,19 @@ export class ToolApprovalPolicies {
     const resolvedTarget = resolve(resolvedWorkspaceRoot, rawPath);
     const relativeTarget = relative(resolvedWorkspaceRoot, resolvedTarget);
     return relativeTarget.startsWith('..') || isAbsolute(relativeTarget);
+  }
+
+  private static getShellCommand(call: ToolCall): string | undefined {
+    if (call.tool !== 'run_shell_mutate') {
+      return undefined;
+    }
+
+    const input = call.input;
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return undefined;
+    }
+
+    const command = (input as Record<string, unknown>).command;
+    return typeof command === 'string' && command.trim() ? command : undefined;
   }
 }

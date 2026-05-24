@@ -1,200 +1,22 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { trpcReact } from '@web/api/client';
-import { TaskCreateDialog, TaskRunDetailsPanel, type TaskCreateInput } from '@web/components/tasks';
-import { ContextInspector } from '@web/components/panels';
-import { useControlPlaneErrorToasts } from '@web/hooks/useControlPlaneErrorToasts';
-import { useControlPlaneSessionDetail } from '@web/hooks/useControlPlaneSessionDetail';
-import { useControlPlaneTaskDetail } from '@web/hooks/useControlPlaneTaskDetail';
-import { useControlPlaneTaskRunDetail } from '@web/hooks/useControlPlaneTaskRunDetail';
-import { useWorkbenchNavigation } from '@web/hooks/useWorkbenchNavigation';
-import { useI18n } from '@web/i18n';
+import { TaskCreateDialog, TaskDeleteDialog } from '@web/components/tasks';
+import { useControlPlaneAppState } from '@web/hooks/useControlPlaneAppState';
 import { AppFrame } from '@web/layout/AppFrame';
 import { AppRoutes } from '@web/layout/AppRoutes';
 import { APP_ROUTES, SETTINGS_ROUTES } from '@web/layout/routes';
-import type { AppSurfaceId } from '@web/layout/types';
 
 export function App() {
-  const { t } = useI18n();
-  const navigation = useWorkbenchNavigation();
-  const utils = trpcReact.useUtils();
-  const stateQuery = trpcReact.controlPlane.state.useQuery();
-  const tasksQuery = trpcReact.controlPlane.heartbeatTasks.useQuery();
-  const modelOptionsQuery = trpcReact.controlPlane.modelOptions.useQuery();
-  const createSessionMutation = trpcReact.controlPlane.sessionCreate.useMutation();
-  const createTaskMutation = trpcReact.controlPlane.heartbeatTaskCreate.useMutation();
-  const runTaskNowMutation = trpcReact.controlPlane.heartbeatTaskRunNow.useMutation();
-  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
-  const [taskCreateError, setTaskCreateError] = useState<string | undefined>();
-  const sidebarSessions = useMemo(
-    () => stateQuery.data?.sessions ?? [],
-    [stateQuery.data?.sessions],
-  );
-  const sidebarTasks = useMemo(
-    () => tasksQuery.data?.tasks ?? [],
-    [tasksQuery.data?.tasks],
-  );
-  const selectedSessionId = navigation.selectedSessionId;
-  const selectedSession = useControlPlaneSessionDetail(selectedSessionId);
-  const selectedTask = useControlPlaneTaskDetail(navigation.selectedTaskId, navigation.selectedTaskRunId);
-  const selectedTaskRunId = navigation.selectedTaskRunId ?? selectedTask.selectedRun?.runId;
-  const selectedTaskRun = useControlPlaneTaskRunDetail(navigation.selectedTaskId, selectedTaskRunId);
-  useControlPlaneErrorToasts({
-    stateError: stateQuery.error,
-    sessionError: selectedSession.error,
-  });
-
-  useEffect(() => {
-    if (selectedSessionId || navigation.settingsOpen || navigation.activeSurfaceId !== 'sessions' || sidebarSessions.length === 0) {
-      return;
-    }
-
-    navigation.selectSession(sidebarSessions[0]!.id, { replace: true });
-  }, [navigation, selectedSessionId, sidebarSessions]);
-
-  useEffect(() => {
-    if (navigation.selectedTaskId || navigation.settingsOpen || navigation.activeSurfaceId !== 'tasks' || sidebarTasks.length === 0) {
-      return;
-    }
-
-    navigation.selectTask(sidebarTasks[0]!.taskId, { replace: true });
-  }, [navigation, sidebarTasks]);
-
-  const rightPanelViews = {
-    sessions: {
-      ariaLabel: t('inspector.contextAriaLabel'),
-      content: <ContextInspector />,
-    },
-    tasks: {
-      ariaLabel: t('tasks.runDetailsAriaLabel'),
-      content: (
-        <TaskRunDetailsPanel
-          error={selectedTaskRun.error}
-          loading={selectedTaskRun.loading}
-          run={selectedTaskRun.run}
-        />
-      ),
-    },
-    settings: {
-      ariaLabel: '',
-      content: null,
-    },
-  } satisfies Record<AppSurfaceId | 'settings', { ariaLabel: string; content: ReactNode }>;
-
-  const activeRightPanel = rightPanelViews[navigation.activeRouteMode];
-
-  async function createSession() {
-    const session = await createSessionMutation.mutateAsync();
-    navigation.selectSession(session.id);
-    await utils.controlPlane.state.invalidate();
-  }
-
-  async function createTask(input: TaskCreateInput, options: { runNow: boolean }) {
-    setTaskCreateError(undefined);
-    try {
-      const created = await createTaskMutation.mutateAsync(input);
-      navigation.selectTask(created.task.taskId);
-      await utils.controlPlane.heartbeatTasks.invalidate();
-      await utils.controlPlane.state.invalidate();
-      if (options.runNow) {
-        const runResult = await runTaskNowMutation.mutateAsync({ taskId: created.task.taskId });
-        await invalidateTaskViews(created.task.taskId);
-        if (runResult.run) {
-          navigation.selectTaskRun(created.task.taskId, runResult.run.runId);
-        }
-      }
-      setTaskCreateOpen(false);
-    } catch (error) {
-      setTaskCreateError(error instanceof Error ? error.message : String(error));
-      throw error;
-    }
-  }
-
-  async function runSelectedTaskNow() {
-    if (!navigation.selectedTaskId) {
-      return;
-    }
-
-    const taskId = navigation.selectedTaskId;
-    const runResult = await runTaskNowMutation.mutateAsync({ taskId });
-    await invalidateTaskViews(taskId);
-    if (runResult.run) {
-      navigation.selectTaskRun(taskId, runResult.run.runId);
-    }
-  }
-
-  async function invalidateTaskViews(taskId: string) {
-    await Promise.all([
-      utils.controlPlane.heartbeatTasks.invalidate(),
-      utils.controlPlane.heartbeatTask.invalidate({ taskId }),
-      utils.controlPlane.state.invalidate(),
-    ]);
-  }
-
-  function selectTaskRun(runId: string) {
-    if (!navigation.selectedTaskId) {
-      return;
-    }
-
-    navigation.selectTaskRun(navigation.selectedTaskId, runId);
-  }
+  const app = useControlPlaneAppState();
 
   return (
     <AppFrame
-      activeSurfaceId={navigation.activeSurfaceId}
-      activeSettingsSectionId={navigation.activeSettingsSectionId}
       appNavigationItems={APP_ROUTES}
       settingsNavigationItems={SETTINGS_ROUTES}
-      settingsOpen={navigation.settingsOpen}
-      selectedSessionId={selectedSessionId}
-      selectedTaskId={navigation.selectedTaskId}
-      sessions={sidebarSessions}
-      tasks={sidebarTasks}
-      rightPanel={activeRightPanel.content}
-      rightPanelAriaLabel={activeRightPanel.ariaLabel}
-      onOpenSettings={navigation.openSettings}
-      onCloseSettings={navigation.closeSettings}
-      onCreateSession={createSession}
-      onCreateTask={() => {
-        setTaskCreateError(undefined);
-        setTaskCreateOpen(true);
-      }}
-      onSelectSession={navigation.selectSession}
-      onSelectTask={navigation.selectTask}
+      {...app.frameProps}
     >
-      <AppRoutes
-        activeSurfaceId={navigation.activeSurfaceId}
-        activeSettingsSectionId={navigation.activeSettingsSectionId}
-        selectedSession={selectedSession.session}
-        selectedSessionLoading={selectedSession.loading}
-        selectedSessionSubmitting={selectedSession.submitting}
-        selectedSessionLiveStatus={selectedSession.liveStatus}
-        selectedSessionPendingApproval={selectedSession.pendingApproval}
-        selectedSessionApprovalResolving={selectedSession.approvalResolving}
-        selectedSessionApprovalError={selectedSession.approvalError}
-        selectedSessionModelOptions={selectedSession.modelOptions}
-        selectedSessionSettingsUpdating={selectedSession.settingsUpdating}
-        selectedSessionSettingsError={selectedSession.settingsError}
-        selectedTask={selectedTask.task}
-        selectedTaskRuns={selectedTask.runs}
-        selectedTaskRunId={selectedTaskRunId}
-        selectedTaskLoading={selectedTask.loading}
-        selectedTaskError={selectedTask.error}
-        selectedTaskRunSubmitting={runTaskNowMutation.isPending}
-        onSubmitSessionPrompt={selectedSession.submitPrompt}
-        onUpdateSessionModel={selectedSession.updateModel}
-        onUpdateSessionReasoningEffort={selectedSession.updateReasoningEffort}
-        onResolveSessionApproval={selectedSession.resolvePendingApproval}
-        onRunTaskNow={runSelectedTaskNow}
-        onSelectTaskRun={selectTaskRun}
-      />
-      <TaskCreateDialog
-        error={taskCreateError}
-        modelOptions={modelOptionsQuery.data}
-        open={taskCreateOpen}
-        submitting={createTaskMutation.isPending || runTaskNowMutation.isPending}
-        onOpenChange={setTaskCreateOpen}
-        onSubmit={createTask}
-      />
+      <AppRoutes {...app.routeProps} />
+      <TaskCreateDialog {...app.taskCreateDialogProps} />
+      <TaskCreateDialog {...app.taskEditDialogProps} />
+      <TaskDeleteDialog {...app.taskDeleteDialogProps} />
     </AppFrame>
   );
 }
