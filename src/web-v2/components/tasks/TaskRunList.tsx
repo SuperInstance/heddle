@@ -70,7 +70,7 @@ function TaskLiveRunListItem({
     >
       <span className="flex min-w-0 items-center gap-2">
         <span className="v2-type-nav-primary truncate text-foreground">
-          {task.state.runId ? `Run ${task.state.runId}` : 'Running now'}
+          {task.state.runAt ? formatTaskTimestamp(task.state.runAt) : 'Running now'}
         </span>
         <span className="v2-type-caption ml-auto shrink-0 text-muted-foreground">live</span>
       </span>
@@ -106,8 +106,7 @@ function TaskRunListItem({
       onClick={() => onSelectRun(run.runId)}
     >
       <span className="flex min-w-0 items-center gap-2">
-        <span className="v2-type-nav-primary truncate text-foreground">Run {run.runId}</span>
-        <span className="v2-type-caption ml-auto shrink-0 text-muted-foreground">{formatTaskTimestamp(run.createdAt)}</span>
+        <span className="v2-type-nav-primary truncate text-foreground">{formatTaskTimestamp(run.createdAt)}</span>
       </span>
       <span className="mt-1 flex min-w-0 items-center gap-2">
         <span className="v2-type-caption shrink-0 rounded-sm border border-border bg-muted/20 px-1.5 py-0.5 text-muted-foreground">

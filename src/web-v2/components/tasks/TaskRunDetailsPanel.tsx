@@ -37,7 +37,7 @@ export function TaskRunDetailsPanel({
               <TaskDetailRows
                 rows={[
                   ['status', liveTask.state.status],
-                  ['run', liveTask.state.runId ?? 'pending'],
+                  ['started', formatTaskTimestamp(liveTask.state.runAt)],
                   ['checkpoint', liveTask.state.loadedCheckpoint ? 'loaded' : 'pending'],
                 ]}
               />
@@ -52,8 +52,7 @@ export function TaskRunDetailsPanel({
         ) : run ? (
           <div className="flex min-w-0 flex-col gap-5">
             <section className="min-w-0">
-              <p className="v2-type-body-strong truncate text-foreground">{run.runId}</p>
-              <p className="v2-type-caption mt-1 text-muted-foreground">{formatTaskTimestamp(run.createdAt)}</p>
+              <p className="v2-type-body-strong truncate text-foreground">{formatTaskTimestamp(run.createdAt)}</p>
             </section>
             <TaskDetailRows
               rows={[
