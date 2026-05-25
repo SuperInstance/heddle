@@ -68,7 +68,8 @@
     "reasoningEffort": "推理強度",
     "noModelMatches": "沒有符合的模型",
     "searchModels": "搜尋模型",
-    "send": "送出"
+    "send": "送出",
+    "stop": "停止"
   },
   "diffPreview": {
     "binary": "二進位",

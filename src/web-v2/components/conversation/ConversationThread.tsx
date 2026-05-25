@@ -15,6 +15,8 @@ interface ConversationThreadProps {
   session: ControlPlaneSessionDetail;
   loading: boolean;
   submitting: boolean;
+  running: boolean;
+  cancelling: boolean;
   liveStatus?: string;
   pendingApproval: ControlPlanePendingApproval;
   approvalResolving: boolean;
@@ -24,6 +26,7 @@ interface ConversationThreadProps {
   settingsError?: string;
   emptyTitle: string;
   onSubmitPrompt: (prompt: string) => Promise<void>;
+  onCancelRun: () => Promise<void>;
   onUpdateDriftEnabled: (enabled: boolean) => Promise<void>;
   onUpdateModel: (model: string) => Promise<void>;
   onUpdateReasoningEffort: (value: ControlPlaneReasoningEffortSelection) => Promise<void>;
@@ -35,6 +38,8 @@ export function ConversationThread({
   session,
   loading,
   submitting,
+  running,
+  cancelling,
   liveStatus,
   pendingApproval,
   approvalResolving,
@@ -44,6 +49,7 @@ export function ConversationThread({
   settingsError,
   emptyTitle,
   onSubmitPrompt,
+  onCancelRun,
   onUpdateDriftEnabled,
   onUpdateModel,
   onUpdateReasoningEffort,
@@ -127,7 +133,10 @@ export function ConversationThread({
           settingsUpdating={settingsUpdating}
           settingsError={settingsError}
           submitting={submitting}
+          running={running}
+          cancelling={cancelling}
           onSubmitPrompt={onSubmitPrompt}
+          onCancelRun={onCancelRun}
           onUpdateDriftEnabled={onUpdateDriftEnabled}
           onUpdateModel={onUpdateModel}
           onUpdateReasoningEffort={onUpdateReasoningEffort}

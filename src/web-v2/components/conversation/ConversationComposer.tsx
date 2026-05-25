@@ -36,7 +36,10 @@ export function ConversationComposer({
   settingsUpdating,
   settingsError,
   submitting,
+  running,
+  cancelling,
   onSubmitPrompt,
+  onCancelRun,
   onUpdateDriftEnabled,
   onUpdateModel,
   onUpdateReasoningEffort,
@@ -51,7 +54,10 @@ export function ConversationComposer({
   settingsUpdating?: boolean;
   settingsError?: string;
   submitting?: boolean;
+  running?: boolean;
+  cancelling?: boolean;
   onSubmitPrompt: (prompt: string) => Promise<void>;
+  onCancelRun?: () => Promise<void>;
   onUpdateDriftEnabled?: (enabled: boolean) => Promise<void>;
   onUpdateModel?: (model: string) => Promise<void>;
   onUpdateReasoningEffort?: (value: ControlPlaneReasoningEffortSelection) => Promise<void>;
@@ -69,14 +75,16 @@ export function ConversationComposer({
     uploadedPaths: uploadedImagePaths,
     uploadImages,
   } = useComposerImageAttachments({ sessionId });
+  const turnActive = Boolean(submitting || running || cancelling);
+  const controlsDisabled = disabled || turnActive;
   const sendDisabled = disabled
-    || submitting
+    || turnActive
     || imageUploading
     || (!draft.trim() && !uploadedImagePaths.length);
   const effectiveDriftEnabled = driftEnabled ?? false;
   const effectiveDriftLevel = driftLevel ?? 'unknown';
   const effectiveReasoningEffort = reasoningEffort ?? 'medium';
-  const imageUploadDisabled = disabled || submitting || imageUploading || !sessionId;
+  const imageUploadDisabled = controlsDisabled || imageUploading || !sessionId;
   const handleUploadImages = useCallback((files: FileList | File[]) => {
     void uploadImages(files);
   }, [uploadImages]);
@@ -100,7 +108,7 @@ export function ConversationComposer({
     value: draft,
     onValueChange: setDraft,
     textareaRef,
-    disabled: disabled || submitting,
+    disabled: controlsDisabled,
     onSubmit: handleSubmit,
   });
   useComposerTextareaAutosize(textareaRef, draft);
@@ -123,7 +131,7 @@ export function ConversationComposer({
         aria-controls={fileMentions.textareaProps['aria-controls']}
         aria-expanded={fileMentions.textareaProps['aria-expanded']}
         className="v2-composer-textarea"
-        disabled={disabled || submitting}
+        disabled={controlsDisabled}
         autoCapitalize="sentences"
         autoComplete="off"
         autoCorrect="on"
@@ -148,7 +156,7 @@ export function ConversationComposer({
       />
       <div className="v2-composer-toolbar">
         <ComposerContextMenu
-          disabled={disabled}
+          disabled={controlsDisabled}
           driftEnabled={effectiveDriftEnabled}
           driftLevel={effectiveDriftLevel}
           settingsUpdating={settingsUpdating}
@@ -158,7 +166,7 @@ export function ConversationComposer({
         />
         <div className="v2-composer-toolbar-controls">
           <ComposerExecutionMenu
-            disabled={disabled}
+            disabled={controlsDisabled}
             settingsUpdating={settingsUpdating}
             model={model}
             modelOptions={modelOptions}
@@ -166,15 +174,31 @@ export function ConversationComposer({
             onUpdateModel={onUpdateModel}
             onUpdateReasoningEffort={onUpdateReasoningEffort}
           />
-          <Button
-            type="submit"
-            size="none"
-            className="v2-composer-send-button"
-            aria-label={t('composer.send')}
-            disabled={sendDisabled}
-          >
-            <ArrowUp aria-hidden="true" data-icon="inline-start" />
-          </Button>
+          {turnActive ? (
+            <Button
+              type="button"
+              size="none"
+              className="v2-composer-send-button size-8 min-w-8 max-w-8 rounded-full p-0"
+              data-state="stopping"
+              aria-label={t('composer.stop')}
+              disabled={cancelling || !onCancelRun}
+              onClick={() => {
+                void onCancelRun?.();
+              }}
+            >
+              <span aria-hidden="true" className="v2-composer-stop-glyph" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="none"
+              className="v2-composer-send-button size-8 min-w-8 max-w-8 rounded-full p-0"
+              aria-label={t('composer.send')}
+              disabled={sendDisabled}
+            >
+              <ArrowUp aria-hidden="true" data-icon="inline-start" />
+            </Button>
+          )}
         </div>
       </div>
       {settingsError ? <p className="v2-composer-error text-pretty">{settingsError}</p> : null}
