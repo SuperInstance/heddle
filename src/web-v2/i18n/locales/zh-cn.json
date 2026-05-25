@@ -68,7 +68,8 @@
     "reasoningEffort": "推理强度",
     "noModelMatches": "没有匹配的模型",
     "searchModels": "搜索模型",
-    "send": "发送"
+    "send": "发送",
+    "stop": "停止"
   },
   "diffPreview": {
     "binary": "二进制",

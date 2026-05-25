@@ -68,7 +68,8 @@
     "reasoningEffort": "Reasoning effort",
     "noModelMatches": "No matching models",
     "searchModels": "Search models",
-    "send": "Send"
+    "send": "Send",
+    "stop": "Stop"
   },
   "diffPreview": {
     "binary": "binary",

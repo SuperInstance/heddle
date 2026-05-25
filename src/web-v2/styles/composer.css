@@ -324,15 +324,31 @@
     color: var(--color-destructive);
   }
 
-  .v2-composer-send-button {
+  .v2-composer-send-button.v2-composer-send-button {
+    aspect-ratio: 1 / 1;
+    flex: 0 0 2rem;
     height: 2rem;
     width: 2rem;
     min-width: 2rem;
-    border-radius: 999px;
+    max-width: 2rem;
+    border-radius: 9999px;
     padding: 0;
     background: var(--color-primary);
     color: var(--color-primary-foreground);
     box-shadow: none;
+  }
+
+  .v2-composer-send-button svg {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  .v2-composer-stop-glyph {
+    display: block;
+    height: 0.875rem;
+    width: 0.875rem;
+    border-radius: 0.125rem;
+    background: currentColor;
   }
 
   .v2-composer-send-button:hover {

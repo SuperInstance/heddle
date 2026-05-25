@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { createTRPCProxyClient, httpLink } from '@trpc/client';
 import type { AppRouter } from '../../../server/router';
 
@@ -152,8 +152,13 @@ test('submits a prompt and renders the mocked session response', async ({ page }
   await expect(sessionListItem).toHaveAttribute('aria-current', 'true');
   await expect(sessionListItem).toHaveClass(/bg-sidebar-accent/);
   await page.getByRole('textbox', { name: 'Message' }).fill('Run the web v2 submit smoke');
-  await page.getByRole('button', { name: 'Send' }).click();
+  const sendButton = page.getByRole('button', { name: 'Send' });
+  await expectComposerActionButtonCircle(sendButton);
+  await sendButton.click();
 
+  const stopButton = page.getByRole('button', { name: 'Stop' });
+  await expect(stopButton).toBeVisible();
+  await expectComposerActionButtonCircle(stopButton);
   await expect(page.getByText('Run the web v2 submit smoke', { exact: true })).toBeVisible();
   await expect(page.getByText('Mocked browser integration agent response', { exact: true })).toBeVisible();
   await expect(page.getByTestId('web-v2-live-status')).toHaveText('Receiving assistant response...');
@@ -163,6 +168,25 @@ test('submits a prompt and renders the mocked session response', async ({ page }
   )).toBeVisible();
   await expect(page.getByTestId('web-v2-workbench-title')).toHaveText(session.name);
 });
+
+async function expectComposerActionButtonCircle(locator: Locator) {
+  await expect(locator).toHaveCSS('height', '32px');
+  await expect(locator).toHaveCSS('width', '32px');
+  const shape = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return {
+      className: element.className,
+      height: rect.height,
+      radius: Number.parseFloat(style.borderTopLeftRadius),
+      width: rect.width,
+    };
+  });
+
+  expect(shape.className).toContain('rounded-full');
+  expect(shape.className).not.toContain('rounded-md');
+  expect(shape.radius).toBeGreaterThanOrEqual(Math.min(shape.width, shape.height) / 2);
+}
 
 test('updates session model and reasoning settings from the composer controls', async ({ page }) => {
   const sessionName = `Web v2 settings smoke ${Date.now()}`;

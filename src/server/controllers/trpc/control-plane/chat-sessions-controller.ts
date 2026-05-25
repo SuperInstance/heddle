@@ -80,13 +80,19 @@ type ContinueChatPromptArgs = Omit<SubmitChatPromptArgs, 'prompt'>;
 
 type ControlPlaneTurnPublisher = ReturnType<typeof ControlPlaneChatSessionEventsController.createSessionEventPublisher>;
 
+type PendingControlPlaneApproval = {
+  approval: ToolApprovalRequest;
+  resolve: (decision: ToolApprovalUserDecision) => void;
+};
+
+type InFlightControlPlaneRun = {
+  controller: AbortController;
+};
+
 export class ControlPlaneChatSessionsController {
   private readonly sessionEventBus = new EventEmitter();
-  private readonly pendingApprovals = new Map<string, {
-    approval: ToolApprovalRequest;
-    resolve: (decision: ToolApprovalUserDecision) => void;
-  }>();
-  private readonly inFlightRuns = new Map<string, AbortController>();
+  private readonly pendingApprovals = new Map<string, PendingControlPlaneApproval>();
+  private readonly inFlightRuns = new Map<string, InFlightControlPlaneRun>();
 
   createSession(args: CreateControlPlaneChatSessionArgs): ChatSessionDetail {
     const { suggestedName, ...engineInput } = args;
@@ -124,7 +130,7 @@ export class ControlPlaneChatSessionsController {
       return await this.runFakeBrowserIntegrationSessionPrompt(args);
     }
 
-    const result = await this.runEngineTurn(args, async ({ engine, host, abortSignal }) => {
+    const result = await this.runEngineTurn(args, async ({ engine, host, abortSignal, shouldStop }) => {
       return await engine.turns.submit({
         sessionId: args.sessionId,
         prompt: args.prompt,
@@ -133,6 +139,7 @@ export class ControlPlaneChatSessionsController {
         includePlanTool: args.includePlanTool,
         host,
         abortSignal,
+        shouldStop,
         leaseOwner: args.leaseOwner,
       });
     });
@@ -156,11 +163,12 @@ export class ControlPlaneChatSessionsController {
       });
     }
 
-    return await this.runEngineTurn(args, async ({ engine, host, abortSignal }) => {
+    return await this.runEngineTurn(args, async ({ engine, host, abortSignal, shouldStop }) => {
       return await engine.turns.continue({
         sessionId: args.sessionId,
         host,
         abortSignal,
+        shouldStop,
         leaseOwner: args.leaseOwner,
       });
     });
@@ -260,13 +268,20 @@ export class ControlPlaneChatSessionsController {
   }
 
   cancelRun(sessionId: string): boolean {
-    const controller = this.inFlightRuns.get(sessionId);
-    if (!controller) {
+    const run = this.inFlightRuns.get(sessionId);
+    if (!run) {
       return false;
     }
 
-    controller.abort();
-    this.pendingApprovals.delete(sessionId);
+    run.controller.abort();
+    const pending = this.pendingApprovals.get(sessionId);
+    if (pending) {
+      this.pendingApprovals.delete(sessionId);
+      pending.resolve({
+        type: 'deny',
+        reason: 'Cancelled by user',
+      });
+    }
     return true;
   }
 
@@ -317,6 +332,7 @@ export class ControlPlaneChatSessionsController {
       engine: ConversationEngine;
       host: ConversationEngineHost;
       abortSignal: AbortSignal;
+      shouldStop: () => boolean;
     }) => ReturnType<ConversationEngine['turns']['submit']>,
   ) {
     if (this.inFlightRuns.has(args.sessionId)) {
@@ -324,7 +340,7 @@ export class ControlPlaneChatSessionsController {
     }
 
     const controller = new AbortController();
-    this.inFlightRuns.set(args.sessionId, controller);
+    this.inFlightRuns.set(args.sessionId, { controller });
     const publisher = ControlPlaneChatSessionEventsController.createSessionEventPublisher({
       eventBus: this.sessionEventBus,
       sessionId: args.sessionId,
@@ -335,6 +351,7 @@ export class ControlPlaneChatSessionsController {
         engine: this.createEngine(args),
         host: this.createEngineHost(args, publisher),
         abortSignal: controller.signal,
+        shouldStop: () => controller.signal.aborted,
       });
       return {
         ...result,
