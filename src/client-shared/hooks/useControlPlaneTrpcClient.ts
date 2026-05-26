@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ClientSharedApiLinkService } from './links.js';
-import { trpcReact } from './react.js';
+import { ClientSharedApiLinkService } from '../api/links.js';
+import { trpcReact } from '../api/react.js';
 
 export type UseControlPlaneTrpcClientOptions = {
   url?: string;

@@ -13,14 +13,21 @@ server controllers, or copied backend DTOs directly.
 should consume tRPC-derived aliases such as `RouterInputs`, `RouterOutputs`, and
 the `ControlPlane*` types exported from `api/types.ts`.
 
+## Folder Shape
+
+- `api/`: tRPC contracts, link services, proxy services, and the shared
+  `trpcReact` object.
+- `hooks/`: React hooks. Files in this folder use `useXxx` naming and return
+  hook-shaped values.
+
 ## Owns
 
 - tRPC-derived API type aliases;
 - `ClientSharedApiLinkService` for shared tRPC link construction;
 - `ClientSharedProxyApiService` for non-React proxy clients used by CLI/TUI/ask
   callers;
-- `trpcReact` and `useControlPlaneTrpcClient` for React Query tRPC usage in
-  React interfaces.
+- `trpcReact` for React Query tRPC usage in React interfaces;
+- `useControlPlaneTrpcClient` for provider-level React client state.
 
 ## Does Not Own
 
