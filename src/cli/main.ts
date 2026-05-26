@@ -318,7 +318,7 @@ async function main() {
 }
 
 function isKnownCommand(command: string): boolean {
-  return ['chat', 'ask', 'init', 'memory', 'auth', 'eval', 'heartbeat', 'daemon', 'help'].includes(command);
+  return ['chat', 'chat-v2', 'ask', 'init', 'memory', 'auth', 'eval', 'heartbeat', 'daemon', 'help'].includes(command);
 }
 
 async function runMemoryCli(
