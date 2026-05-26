@@ -380,6 +380,20 @@ describe('searchFilesTool', () => {
     expect(result.output).not.toContain('node_modules/pkg.ts');
   });
 
+  it('treats rg queries as literal text so symbol searches can include regex characters', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'heddle-search-rg-literal-'));
+    await mkdir(join(root, 'src'));
+    await writeFile(join(root, 'src', 'main.ts'), 'setCurrentEditPreview();\n');
+
+    const result = await createSearchFilesTool({ backend: 'rg' }).execute({
+      query: 'setCurrentEditPreview()',
+      path: root,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain('src/main.ts');
+  });
+
   it('lets rg use its default ignore behavior inside a git repo without custom ignore discovery', async () => {
     const root = await mkdtemp(join(tmpdir(), 'heddle-search-rg-gitignore-'));
     execFileSync('git', ['init'], { cwd: root, stdio: 'ignore' });
@@ -460,6 +474,19 @@ describe('searchFilesTool', () => {
     expect(result.output).toContain('src/tool.py');
     expect(result.output).toContain('src/Cargo.toml');
     expect(result.output).not.toContain('dist/generated.ts');
+  });
+
+  it('treats grep fallback queries as literal text so symbol searches can include regex characters', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'heddle-search-grep-literal-'));
+    execFileSync('git', ['init'], { cwd: root, stdio: 'ignore' });
+    await mkdir(join(root, 'src'));
+    await writeFile(join(root, 'src', 'main.ts'), 'appendMessage(sessionId);\n');
+
+    const tool = createSearchFilesTool({ backend: 'grep' });
+    const result = await tool.execute({ query: 'appendMessage(sessionId)', path: root });
+
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain('src/main.ts');
   });
 
   it('keeps grep fallback language agnostic inside a git repo', async () => {

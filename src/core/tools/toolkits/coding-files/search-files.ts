@@ -42,14 +42,14 @@ export function createSearchFilesTool(options: SearchFilesOptions = {}): ToolDef
   return {
     name: 'search_files',
     description:
-      'Search for a text pattern in files. Prefer rg when available for fast ignored-aware search, with a grep fallback. Use this when you need to locate a specific symbol or text string, not when a likely folder or file is already obvious from the workspace structure. Prefer searching for concrete terms such as tool names, symbols, or filenames rather than copying broad question text. Relative paths are resolved from the active workspace root and may also point to nearby parent or sibling folders. Returns newline-separated matches in grep-style path:line:content format, or "No matches found.". By default, search honors project ignore files such as .gitignore when rg is available; when no ignore file is present, fallback excludes avoid expensive/generated folders like dist, node_modules, and local. .git and .heddle stay protected from accidental broad searches unless explicitly targeted. Set includeIgnored: true only when intentionally searching ignored/dependency content such as node_modules. Example inputs: { "query": "createUser" }, { "query": "incident", "path": "../shared-notes" }, { "query": "packageName", "path": "node_modules", "includeIgnored": true }',
+      'Search for literal text in files. Prefer rg when available for fast ignored-aware search, with a grep fallback. Use this when you need to locate a specific symbol or text string, not when a likely folder or file is already obvious from the workspace structure. Prefer searching for concrete terms such as tool names, symbols, or filenames rather than copying broad question text. Relative paths are resolved from the active workspace root and may also point to nearby parent or sibling folders. Returns newline-separated matches in grep-style path:line:content format, or "No matches found.". By default, search honors project ignore files such as .gitignore when rg is available; when no ignore file is present, fallback excludes avoid expensive/generated folders like dist, node_modules, and local. .git and .heddle stay protected from accidental broad searches unless explicitly targeted. Set includeIgnored: true only when intentionally searching ignored/dependency content such as node_modules. Example inputs: { "query": "createUser" }, { "query": "incident", "path": "../shared-notes" }, { "query": "packageName", "path": "node_modules", "includeIgnored": true }',
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
         query: {
           type: 'string',
-          description: 'The text pattern to search for',
+          description: 'The literal text to search for',
         },
         path: {
           type: 'string',
@@ -201,6 +201,7 @@ function runRipgrepSearch(args: {
     '--no-heading',
     '--color',
     'never',
+    '--fixed-strings',
     ...args.excludedDirs.flatMap((name) => ['--glob', `!**/${name}/**`]),
   ];
 
@@ -262,6 +263,7 @@ function runBroadGrepSearch(args: { query: string; dir: string; excludedDirs: st
     'grep',
     [
       '-rnI',
+      '-F',
       ...args.excludedDirs.map((name) => `--exclude-dir=${name}`),
       '--',
       args.query,
@@ -287,7 +289,7 @@ function runGrepOnFiles(args: { query: string; cwd: string; files: string[] }): 
     try {
       const output = execFileSync(
         'grep',
-        ['-nI', '--', args.query, ...batch],
+        ['-nIH', '-F', '--', args.query, ...batch],
         {
           cwd: args.cwd,
           encoding: 'utf-8',

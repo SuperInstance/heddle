@@ -17,6 +17,9 @@ the `ControlPlane*` types exported from `api/types.ts`.
 
 - `api/`: tRPC contracts, link services, proxy services, and
   `trpc-react.ts`, which owns the typed `@trpc/react-query` hook object.
+- `controllers/`: client-side state and API-result shaping shared across
+  frontends. These classes may consume tRPC-derived types, but must not import
+  core services, server controllers, or UI renderers.
 - `hooks/`: React hooks. Files in this folder use `useXxx` naming and return
   hook-shaped values.
 
@@ -26,6 +29,8 @@ the `ControlPlane*` types exported from `api/types.ts`.
 - `ClientSharedApiLinkService` for shared tRPC link construction;
 - `ClientSharedProxyApiService` for non-React proxy clients used by CLI/TUI/ask
   callers;
+- shared API-consumer controllers such as transient conversation message
+  shaping;
 - `trpcReact` for React Query tRPC usage in React interfaces;
 - `useControlPlaneTrpcClient` for provider-level React client state.
 
@@ -34,3 +39,10 @@ the `ControlPlane*` types exported from `api/types.ts`.
 - server route implementation;
 - core/domain behavior;
 - UI rendering or workflow state specific to one interface.
+
+## Node Subscriptions
+
+Browser clients can rely on the native `EventSource` implementation. Node
+clients that use subscriptions must pass an EventSource-compatible implementation
+into `ClientSharedProxyApiService.createClient`; `cli-v2` uses the `eventsource`
+package for this so tRPC live events can stream in the terminal process.

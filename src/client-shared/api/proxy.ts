@@ -1,3 +1,4 @@
+import type { EventSource } from 'eventsource';
 import { createTRPCProxyClient } from '@trpc/client';
 import type { AppRouter } from '@/server/router.js';
 import { ClientSharedApiLinkService } from './links.js';
@@ -5,6 +6,7 @@ import { ClientSharedApiLinkService } from './links.js';
 export type CreateControlPlaneProxyClientOptions = {
   url: string;
   batch?: boolean;
+  eventSource?: typeof EventSource;
 };
 
 /**
@@ -17,9 +19,10 @@ export class ClientSharedProxyApiService {
   static createClient({
     url,
     batch = true,
+    eventSource,
   }: CreateControlPlaneProxyClientOptions) {
     return createTRPCProxyClient<AppRouter>({
-      links: ClientSharedApiLinkService.create({ url, batch }),
+      links: ClientSharedApiLinkService.create({ url, batch, eventSource }),
     });
   }
 }
