@@ -4,7 +4,11 @@ import { ConversationPanel } from './components/ConversationPanel.js';
 import { PromptInput } from './components/PromptInput.js';
 import { useControlPlaneSessionStore } from './hooks/useControlPlaneSessionStore.js';
 import { usePromptDraft } from './hooks/usePromptDraft.js';
-import type { ControlPlaneSessionStore, ControlPlaneSessionStoreStartInput } from './state/control-plane-session-store.js';
+import type {
+  ControlPlaneSessionLatestUpdate,
+  ControlPlaneSessionStore,
+  ControlPlaneSessionStoreStartInput,
+} from './state/control-plane-session-store.js';
 
 export function App({
   store,
@@ -39,6 +43,7 @@ export function App({
   }, [clearDraft, store]);
 
   const status = snapshot.error ?? snapshot.liveStatus;
+  const latestUpdateText = formatLatestUpdate(snapshot.latestUpdate);
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -51,6 +56,11 @@ export function App({
         {snapshot.activeSession ? ` · ${snapshot.activeSession.name}` : ''}
       </Text>
       {status ? <Text color={snapshot.error ? 'red' : 'yellow'}>{status}</Text> : null}
+      {latestUpdateText ? (
+        <Text color={getLatestUpdateColor(snapshot.latestUpdate)}>
+          {latestUpdateText}
+        </Text>
+      ) : null}
       <ConversationPanel session={snapshot.activeSession} />
       {snapshot.pendingApproval ? (
         <Text color="yellow">Approval requested. Approval controls are part of the next cli-v2 slice.</Text>
@@ -64,4 +74,23 @@ export function App({
       />
     </Box>
   );
+}
+
+function formatLatestUpdate(update: ControlPlaneSessionLatestUpdate | undefined): string | undefined {
+  if (!update) {
+    return undefined;
+  }
+
+  return update.detail ? `Latest: ${update.label} · ${update.detail}` : `Latest: ${update.label}`;
+}
+
+function getLatestUpdateColor(update: ControlPlaneSessionLatestUpdate | undefined): 'blue' | 'green' | 'yellow' | 'red' {
+  const colors = {
+    info: 'blue',
+    success: 'green',
+    warning: 'yellow',
+    error: 'red',
+  } as const;
+
+  return colors[update?.tone ?? 'info'];
 }

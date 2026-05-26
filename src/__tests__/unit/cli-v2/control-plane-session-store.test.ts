@@ -89,6 +89,68 @@ describe('ControlPlaneSessionStore', () => {
     expect(store.getSnapshot().liveStatus).toBe('Receiving assistant response...');
     store.dispose();
   });
+
+  it('tracks the latest non-message activity from the session subscription', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    fixture.sessionEvents?.onData?.({
+      type: 'session.event',
+      sessionId: 'session-1',
+      timestamp: new Date().toISOString(),
+      activities: [
+        {
+          source: 'agent-loop',
+          type: 'tool.calling',
+          runId: 'run-1',
+          step: 2,
+          tool: 'read_file',
+          toolCallId: 'call-1',
+          input: { path: 'README.md' },
+          requiresApproval: false,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    } as ControlPlaneSessionEventEnvelope);
+
+    expect(store.getSnapshot().latestUpdate).toEqual({
+      label: 'Running read_file',
+      detail: 'step 2',
+      tone: 'info',
+    });
+    expect(store.getSnapshot().liveStatus).toBe('Working... running read_file (step 2)');
+    store.dispose();
+  });
+
+  it('keeps the final run outcome visible after loop completion', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    fixture.sessionEvents?.onData?.({
+      type: 'session.event',
+      sessionId: 'session-1',
+      timestamp: new Date().toISOString(),
+      activities: [
+        {
+          source: 'agent-loop',
+          type: 'loop.finished',
+          runId: 'run-1',
+          outcome: 'done',
+          summary: 'Done.',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    } as ControlPlaneSessionEventEnvelope);
+
+    expect(store.getSnapshot().latestUpdate).toEqual({
+      label: 'Run finished',
+      detail: 'done',
+      tone: 'success',
+    });
+    store.dispose();
+  });
 });
 
 type SubscriptionOptions<T> = {

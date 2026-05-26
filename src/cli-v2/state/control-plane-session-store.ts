@@ -32,6 +32,12 @@ export type ControlPlaneSessionStoreStartInput = {
   sessionId?: string;
 };
 
+export type ControlPlaneSessionLatestUpdate = {
+  label: string;
+  detail?: string;
+  tone: 'info' | 'success' | 'warning' | 'error';
+};
+
 export type ControlPlaneSessionStoreSnapshot = {
   workspaceId?: string;
   sessions: ControlPlaneSessionView[];
@@ -44,6 +50,7 @@ export type ControlPlaneSessionStoreSnapshot = {
   cancelling: boolean;
   streamConnected: boolean;
   liveStatus?: string;
+  latestUpdate?: ControlPlaneSessionLatestUpdate;
   error?: string;
 };
 
@@ -155,6 +162,7 @@ export class ControlPlaneSessionStore {
       activeSession: null,
       pendingApproval: null,
       liveStatus: undefined,
+      latestUpdate: undefined,
       error: undefined,
       loading: true,
       streamConnected: false,
@@ -190,6 +198,10 @@ export class ControlPlaneSessionStore {
       liveStatus: current.streamConnected
         ? 'Heddle is working...'
         : 'Heddle is working... reconnecting live stream if needed.',
+      latestUpdate: {
+        label: 'Prompt submitted',
+        tone: 'info',
+      },
       activeSession: ClientSharedSessionMessageController.appendOptimisticUserTurn(current.activeSession, trimmed),
     }));
 
@@ -204,6 +216,11 @@ export class ControlPlaneSessionStore {
         running: false,
         submitting: false,
         liveStatus: undefined,
+        latestUpdate: {
+          label: 'Run finished',
+          detail: result.outcome,
+          tone: 'success',
+        },
       });
       await this.refreshSessions();
       await this.refreshPendingApproval(sessionId);
@@ -224,6 +241,10 @@ export class ControlPlaneSessionStore {
       cancelling: true,
       error: undefined,
       liveStatus: 'Stop requested. Waiting for the current step to settle...',
+      latestUpdate: {
+        label: 'Stop requested',
+        tone: 'warning',
+      },
     });
 
     try {
@@ -234,6 +255,10 @@ export class ControlPlaneSessionStore {
         running: result.cancelled ? running.running : false,
         cancelling: false,
         liveStatus: result.cancelled && running.running ? this.snapshotValue.liveStatus : undefined,
+        latestUpdate: {
+          label: result.cancelled ? 'Stop request accepted' : 'No active run to stop',
+          tone: result.cancelled ? 'warning' : 'info',
+        },
       });
     } catch (error) {
       this.setSnapshot({
@@ -333,7 +358,13 @@ export class ControlPlaneSessionStore {
     }
 
     if (event.type === 'waiting') {
-      this.setSnapshot({ liveStatus: 'Waiting for the session event stream...' });
+      this.setSnapshot({
+        liveStatus: 'Waiting for the session event stream...',
+        latestUpdate: {
+          label: 'Waiting for session events',
+          tone: 'info',
+        },
+      });
       return;
     }
 
@@ -360,13 +391,14 @@ export class ControlPlaneSessionStore {
       }
 
       const status = resolveLiveStatus(activity);
+      const latestUpdate = resolveLatestUpdate(activity);
       if (activity.type === 'loop.started') {
-        this.setSnapshot({ running: true, liveStatus: status });
+        this.setSnapshot({ running: true, liveStatus: status, latestUpdate });
         return;
       }
 
       if (activity.type === 'loop.finished') {
-        this.setSnapshot({ running: false, liveStatus: undefined });
+        this.setSnapshot({ running: false, liveStatus: undefined, latestUpdate });
         void this.refreshSession(event.sessionId, { silent: true });
         void this.refreshSessions();
         return;
@@ -376,8 +408,11 @@ export class ControlPlaneSessionStore {
         void this.refreshPendingApproval(event.sessionId);
       }
 
-      if (status !== undefined) {
-        this.setSnapshot({ liveStatus: status });
+      if (status !== undefined || latestUpdate !== undefined) {
+        this.setSnapshot({
+          ...(status !== undefined ? { liveStatus: status } : {}),
+          ...(latestUpdate !== undefined ? { latestUpdate } : {}),
+        });
       }
     });
   }
@@ -474,6 +509,13 @@ export class ControlPlaneSessionStore {
       pendingApproval: runState.pendingApproval,
       running: runState.running,
       cancelling: runState.running ? this.snapshotValue.cancelling : false,
+      latestUpdate: runState.pendingApproval
+        ? {
+          label: 'Approval requested',
+          detail: formatPendingApprovalLabel(runState.pendingApproval),
+          tone: 'warning',
+        }
+        : this.snapshotValue.latestUpdate,
     });
 
     if (runState.running) {
@@ -485,6 +527,10 @@ export class ControlPlaneSessionStore {
     this.setSnapshot({
       submitting: false,
       liveStatus: undefined,
+      latestUpdate: {
+        label: 'Run finished',
+        tone: 'success',
+      },
     });
   }
 }
@@ -494,6 +540,11 @@ type SessionActivityStatusHandlers = {
   [ActivityType in ControlPlaneSessionActivity['type']]?: (
     activity: Extract<ControlPlaneSessionActivity, { type: ActivityType }>,
   ) => string | undefined;
+};
+type SessionActivityLatestUpdateHandlers = {
+  [ActivityType in ControlPlaneSessionActivity['type']]?: (
+    activity: Extract<ControlPlaneSessionActivity, { type: ActivityType }>,
+  ) => ControlPlaneSessionLatestUpdate | undefined;
 };
 
 const liveStatusHandlers: SessionActivityStatusHandlers = {
@@ -513,8 +564,68 @@ const liveStatusHandlers: SessionActivityStatusHandlers = {
   ),
 };
 
+const latestUpdateHandlers: SessionActivityLatestUpdateHandlers = {
+  'loop.started': (activity) => ({
+    label: 'Run started',
+    detail: `${activity.model} via ${activity.provider}`,
+    tone: 'info',
+  }),
+  'tool.calling': (activity) => ({
+    label: `Running ${formatToolLabel(activity)}`,
+    detail: formatStepDetail(activity.step),
+    tone: activity.requiresApproval ? 'warning' : 'info',
+  }),
+  'tool.completed': (activity) => ({
+    label: `${activity.tool} completed`,
+    detail: `${Math.round(activity.durationMs)}ms`,
+    tone: 'success',
+  }),
+  'tool.approval_requested': (activity) => ({
+    label: 'Approval requested',
+    detail: formatToolLabel(activity),
+    tone: 'warning',
+  }),
+  'tool.approval_resolved': (activity) => ({
+    label: activity.approved ? 'Approval granted' : 'Approval denied',
+    detail: activity.reason,
+    tone: activity.approved ? 'info' : 'warning',
+  }),
+  'tool.fallback': (activity) => ({
+    label: 'Tool fallback',
+    detail: formatToolFallbackLabel(activity),
+    tone: 'warning',
+  }),
+  'loop.finished': (activity) => ({
+    label: 'Run finished',
+    detail: activity.outcome,
+    tone: activity.outcome === 'done' ? 'success' : 'warning',
+  }),
+  'compaction.running': (activity) => ({
+    label: 'Compacting history',
+    detail: activity.archivePath,
+    tone: 'info',
+  }),
+  'compaction.failed': (activity) => ({
+    label: 'Compaction failed',
+    detail: activity.error,
+    tone: 'error',
+  }),
+  'compaction.finished': (activity) => ({
+    label: 'Compaction finished',
+    detail: activity.summaryPath,
+    tone: 'success',
+  }),
+};
+
 function resolveLiveStatus(activity: ControlPlaneSessionActivity): string | undefined {
   const handler = liveStatusHandlers[activity.type] as ((activity: ControlPlaneSessionActivity) => string | undefined) | undefined;
+  return handler?.(activity);
+}
+
+function resolveLatestUpdate(activity: ControlPlaneSessionActivity): ControlPlaneSessionLatestUpdate | undefined {
+  const handler = latestUpdateHandlers[activity.type] as (
+    (activity: ControlPlaneSessionActivity) => ControlPlaneSessionLatestUpdate | undefined
+  ) | undefined;
   return handler?.(activity);
 }
 
@@ -534,8 +645,24 @@ function formatToolLabel(activity: ControlPlaneSessionActivity): string {
   return 'tool';
 }
 
+function formatToolFallbackLabel(activity: Extract<ControlPlaneSessionActivity, { type: 'tool.fallback' }>): string | undefined {
+  if (activity.derived?.kind === 'tool-fallback-summary') {
+    return `${activity.derived.fromSummary} -> ${activity.derived.toSummary}`;
+  }
+
+  return `${activity.fromCall.tool} -> ${activity.toCall.tool}`;
+}
+
 function formatStep(step: number | undefined): string {
   return typeof step === 'number' ? ` (step ${step})` : '';
+}
+
+function formatStepDetail(step: number | undefined): string | undefined {
+  return typeof step === 'number' ? `step ${step}` : undefined;
+}
+
+function formatPendingApprovalLabel(approval: NonNullable<ControlPlanePendingApproval>): string | undefined {
+  return approval.tool;
 }
 
 function formatError(error: unknown): string {
