@@ -77,7 +77,7 @@ export function DesktopAppFrame(props: AppFrameLayoutProps) {
           collapsible
           className="h-full min-h-0 overflow-hidden"
           collapsedSize={0}
-          defaultSize="17rem"
+          defaultSize="16rem"
           minSize="14rem"
           maxSize="24rem"
           panelRef={sidebarPanelRef}

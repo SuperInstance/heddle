@@ -152,7 +152,7 @@
   "settings": {
     "general": "通用",
     "memory": "记忆状态",
-    "workspaces": "工作区管理"
+    "workspaces": "工作区"
   },
   "workspaceSettings": {
     "addDetail": "选择拥有 .heddle 状态目录的文件夹来加入工作区。",

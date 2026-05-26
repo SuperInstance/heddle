@@ -152,7 +152,7 @@
   "settings": {
     "general": "General",
     "memory": "Memory Status",
-    "workspaces": "Workspace Management"
+    "workspaces": "Workspace"
   },
   "workspaceSettings": {
     "addDetail": "Attach a workspace by choosing the folder that owns its .heddle state directory.",
