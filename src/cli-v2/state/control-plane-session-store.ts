@@ -72,7 +72,8 @@ export class ControlPlaneSessionStore {
   private snapshotValue: ControlPlaneSessionStoreSnapshot = INITIAL_SNAPSHOT;
   private sessionsSubscription?: SubscriptionHandle;
   private sessionSubscription?: SubscriptionHandle;
-  private pendingApprovalPoll?: ReturnType<typeof setInterval>;
+  private runStatePoll?: ReturnType<typeof setInterval>;
+  private runStatePollInFlight = false;
   private subscriptionAddress?: { workspaceId: string; sessionId: string };
 
   constructor(options: ControlPlaneSessionStoreOptions) {
@@ -118,12 +119,13 @@ export class ControlPlaneSessionStore {
   dispose(): void {
     this.sessionsSubscription?.unsubscribe();
     this.sessionSubscription?.unsubscribe();
-    if (this.pendingApprovalPoll) {
-      clearInterval(this.pendingApprovalPoll);
+    if (this.runStatePoll) {
+      clearInterval(this.runStatePoll);
     }
     this.sessionsSubscription = undefined;
     this.sessionSubscription = undefined;
-    this.pendingApprovalPoll = undefined;
+    this.runStatePoll = undefined;
+    this.runStatePollInFlight = false;
     this.subscriptionAddress = undefined;
   }
 
@@ -421,35 +423,69 @@ export class ControlPlaneSessionStore {
       ...this.snapshotValue,
       ...patch,
     };
-    this.syncPendingApprovalPolling();
+    this.syncRunStatePolling();
     this.listeners.forEach((listener) => listener());
   }
 
-  private syncPendingApprovalPolling(): void {
-    if (this.snapshotValue.running && this.snapshotValue.workspaceId && this.snapshotValue.activeSessionId) {
-      if (this.pendingApprovalPoll) {
+  private syncRunStatePolling(): void {
+    if (
+      (this.snapshotValue.running || this.snapshotValue.submitting || this.snapshotValue.cancelling) &&
+      this.snapshotValue.workspaceId &&
+      this.snapshotValue.activeSessionId
+    ) {
+      if (this.runStatePoll) {
         return;
       }
 
-      this.pendingApprovalPoll = setInterval(() => {
+      this.runStatePoll = setInterval(() => {
         const sessionId = this.snapshotValue.activeSessionId;
-        if (!sessionId) {
+        const workspaceId = this.snapshotValue.workspaceId;
+        if (!sessionId || !workspaceId || this.runStatePollInFlight) {
           return;
         }
 
-        void this.refreshPendingApproval(sessionId).catch((error) => {
-          this.setSnapshot({ error: formatError(error) });
-        });
+        this.runStatePollInFlight = true;
+        void this.pollRunState({ workspaceId, sessionId })
+          .catch((error) => {
+            this.setSnapshot({ error: formatError(error) });
+          })
+          .finally(() => {
+            this.runStatePollInFlight = false;
+          });
       }, 750);
       return;
     }
 
-    if (!this.pendingApprovalPoll) {
+    if (!this.runStatePoll) {
       return;
     }
 
-    clearInterval(this.pendingApprovalPoll);
-    this.pendingApprovalPoll = undefined;
+    clearInterval(this.runStatePoll);
+    this.runStatePoll = undefined;
+  }
+
+  private async pollRunState({ workspaceId, sessionId }: { workspaceId: string; sessionId: string }): Promise<void> {
+    const runState = await this.client.controlPlane.sessionRunState.query({ id: sessionId, workspaceId });
+    if (!this.isActiveSessionAddress(workspaceId, sessionId)) {
+      return;
+    }
+
+    this.setSnapshot({
+      pendingApproval: runState.pendingApproval,
+      running: runState.running,
+      cancelling: runState.running ? this.snapshotValue.cancelling : false,
+    });
+
+    if (runState.running) {
+      return;
+    }
+
+    await this.refreshSession(sessionId, { silent: true });
+    await this.refreshSessions();
+    this.setSnapshot({
+      submitting: false,
+      liveStatus: undefined,
+    });
   }
 }
 

@@ -29,6 +29,7 @@ describe('ControlPlaneSessionStore', () => {
     expect(store.getSnapshot().activeSession?.messages).toEqual([
       { id: 'message-1', role: 'assistant', text: 'Ready.' },
     ]);
+    store.dispose();
   });
 
   it('submits prompts through sessionSendPrompt without a direct runtime fallback', async () => {
@@ -57,6 +58,7 @@ describe('ControlPlaneSessionStore', () => {
       role: 'assistant',
       text: 'Done.',
     });
+    store.dispose();
   });
 
   it('applies live assistant stream events from the session subscription', async () => {
@@ -85,6 +87,7 @@ describe('ControlPlaneSessionStore', () => {
       isPending: true,
     });
     expect(store.getSnapshot().liveStatus).toBe('Receiving assistant response...');
+    store.dispose();
   });
 });
 
@@ -118,6 +121,7 @@ function createClientFixture() {
     sessionsQuery: vi.fn(async () => ({ workspaceId: 'workspace-1', sessions: [sessionView] })),
     sessionQuery: vi.fn(async () => sessionDetail),
     sessionRunningQuery: vi.fn(async () => ({ running: false })),
+    sessionRunStateQuery: vi.fn(async () => ({ running: false, pendingApproval })),
     sessionPendingApprovalQuery: vi.fn(async () => pendingApproval),
     sessionSendPromptMutate: vi.fn(async () => ({
       session: {
@@ -150,6 +154,7 @@ function createClientFixture() {
         }),
       },
       sessionRunning: { query: calls.sessionRunningQuery },
+      sessionRunState: { query: calls.sessionRunStateQuery },
       sessionPendingApproval: { query: calls.sessionPendingApprovalQuery },
       sessionSendPrompt: { mutate: calls.sessionSendPromptMutate },
       sessionCancel: { mutate: vi.fn(async () => ({ cancelled: false })) },
