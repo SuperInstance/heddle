@@ -199,7 +199,8 @@ export class ControlPlaneSessionStore {
         ? 'Heddle is working...'
         : 'Heddle is working... reconnecting live stream if needed.',
       latestUpdate: {
-        label: 'Prompt submitted',
+        label: 'Thinking',
+        detail: 'waiting for model or tool activity',
         tone: 'info',
       },
       activeSession: ClientSharedSessionMessageController.appendOptimisticUserTurn(current.activeSession, trimmed),

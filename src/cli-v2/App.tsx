@@ -55,13 +55,15 @@ export function App({
         {snapshot.workspaceId ? `Workspace ${snapshot.workspaceId}` : 'Loading workspace...'}
         {snapshot.activeSession ? ` · ${snapshot.activeSession.name}` : ''}
       </Text>
-      {status ? <Text color={snapshot.error ? 'red' : 'yellow'}>{status}</Text> : null}
-      {latestUpdateText ? (
-        <Text color={getLatestUpdateColor(snapshot.latestUpdate)}>
-          {latestUpdateText}
-        </Text>
-      ) : null}
       <ConversationPanel session={snapshot.activeSession} />
+      <Box flexDirection="column" marginBottom={1}>
+        {status ? <Text color={snapshot.error ? 'red' : 'yellow'}>Status: {status}</Text> : null}
+        {latestUpdateText ? (
+          <Text color={getLatestUpdateColor(snapshot.latestUpdate)}>
+            {latestUpdateText}
+          </Text>
+        ) : null}
+      </Box>
       {snapshot.pendingApproval ? (
         <Text color="yellow">Approval requested. Approval controls are part of the next cli-v2 slice.</Text>
       ) : null}
