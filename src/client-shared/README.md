@@ -15,8 +15,8 @@ the `ControlPlane*` types exported from `api/types.ts`.
 
 ## Folder Shape
 
-- `api/`: tRPC contracts, link services, proxy services, and the shared
-  `trpcReact` object.
+- `api/`: tRPC contracts, link services, proxy services, and
+  `trpc-react.ts`, which owns the typed `@trpc/react-query` hook object.
 - `hooks/`: React hooks. Files in this folder use `useXxx` naming and return
   hook-shaped values.
 
