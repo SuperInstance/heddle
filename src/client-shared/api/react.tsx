@@ -1,17 +1,27 @@
 import { createTRPCReact } from '@trpc/react-query';
 import type { AppRouter } from '@/server/router.js';
-import { createControlPlaneTrpcLinks } from './links.js';
+import { ClientSharedApiLinkService } from './links.js';
 
-export const trpcReact = createTRPCReact<AppRouter>();
-
-export type CreateControlPlaneReactClientOptions = {
+export type CreateClientSharedReactApiClientOptions = {
   url?: string;
 };
 
-export function createControlPlaneTrpcClient(options: CreateControlPlaneReactClientOptions = {}) {
-  return trpcReact.createClient({
-    links: createControlPlaneTrpcLinks({
-      url: options.url ?? '/trpc',
-    }),
-  });
+/**
+ * React API client service for web-facing React surfaces.
+ *
+ * Owns the typed tRPC React object and client construction while keeping
+ * AppRouter type usage inside the shared client boundary.
+ */
+export class ClientSharedReactApiService {
+  static readonly trpcReact = createTRPCReact<AppRouter>();
+
+  static createClient(options: CreateClientSharedReactApiClientOptions = {}) {
+    return ClientSharedReactApiService.trpcReact.createClient({
+      links: ClientSharedApiLinkService.create({
+        url: options.url ?? '/trpc',
+      }),
+    });
+  }
 }
+
+export const trpcReact = ClientSharedReactApiService.trpcReact;

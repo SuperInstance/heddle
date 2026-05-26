@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { createControlPlaneTrpcClient, trpcReact } from './client';
+import { ClientSharedReactApiService, trpcReact } from './client';
 
 /**
  * Owns browser API clients for web-v2. Query and subscription hooks should be
@@ -8,7 +8,7 @@ import { createControlPlaneTrpcClient, trpcReact } from './client';
  */
 export function ControlPlaneApiProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
-  const [trpcClient] = useState(() => createControlPlaneTrpcClient());
+  const [trpcClient] = useState(() => ClientSharedReactApiService.createClient());
 
   return (
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>

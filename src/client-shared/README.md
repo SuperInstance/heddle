@@ -16,9 +16,10 @@ the `ControlPlane*` types exported from `api/types.ts`.
 ## Owns
 
 - tRPC-derived API type aliases;
-- shared tRPC link construction;
-- non-React proxy clients for CLI/TUI/ask callers;
-- React Query tRPC exports used by web-v2.
+- `ClientSharedApiLinkService` for shared tRPC link construction;
+- `ClientSharedProxyApiService` for non-React proxy clients used by CLI/TUI/ask
+  callers;
+- `ClientSharedReactApiService` for React Query tRPC exports used by web-v2.
 
 ## Does Not Own
 
