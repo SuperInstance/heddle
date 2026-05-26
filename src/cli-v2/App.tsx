@@ -4,6 +4,7 @@ import { ConversationPanel } from './components/ConversationPanel.js';
 import { PromptInput } from './components/PromptInput.js';
 import { buildPromptActivity } from './helpers/activities/prompt-activity.js';
 import { useControlPlaneSessionStore } from './hooks/useControlPlaneSessionStore.js';
+import { usePromptDraft } from './hooks/usePromptDraft.js';
 import type {
   ControlPlaneSessionStore,
   ControlPlaneSessionStoreStartInput,
@@ -18,6 +19,8 @@ export function App({
 }) {
   const startedRef = useRef(false);
   const snapshot = useControlPlaneSessionStore(store);
+  const { draft, setDraft, clearDraft } = usePromptDraft();
+  const submitDisabled = snapshot.loading || snapshot.submitting || snapshot.running || snapshot.cancelling;
 
   useEffect(() => {
     if (startedRef.current) {
@@ -36,8 +39,13 @@ export function App({
       return;
     }
 
+    if (submitDisabled) {
+      return;
+    }
+
+    clearDraft();
     void store.submitPrompt(value);
-  }, [store]);
+  }, [clearDraft, store, submitDisabled]);
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -55,8 +63,11 @@ export function App({
       ) : null}
       <PromptInput
         activity={buildPromptActivity(snapshot)}
-        disabled={snapshot.loading || snapshot.submitting || snapshot.running || snapshot.cancelling}
+        disabled={snapshot.loading}
+        submitDisabled={submitDisabled}
         placeholder={snapshot.loading ? 'Loading session...' : 'Type a prompt'}
+        value={draft}
+        onChange={setDraft}
         onSubmit={submitPrompt}
       />
     </Box>

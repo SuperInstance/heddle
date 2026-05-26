@@ -1,39 +1,43 @@
-import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { PromptActivityView } from '../helpers/activities/prompt-activity.js';
 
 export function PromptInput({
   activity,
   disabled,
+  submitDisabled,
   placeholder,
+  value,
+  onChange,
   onSubmit,
 }: {
   activity?: PromptActivityView;
   disabled: boolean;
+  submitDisabled: boolean;
   placeholder: string;
+  value: string;
+  onChange: Dispatch<SetStateAction<string>>;
   onSubmit: (value: string) => void;
 }) {
-  const [value, setValue] = useState('');
-
   useInput((input, key) => {
     if (disabled) {
       return;
     }
 
     if (key.return) {
-      const submittedValue = value;
-      setValue('');
-      onSubmit(submittedValue);
+      if (!submitDisabled) {
+        onSubmit(value);
+      }
       return;
     }
 
     if (key.backspace || key.delete) {
-      setValue((current) => current.slice(0, -1));
+      onChange((current) => current.slice(0, -1));
       return;
     }
 
     if (!key.ctrl && !key.meta && input) {
-      setValue((current) => `${current}${input}`);
+      onChange((current) => `${current}${input}`);
     }
   }, { isActive: !disabled });
 
