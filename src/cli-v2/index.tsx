@@ -1,5 +1,6 @@
 import React from 'react';
 import { render } from 'ink';
+import { EventSource } from 'eventsource';
 import { ClientSharedProxyApiService } from '@/client-shared/api/proxy.js';
 import { App } from './App.js';
 import { ControlPlaneSessionStore } from './state/control-plane-session-store.js';
@@ -18,6 +19,7 @@ export type ChatCliV2Options = ControlPlaneSessionStoreStartInput & {
 export function startChatCliV2(options: ChatCliV2Options) {
   const client = ClientSharedProxyApiService.createClient({
     url: options.trpcUrl,
+    eventSource: EventSource,
   });
   const store = new ControlPlaneSessionStore({
     client,

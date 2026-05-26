@@ -39,3 +39,10 @@ the `ControlPlane*` types exported from `api/types.ts`.
 - server route implementation;
 - core/domain behavior;
 - UI rendering or workflow state specific to one interface.
+
+## Node Subscriptions
+
+Browser clients can rely on the native `EventSource` implementation. Node
+clients that use subscriptions must pass an EventSource-compatible implementation
+into `ClientSharedProxyApiService.createClient`; `cli-v2` uses the `eventsource`
+package for this so tRPC live events can stream in the terminal process.

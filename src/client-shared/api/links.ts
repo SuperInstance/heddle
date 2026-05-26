@@ -5,11 +5,13 @@ import {
   splitLink,
   type TRPCLink,
 } from '@trpc/client';
+import type { EventSource } from 'eventsource';
 import type { AppRouter } from '@/server/router.js';
 
 export type CreateControlPlaneTrpcLinksOptions = {
   url: string;
   batch?: boolean;
+  eventSource?: typeof EventSource;
 };
 
 /**
@@ -22,13 +24,14 @@ export class ClientSharedApiLinkService {
   static create({
     url,
     batch = false,
+    eventSource,
   }: CreateControlPlaneTrpcLinksOptions): TRPCLink<AppRouter>[] {
     const requestLink = batch ? httpBatchLink({ url }) : httpLink({ url });
 
     return [
       splitLink({
         condition: (operation) => operation.type === 'subscription',
-        true: httpSubscriptionLink({ url }),
+        true: httpSubscriptionLink({ url, EventSource: eventSource }),
         false: requestLink,
       }),
     ];
