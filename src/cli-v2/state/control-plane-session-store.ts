@@ -562,6 +562,18 @@ export class ControlPlaneSessionStore {
       return;
     }
 
+    if (this.snapshotValue.submitting) {
+      this.setSnapshot({
+        liveStatus: 'Finalizing response...',
+        latestUpdate: {
+          label: 'Finalizing response',
+          detail: 'waiting for server result',
+          tone: 'info',
+        },
+      });
+      return;
+    }
+
     await this.refreshSession(sessionId, { silent: true });
     await this.refreshSessions();
     this.setSnapshot({
