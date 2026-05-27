@@ -74,7 +74,9 @@ export function useControlPlaneSessionPromptSubmit({
       await sessionSendPromptMutation.mutateAsync({ workspaceId, sessionId, prompt: trimmed });
       if (isCurrentSubmission()) {
         setRunning(true);
-        setLiveStatus(streamConnected ? 'Heddle is working...' : 'Heddle is working... reconnecting live stream if needed.');
+        setLiveStatus((current) => (
+          current ?? (streamConnected ? 'Heddle is working...' : 'Heddle is working... reconnecting live stream if needed.')
+        ));
       }
     } catch (submitError) {
       if (isCurrentSubmission()) {
