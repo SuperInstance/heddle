@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { ApprovalPanel } from './components/ApprovalPanel.js';
 import { ConversationPanel } from './components/ConversationPanel.js';
 import { PromptInput } from './components/PromptInput.js';
+import { RunControls } from './components/RunControls.js';
 import { buildPromptActivity } from './helpers/activities/prompt-activity.js';
 import { useControlPlaneSessionStore } from './hooks/useControlPlaneSessionStore.js';
 import { usePromptDraft } from './hooks/usePromptDraft.js';
@@ -37,7 +38,8 @@ export function App({
   }, [initialSelection, store]);
 
   const submitPrompt = useCallback((value: string) => {
-    if (!value.trim()) {
+    const trimmed = value.trim();
+    if (!trimmed) {
       return;
     }
 
@@ -51,6 +53,10 @@ export function App({
 
   const resolveApproval = useCallback((decision: ControlPlaneApprovalDecision) => {
     void store.resolvePendingApproval(decision);
+  }, [store]);
+
+  const cancelRun = useCallback(() => {
+    void store.cancelRun();
   }, [store]);
 
   return (
@@ -71,10 +77,19 @@ export function App({
           onResolve={resolveApproval}
         />
       ) : null}
+      <RunControls
+        running={snapshot.running}
+        cancelling={snapshot.cancelling}
+        onCancel={cancelRun}
+      />
       <PromptInput
         activity={buildPromptActivity(snapshot)}
         disabled={submitDisabled || Boolean(snapshot.pendingApproval)}
-        placeholder={snapshot.loading ? 'Loading session...' : snapshot.running ? 'Run in progress' : 'Type a prompt'}
+        placeholder={
+          snapshot.loading ? 'Loading session...'
+          : snapshot.running ? 'Run in progress'
+          : 'Type a prompt'
+        }
         value={draft}
         onChange={setDraft}
         onSubmit={submitPrompt}

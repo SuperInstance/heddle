@@ -140,6 +140,37 @@ describe('ControlPlaneSessionStore', () => {
     store.dispose();
   });
 
+  it('cancels the active run through sessionCancel', async () => {
+    const fixture = createClientFixture();
+    const pendingSubmit = createDeferred<Awaited<ReturnType<typeof fixture.calls.sessionSendPromptMutate>>>();
+    fixture.calls.sessionSendPromptMutate.mockReturnValueOnce(pendingSubmit.promise);
+    fixture.calls.sessionCancelMutate.mockResolvedValueOnce({ cancelled: true });
+    fixture.calls.sessionRunningQuery
+      .mockResolvedValueOnce({ running: false })
+      .mockResolvedValueOnce({ running: false });
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    const submit = store.submitPrompt('Long run');
+    await store.cancelRun();
+
+    expect(fixture.calls.sessionCancelMutate).toHaveBeenCalledWith({
+      workspaceId: 'workspace-1',
+      id: 'session-1',
+    });
+    expect(store.getSnapshot()).toMatchObject({
+      running: false,
+      cancelling: false,
+      latestUpdate: {
+        label: 'Stop request accepted',
+        tone: 'warning',
+      },
+    });
+    pendingSubmit.resolve(createSubmitResult());
+    await submit;
+    store.dispose();
+  });
+
   it('resolves pending approvals through the shared control-plane API', async () => {
     const fixture = createClientFixture();
     const store = new ControlPlaneSessionStore({ client: fixture.client });
@@ -298,6 +329,7 @@ function createClientFixture() {
       outcome: 'completed',
       summary: 'Done.',
     })),
+    sessionCancelMutate: vi.fn(async () => ({ cancelled: false })),
     sessionResolveApprovalMutate: vi.fn(async () => ({ resolved: true })),
   };
   const client = {
@@ -322,7 +354,7 @@ function createClientFixture() {
       sessionRunState: { query: calls.sessionRunStateQuery },
       sessionPendingApproval: { query: calls.sessionPendingApprovalQuery },
       sessionSendPrompt: { mutate: calls.sessionSendPromptMutate },
-      sessionCancel: { mutate: vi.fn(async () => ({ cancelled: false })) },
+      sessionCancel: { mutate: calls.sessionCancelMutate },
       sessionResolveApproval: { mutate: calls.sessionResolveApprovalMutate },
     },
   } as unknown as ControlPlaneProxyClient;
