@@ -173,9 +173,9 @@ export class OpenAiAdapter implements LlmAdapter {
         }
       }
     } catch (error) {
-      // Codex OAuth streams can complete with message output items that omit
-      // `content`; the OpenAI SDK parser assumes `content.map`.
-      if (!completedResponse || !isOpenAiSdkResponseParserError(error)) {
+      // Once the API has emitted a completed response, prefer that captured
+      // response over failing the turn on SDK-side stream finalization/parsing.
+      if (!completedResponse) {
         throw error;
       }
     }
@@ -218,10 +218,6 @@ export class OpenAiAdapter implements LlmAdapter {
   private static firstDefinedNonEmpty(...values: Array<string | undefined>): string | undefined {
     return values.find((value) => typeof value === 'string' && value.trim().length > 0);
   }
-}
-
-function isOpenAiSdkResponseParserError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("Cannot read properties of undefined (reading 'map')");
 }
 
 export type OpenAiOAuthFetchOptions = {

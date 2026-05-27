@@ -435,7 +435,7 @@ describe('OpenAI OAuth helpers', () => {
     expect(result.content).toBe('Done.');
   });
 
-  it('uses the completed Codex response when the OpenAI SDK parser rejects message output without content', async () => {
+  it('uses the captured completed response when stream iteration fails after completion', async () => {
     const adapter = createOpenAiTestAdapter({
       model: 'gpt-5.4',
       credential: {
