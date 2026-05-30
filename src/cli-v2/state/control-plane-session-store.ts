@@ -24,6 +24,7 @@ import type {
   ControlPlanePendingApproval,
   ControlPlaneSessionDetail,
   ControlPlaneSessionEventEnvelope,
+  ControlPlaneSessionRuntimeContext,
   ControlPlaneSessionView,
   ControlPlaneSlashCommandCatalog,
   ControlPlaneSlashCommandHint,
@@ -53,6 +54,7 @@ export type ControlPlaneSessionStoreSnapshot = {
   sessions: ControlPlaneSessionView[];
   activeSessionId?: string;
   activeSession: ControlPlaneSessionDetail;
+  runtimeContext?: ControlPlaneSessionRuntimeContext;
   pendingApproval: ControlPlanePendingApproval;
   loading: boolean;
   submitting: boolean;
@@ -70,6 +72,7 @@ export type ControlPlaneSessionStoreSnapshot = {
 const INITIAL_SNAPSHOT: ControlPlaneSessionStoreSnapshot = {
   sessions: [],
   activeSession: null,
+  runtimeContext: undefined,
   pendingApproval: null,
   loading: false,
   submitting: false,
@@ -182,6 +185,7 @@ export class ControlPlaneSessionStore {
     this.setSnapshot({
       activeSessionId: sessionId,
       activeSession: null,
+      runtimeContext: undefined,
       pendingApproval: null,
       liveStatus: undefined,
       latestUpdate: undefined,
@@ -192,9 +196,11 @@ export class ControlPlaneSessionStore {
 
     try {
       const session = await this.api.getSession(workspaceId, sessionId);
+      const runtimeContext = await this.api.getRuntimeContext(workspaceId, sessionId);
       const running = await this.api.getRunning(workspaceId, sessionId);
       this.setSnapshot({
         activeSession: session,
+        runtimeContext,
         running: running.running,
         loading: false,
       });
@@ -379,10 +385,12 @@ export class ControlPlaneSessionStore {
 
     try {
       const next = await this.api.getSession(workspaceId, sessionId);
+      const runtimeContext = await this.api.getRuntimeContext(workspaceId, sessionId);
       this.setSnapshot((current) => ({
         activeSession: options.silent
           ? ClientSharedSessionMessageService.mergeTransientMessages(current.activeSession, next)
           : next,
+        runtimeContext,
         loading: false,
       }));
     } catch (error) {
@@ -625,6 +633,9 @@ export class ControlPlaneSessionStore {
     this.setSnapshot({
       pendingApproval: runState.pendingApproval,
       running: runState.running,
+      runtimeContext: this.snapshotValue.runtimeContext
+        ? { ...this.snapshotValue.runtimeContext, running: runState.running }
+        : this.snapshotValue.runtimeContext,
       cancelling: runState.running ? this.snapshotValue.cancelling : false,
       latestUpdate: runState.pendingApproval
         ? {

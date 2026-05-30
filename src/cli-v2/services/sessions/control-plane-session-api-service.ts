@@ -73,6 +73,10 @@ export class ControlPlaneSessionApiService {
     return this.client.controlPlane.sessionRunState.query({ id: sessionId, workspaceId });
   }
 
+  async getRuntimeContext(workspaceId: string, sessionId: string) {
+    return this.client.controlPlane.sessionRuntimeContext.query({ sessionId, workspaceId });
+  }
+
   async getPendingApproval(workspaceId: string, sessionId: string) {
     return this.client.controlPlane.sessionPendingApproval.query({ id: sessionId, workspaceId });
   }

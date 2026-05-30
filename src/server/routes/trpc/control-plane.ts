@@ -16,6 +16,7 @@ import { ControlPlaneLayoutSnapshotsController } from '@/server/controllers/trpc
 import { ControlPlaneWorkspaceFilesController } from '@/server/controllers/trpc/control-plane/workspace-files.js';
 import { ControlPlaneWorkspaceDiffController } from '@/server/controllers/trpc/control-plane/workspace-diff.js';
 import { controlPlaneSlashCommandsController } from '@/server/controllers/trpc/control-plane/slash-commands-controller.js';
+import { controlPlaneSessionRuntimeContextService } from '@/server/services/control-plane/session-runtime-context-service.js';
 import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 import { FileDaemonRegistryRepository, RuntimeDaemonRegistryService } from '@/core/runtime/daemon/index.js';
 import { controlPlaneWorkspaceProcedure, type ControlPlaneWorkspaceContext } from './control-plane-workspace.js';
@@ -40,6 +41,7 @@ import {
   sessionInputSchema,
   sessionMessageInputSchema,
   sessionRenameInputSchema,
+  sessionRuntimeContextInputSchema,
   slashCommandCatalogInputSchema,
   slashCommandExecuteInputSchema,
   sessionsEventsInputSchema,
@@ -176,6 +178,19 @@ export const controlPlaneRouter = router({
       sessionId: input.id,
     });
   }),
+  sessionRuntimeContext: controlPlaneWorkspaceProcedure.input(sessionRuntimeContextInputSchema).query(({ ctx, input }) => {
+    const { workspace, sessionEngineArgs } = ctx.requestWorkspace;
+    return controlPlaneSessionRuntimeContextService.read({
+      ...sessionEngineArgs,
+      sessionId: input.sessionId,
+      preferApiKey: ctx.preferApiKey,
+    }, {
+      running: controlPlaneChatSessionsController.isRunning({
+        workspaceId: workspace.id,
+        sessionId: input.sessionId,
+      }),
+    });
+  }),
   sessionPendingApproval: controlPlaneWorkspaceProcedure.input(sessionInputSchema).query(({ ctx, input }) => {
     const { workspace } = ctx.requestWorkspace;
     return controlPlaneChatSessionsController.getPendingApproval({
@@ -225,6 +240,16 @@ export const controlPlaneRouter = router({
       sessionId: input.sessionId,
       preferApiKey: ctx.preferApiKey,
       leaseOwner: resolveControlPlaneLeaseOwner(ctx),
+      compactActive: async () => {
+        await controlPlaneChatSessionsController.compactSession({
+          ...ctx.requestWorkspace.sessionEngineArgs,
+          sessionId: input.sessionId,
+          force: true,
+          preferApiKey: ctx.preferApiKey,
+          leaseOwner: resolveControlPlaneLeaseOwner(ctx),
+        });
+        return 'Compacted earlier session history for the next run.';
+      },
     }, input.command);
   }),
   sessionContinue: controlPlaneWorkspaceProcedure.input(sessionInputSchema).mutation(async ({ ctx, input }) => {
