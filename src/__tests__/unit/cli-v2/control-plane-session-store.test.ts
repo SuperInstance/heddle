@@ -4,6 +4,7 @@ import type {
   ControlPlanePendingApproval,
   ControlPlaneSessionDetail,
   ControlPlaneSessionEventEnvelope,
+  ControlPlaneSessionRuntimeContext,
   ControlPlaneSessionSendPromptAsyncResult,
   ControlPlaneSessionView,
   ControlPlaneSessionsEventEnvelope,
@@ -22,16 +23,47 @@ describe('ControlPlaneSessionStore', () => {
     expect(fixture.calls.slashCommandCatalogQuery).toHaveBeenCalledWith({ workspaceId: 'workspace-1' });
     expect(fixture.calls.sessionsQuery).toHaveBeenCalledWith({ workspaceId: 'workspace-1' });
     expect(fixture.calls.sessionQuery).toHaveBeenCalledWith({ id: 'session-1', workspaceId: 'workspace-1' });
+    expect(fixture.calls.sessionRuntimeContextQuery).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+    });
     expect(store.getSnapshot()).toMatchObject({
       workspaceId: 'workspace-1',
       activeSessionId: 'session-1',
       loading: false,
       running: false,
       pendingApproval: null,
+      runtimeContext: expect.objectContaining({
+        model: 'gpt-5.4',
+        effectiveReasoningEffort: 'medium',
+      }),
     });
     expect(store.getSnapshot().activeSession?.messages).toEqual([
       { id: 'message-1', role: 'assistant', text: 'Ready.' },
     ]);
+    store.dispose();
+  });
+
+  it('refreshes runtime context when selecting a different session', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+    fixture.calls.sessionRuntimeContextQuery.mockResolvedValueOnce(createRuntimeContext({
+      sessionId: 'session-2',
+      sessionName: 'Session 2',
+      model: 'gpt-5.4-mini',
+    }));
+
+    await store.selectSession('session-2');
+
+    expect(fixture.calls.sessionRuntimeContextQuery).toHaveBeenLastCalledWith({
+      workspaceId: 'workspace-1',
+      sessionId: 'session-2',
+    });
+    expect(store.getSnapshot().runtimeContext).toMatchObject({
+      sessionId: 'session-2',
+      model: 'gpt-5.4-mini',
+    });
     store.dispose();
   });
 
@@ -485,6 +517,7 @@ function createClientFixture() {
     sessionQuery: vi.fn(async () => sessionDetail),
     sessionRunningQuery: vi.fn(async () => ({ running: false })),
     sessionRunStateQuery: vi.fn(async () => ({ running: false, pendingApproval })),
+    sessionRuntimeContextQuery: vi.fn(async () => createRuntimeContext()),
     sessionPendingApprovalQuery: vi.fn(async () => pendingApproval),
     sessionSendPromptMutate: vi.fn(async () => ({
       session: {
@@ -555,6 +588,7 @@ function createClientFixture() {
       },
       sessionRunning: { query: calls.sessionRunningQuery },
       sessionRunState: { query: calls.sessionRunStateQuery },
+      sessionRuntimeContext: { query: calls.sessionRuntimeContextQuery },
       sessionPendingApproval: { query: calls.sessionPendingApprovalQuery },
       sessionSendPrompt: { mutate: calls.sessionSendPromptMutate },
       sessionSendPromptAsync: { mutate: calls.sessionSendPromptAsyncMutate },
@@ -599,6 +633,31 @@ function createSessionDetail(): NonNullable<ControlPlaneSessionDetail> {
       { id: 'message-1', role: 'assistant', text: 'Ready.' },
     ],
     turns: [],
+  };
+}
+
+function createRuntimeContext(
+  overrides: Partial<ControlPlaneSessionRuntimeContext> = {},
+): ControlPlaneSessionRuntimeContext {
+  return {
+    workspaceId: 'workspace-1',
+    sessionId: 'session-1',
+    sessionName: 'Session 1',
+    model: 'gpt-5.4',
+    reasoningEffort: 'medium',
+    effectiveReasoningEffort: 'medium',
+    reasoningSupported: true,
+    credentialSource: {
+      type: 'oauth',
+      provider: 'openai',
+      accountId: 'acct-test',
+      expiresAt: Date.now() + 60_000,
+    },
+    contextWindow: 400000,
+    estimatedInputTokens: undefined,
+    driftEnabled: false,
+    running: false,
+    ...overrides,
   };
 }
 

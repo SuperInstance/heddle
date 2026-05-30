@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
 import type { ChatSession } from '@/core/chat/types.js';
 import type { ReasoningEffort } from '@/core/llm/types.js';
 import type {
@@ -7,6 +6,7 @@ import type {
   ChatSessionView,
   ChatTurnView,
 } from '@/server/control-plane-types.js';
+import { ControlPlaneSessionDriftService } from '@/server/services/control-plane/session-drift-service.js';
 import {
   omitUndefined,
   readBoolean,
@@ -113,7 +113,7 @@ export class ControlPlaneChatSessionPresenter {
       model: readString(candidate.model),
       reasoningEffort: ControlPlaneChatSessionPresenter.readReasoningEffort(candidate.reasoningEffort),
       driftEnabled: typeof candidate.driftEnabled === 'boolean' ? candidate.driftEnabled : undefined,
-      driftLevel: ControlPlaneChatSessionPresenter.readLatestDriftLevel(turns),
+      driftLevel: ControlPlaneSessionDriftService.readLatestDriftLevel(turns),
       messageCount: messages.length,
       turnCount: turns.length,
       lastPrompt: readString(lastTurn?.prompt),
@@ -194,48 +194,6 @@ export class ControlPlaneChatSessionPresenter {
 
   private static readReasoningEffort(value: unknown): ReasoningEffort | undefined {
     return value === 'low' || value === 'medium' || value === 'high' || value === 'ultrahigh' ? value : undefined;
-  }
-
-  private static readLatestDriftLevel(turns: unknown[]): ChatSessionView['driftLevel'] {
-    for (let index = turns.length - 1; index >= 0; index--) {
-      const turn = readObject(turns[index]);
-      const traceFile = readString(turn?.traceFile);
-      const driftLevel = traceFile ? ControlPlaneChatSessionPresenter.readLatestDriftLevelFromTrace(traceFile) : undefined;
-      if (driftLevel) {
-        return driftLevel;
-      }
-    }
-
-    return undefined;
-  }
-
-  private static readLatestDriftLevelFromTrace(traceFile: string): ChatSessionView['driftLevel'] {
-    if (!traceFile || !existsSync(traceFile)) {
-      return undefined;
-    }
-
-    try {
-      const parsed = JSON.parse(readFileSync(traceFile, 'utf8')) as unknown;
-      if (!Array.isArray(parsed)) {
-        return undefined;
-      }
-
-      for (let index = parsed.length - 1; index >= 0; index--) {
-        const event = readObject(parsed[index]);
-        if (event?.type !== 'cyberloop.annotation') {
-          continue;
-        }
-
-        const driftLevel = readString(event.driftLevel);
-        if (driftLevel === 'unknown' || driftLevel === 'low' || driftLevel === 'medium' || driftLevel === 'high') {
-          return driftLevel;
-        }
-      }
-    } catch {
-      return undefined;
-    }
-
-    return undefined;
   }
 }
 

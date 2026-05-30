@@ -149,6 +149,23 @@ export type ChatSessionDetail = ChatSessionView & {
   lastContinuePrompt?: string;
 };
 
+export type ControlPlaneSessionRuntimeContext = {
+  workspaceId: string;
+  sessionId: string;
+  sessionName: string;
+  model: string;
+  reasoningEffort?: ReasoningEffort;
+  effectiveReasoningEffort?: ReasoningEffort;
+  reasoningSupported: boolean;
+  credentialSource: ProviderCredentialSource;
+  contextWindow?: number;
+  estimatedInputTokens?: number;
+  driftEnabled: boolean;
+  driftLevel?: ChatSessionView['driftLevel'];
+  compactionStatus?: NonNullable<NonNullable<ChatSessionView['context']>['compaction']>['status'];
+  running: boolean;
+};
+
 export type ControlPlaneAcceptedSessionRun = {
   accepted: true;
   workspaceId: string;

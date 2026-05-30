@@ -32,3 +32,4 @@ Current domains:
   to Ink rendering and cli-v2 store coordination.
 - `slash-commands/`: local hint filtering and tab completion over
   control-plane-provided slash command metadata.
+- `status/`: terminal status-bar formatting over control-plane runtime context.

@@ -5,6 +5,7 @@ import { CommandResultPanel } from './components/CommandResultPanel.js';
 import { ConversationPanel } from './components/ConversationPanel.js';
 import { PromptInput } from './components/PromptInput.js';
 import { RunControls } from './components/RunControls.js';
+import { RuntimeStatusBar } from './components/RuntimeStatusBar.js';
 import { SlashCommandHintPanel } from './components/SlashCommandHintPanel.js';
 import { useControlPlaneSessionStore } from './hooks/useControlPlaneSessionStore.js';
 import { usePromptDraft } from './hooks/usePromptDraft.js';
@@ -102,6 +103,7 @@ export function App({
         onSubmit={submitPrompt}
         onComplete={(value) => store.completeSlashCommandDraft(value)}
       />
+      <RuntimeStatusBar snapshot={snapshot} />
     </Box>
   );
 }

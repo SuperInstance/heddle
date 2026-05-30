@@ -243,6 +243,31 @@ describe('control-plane session lifecycle API', () => {
     });
   });
 
+  it('returns selected-session runtime context for commands and status surfaces', async () => {
+    const { caller } = createControlPlaneCaller();
+    const session = await caller.sessionCreate({ name: 'Runtime context session', model: 'gpt-5.4' });
+    await caller.sessionSettingsUpdate({
+      id: session.id,
+      reasoningEffort: 'medium',
+      driftEnabled: true,
+    });
+
+    await expect(caller.sessionRuntimeContext({
+      sessionId: session.id,
+    })).resolves.toMatchObject({
+      workspaceId: DEFAULT_WORKSPACE_ID,
+      sessionId: session.id,
+      sessionName: 'Runtime context session',
+      model: 'gpt-5.4',
+      reasoningEffort: 'medium',
+      effectiveReasoningEffort: 'medium',
+      reasoningSupported: true,
+      contextWindow: 400000,
+      driftEnabled: true,
+      running: false,
+    });
+  });
+
   it('returns visible errors for unknown slash commands', async () => {
     const { caller } = createControlPlaneCaller();
     const session = await caller.sessionCreate({ name: 'Unknown slash command session' });
