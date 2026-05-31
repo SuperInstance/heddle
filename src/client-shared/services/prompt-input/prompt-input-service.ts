@@ -11,7 +11,13 @@ export type ClientSharedPromptHistoryState = {
 
 export type ClientSharedPromptHistoryDirection = 'previous' | 'next';
 
+export type ClientSharedPromptUndoRedoState = {
+  undoStack: ClientSharedPromptDraftState[];
+  redoStack: ClientSharedPromptDraftState[];
+};
+
 const DEFAULT_MAX_PROMPT_HISTORY_ENTRIES = 100;
+const DEFAULT_MAX_PROMPT_UNDO_STATES = 100;
 
 /**
  * Owns interface-neutral prompt draft and prompt history semantics.
@@ -172,8 +178,68 @@ export class ClientSharedPromptInputService {
     return state.cursor >= lastLineStart;
   }
 
+  static recordUndoState(
+    state: ClientSharedPromptUndoRedoState,
+    currentDraft: ClientSharedPromptDraftState,
+    nextDraft: ClientSharedPromptDraftState,
+    maxStates = DEFAULT_MAX_PROMPT_UNDO_STATES,
+  ): ClientSharedPromptUndoRedoState {
+    if (this.areDraftsEqual(currentDraft, nextDraft)) {
+      return state;
+    }
+
+    return {
+      undoStack: [...state.undoStack, currentDraft].slice(-maxStates),
+      redoStack: [],
+    };
+  }
+
+  static undoPromptEdit(
+    state: ClientSharedPromptUndoRedoState,
+    currentDraft: ClientSharedPromptDraftState,
+  ): { history: ClientSharedPromptUndoRedoState; draft: ClientSharedPromptDraftState } | undefined {
+    const previous = state.undoStack.at(-1);
+    if (!previous) {
+      return undefined;
+    }
+
+    return {
+      history: {
+        undoStack: state.undoStack.slice(0, -1),
+        redoStack: [...state.redoStack, currentDraft],
+      },
+      draft: previous,
+    };
+  }
+
+  static redoPromptEdit(
+    state: ClientSharedPromptUndoRedoState,
+    currentDraft: ClientSharedPromptDraftState,
+  ): { history: ClientSharedPromptUndoRedoState; draft: ClientSharedPromptDraftState } | undefined {
+    const next = state.redoStack.at(-1);
+    if (!next) {
+      return undefined;
+    }
+
+    return {
+      history: {
+        undoStack: [...state.undoStack, currentDraft],
+        redoStack: state.redoStack.slice(0, -1),
+      },
+      draft: next,
+    };
+  }
+
+  static clearUndoRedo(): ClientSharedPromptUndoRedoState {
+    return { undoStack: [], redoStack: [] };
+  }
+
   private static removeRange(value: string, start: number, end: number): string {
     return `${value.slice(0, start)}${value.slice(end)}`;
+  }
+
+  private static areDraftsEqual(left: ClientSharedPromptDraftState, right: ClientSharedPromptDraftState): boolean {
+    return left.value === right.value && left.cursor === right.cursor;
   }
 
   private static findPreviousWordBoundary(value: string, cursor: number): number {

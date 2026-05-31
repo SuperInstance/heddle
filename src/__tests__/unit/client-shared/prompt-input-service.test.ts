@@ -60,4 +60,33 @@ describe('ClientSharedPromptInputService', () => {
     expect(ClientSharedPromptInputService.canNavigateHistory('next', { value, cursor: 8 })).toBe(false);
     expect(ClientSharedPromptInputService.canNavigateHistory('next', { value, cursor: value.length })).toBe(true);
   });
+
+  it('tracks prompt undo and redo stacks without recording no-op edits', () => {
+    const initial = { value: 'hello', cursor: 5 };
+    const edited = { value: 'hello!', cursor: 6 };
+    const history = ClientSharedPromptInputService.recordUndoState(
+      ClientSharedPromptInputService.clearUndoRedo(),
+      initial,
+      edited,
+    );
+
+    expect(ClientSharedPromptInputService.recordUndoState(history, edited, edited)).toBe(history);
+
+    const undo = ClientSharedPromptInputService.undoPromptEdit(history, edited);
+    expect(undo).toEqual({
+      history: {
+        undoStack: [],
+        redoStack: [edited],
+      },
+      draft: initial,
+    });
+
+    expect(ClientSharedPromptInputService.redoPromptEdit(undo?.history ?? history, initial)).toEqual({
+      history: {
+        undoStack: [initial],
+        redoStack: [],
+      },
+      draft: edited,
+    });
+  });
 });

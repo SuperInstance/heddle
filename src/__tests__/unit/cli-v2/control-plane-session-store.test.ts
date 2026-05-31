@@ -111,6 +111,21 @@ describe('ControlPlaneSessionStore', () => {
     store.dispose();
   });
 
+  it('submits selected file mentions as user-authored @path text', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    await store.submitPrompt('Look at @AGENTS.md');
+
+    expect(fixture.calls.sessionSendPromptAsyncMutate).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'workspace-1',
+      sessionId: 'session-1',
+      prompt: 'Look at @AGENTS.md',
+    }));
+    store.dispose();
+  });
+
   it('filters slash command hints locally without querying the API per keystroke', async () => {
     const fixture = createClientFixture();
     const store = new ControlPlaneSessionStore({ client: fixture.client });

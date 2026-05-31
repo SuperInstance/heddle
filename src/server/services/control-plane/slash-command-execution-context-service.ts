@@ -1,4 +1,4 @@
-import { ProviderCredentialRepository } from '@/core/auth/index.js';
+import { ProviderCredentialCommandService } from '@/core/auth/index.js';
 import { ChatSessionRecords } from '@/core/chat/engine/sessions/records/index.js';
 import type { ConversationEngineConfig } from '@/core/chat/engine/types.js';
 import type { ChatSession } from '@/core/chat/types.js';
@@ -6,7 +6,6 @@ import type { ChatSessionLeaseOwner } from '@/core/chat/engine/sessions/leases/i
 import type { SlashCommandExecutionContext } from '@/core/commands/slash/modules/context.js';
 import type { SlashCommandHint } from '@/core/commands/slash/types.js';
 import { FileHeartbeatTaskService } from '@/core/heartbeat/index.js';
-import type { LlmProvider } from '@/core/llm/types.js';
 import { controlPlaneSessionRuntimeContextService } from './session-runtime-context-service.js';
 
 export type ControlPlaneSlashCommandExecutionContextArgs = Omit<ConversationEngineConfig, 'model'> & {
@@ -43,11 +42,11 @@ export class ControlPlaneSlashCommandExecutionContextService {
         credentialSource: () => runtimeContext.credentialSource,
       },
       auth: {
-        status: () => this.formatAuthStatus(args.credentialStorePath),
-        login: async (provider) => {
-          throw new Error(`OAuth login for ${provider} is only available through the terminal auth command.`);
-        },
-        logout: (provider) => this.logoutProvider(provider, args.credentialStorePath),
+        status: () => ProviderCredentialCommandService.formatStatusMessage(args.credentialStorePath),
+        login: (provider) => ProviderCredentialCommandService.loginProviderWithOAuth(provider, {
+          storePath: args.credentialStorePath,
+        }),
+        logout: (provider) => ProviderCredentialCommandService.logoutProvider(provider, args.credentialStorePath),
       },
       compaction: {
         compactActive: args.compactActive,
@@ -100,35 +99,6 @@ export class ControlPlaneSlashCommandExecutionContextService {
     return this.recentSessions(sessions).map((session, index) => (
       `${index + 1}. ${session.id} (${session.name}) - ${ChatSessionRecords.summarize(session)}`
     ));
-  }
-
-  private formatAuthStatus(storePath = ProviderCredentialRepository.resolveStorePath()): string {
-    const summaries = new ProviderCredentialRepository({ storePath }).listSummaries();
-    const lines = [`Auth store: ${storePath}`];
-    if (summaries.length === 0) {
-      return [...lines, 'Stored credentials: none'].join('\n');
-    }
-
-    return [
-      ...lines,
-      'Stored credentials:',
-      ...summaries.map((summary) => {
-        const details = [
-          `type=${summary.type}`,
-          summary.label ? `label=${summary.label}` : undefined,
-          summary.accountId ? `account=${summary.accountId}` : undefined,
-          summary.expiresAt ? `expires=${new Date(summary.expiresAt).toISOString()}` : undefined,
-          summary.expired === true ? 'expired=true' : undefined,
-          `updated=${summary.updatedAt}`,
-        ].filter(Boolean);
-        return `- ${summary.provider}: ${details.join(' ')}`;
-      }),
-    ].join('\n');
-  }
-
-  private logoutProvider(provider: LlmProvider, storePath = ProviderCredentialRepository.resolveStorePath()): string {
-    const removed = new ProviderCredentialRepository({ storePath }).remove(provider);
-    return removed ? `Removed stored ${provider} credential.` : `No stored ${provider} credential found.`;
   }
 
   private formatHelpMessage(hints: SlashCommandHint[]): string {
