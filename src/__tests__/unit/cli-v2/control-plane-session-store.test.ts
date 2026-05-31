@@ -713,9 +713,9 @@ function createRuntimeContext(
       {
         id: 'ultrahigh',
         label: 'ultrahigh',
-        description: 'Reserved; not accepted by current OpenAI requests',
+        description: 'Set explicit ultrahigh effort',
         disabled: true,
-        disabledReason: 'Reserved',
+        disabledReason: 'Not supported by request path',
       },
     ],
     credentialSource: {

@@ -4,6 +4,7 @@ import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import type { MemoryStatusView } from '@/core/memory/types.js';
 import type { ReviewDiffFile } from '@/core/review/index.js';
 import type { ProviderCredentialSource } from '@/core/runtime/credentials/index.js';
+import type { ReasoningEffortOption } from '@/core/llm/models/index.js';
 import type { ReasoningEffort } from '@/core/llm/types.js';
 import type { ChatSessionRetention } from '@/core/chat/types.js';
 import type { ConversationActivity } from '@/core/live/index.js';
@@ -157,13 +158,7 @@ export type ControlPlaneSessionRuntimeContext = {
   reasoningEffort?: ReasoningEffort;
   effectiveReasoningEffort?: ReasoningEffort;
   reasoningSupported: boolean;
-  reasoningOptions: Array<{
-    id: 'default' | ReasoningEffort;
-    label: string;
-    description: string;
-    disabled: boolean;
-    disabledReason?: string;
-  }>;
+  reasoningOptions: ReasoningEffortOption[];
   credentialSource: ProviderCredentialSource;
   contextWindow?: number;
   estimatedInputTokens?: number;
