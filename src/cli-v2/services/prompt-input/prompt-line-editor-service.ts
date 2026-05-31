@@ -6,6 +6,8 @@ export type CliV2PromptInputCommand =
   | { kind: 'submit' }
   | { kind: 'insert'; input: string }
   | { kind: 'history'; direction: 'previous' | 'next' }
+  | { kind: 'undo' }
+  | { kind: 'redo' }
   | { kind: 'deletePreviousCharacter' }
   | { kind: 'deletePreviousWord' }
   | { kind: 'deleteBeforeCursor' }
@@ -18,6 +20,7 @@ const CTRL_TEXT_COMMANDS = new Map<string, CliV2PromptInputCommand>([
   ['k', { kind: 'deleteAfterCursor' }],
   ['u', { kind: 'deleteBeforeCursor' }],
   ['w', { kind: 'deletePreviousWord' }],
+  ['y', { kind: 'redo' }],
 ]);
 
 const META_TEXT_COMMANDS = new Map<string, CliV2PromptInputCommand>([
@@ -39,6 +42,9 @@ export class CliV2PromptLineEditorService {
     }
 
     if (key.ctrl && input) {
+      if (input.toLowerCase() === 'z') {
+        return key.shift || input === 'Z' ? { kind: 'redo' } : { kind: 'undo' };
+      }
       return CTRL_TEXT_COMMANDS.get(input);
     }
 
@@ -106,7 +112,7 @@ export class CliV2PromptLineEditorService {
   }
 
   static applyCommand(
-    command: Exclude<CliV2PromptInputCommand, { kind: 'submit' | 'history' }>,
+    command: Exclude<CliV2PromptInputCommand, { kind: 'submit' | 'history' | 'undo' | 'redo' }>,
     state: ClientSharedPromptDraftState,
   ): ClientSharedPromptDraftState {
     if (command.kind === 'insert') {

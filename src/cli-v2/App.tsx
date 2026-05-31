@@ -44,6 +44,8 @@ export function App({
     clearDraft,
     recordSubmittedPrompt,
     navigateHistory,
+    undoPromptEdit,
+    redoPromptEdit,
   } = usePromptDraft();
   const submitDisabled = snapshot.loading || snapshot.submitting || snapshot.running;
   const inputDisabled = snapshot.loading;
@@ -193,6 +195,8 @@ export function App({
         onSubmit={submitPrompt}
         onComplete={(value) => store.completeSlashCommandDraft(value)}
         onHistory={navigateHistory}
+        onUndo={undoPromptEdit}
+        onRedo={redoPromptEdit}
         onSpecialKey={(input, key) => fileMentions.handleSpecialKey(input, key) || pickers.handleSpecialKey(input, key)}
       />
       <RuntimeStatusBar snapshot={snapshot} />

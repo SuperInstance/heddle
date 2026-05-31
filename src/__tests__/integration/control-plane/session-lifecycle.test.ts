@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ProviderCredentialCommandService } from '@/core/auth/index.js';
 import { ConversationCompactionService } from '@/core/chat/engine/compaction/index.js';
 import { createConversationEngine } from '@/core/chat/engine/conversation-engine.js';
 import type { ChatSessionLeaseOwner } from '@/core/chat/engine/sessions/leases/index.js';
@@ -241,6 +242,23 @@ describe('control-plane session lifecycle API', () => {
       kind: 'message',
       message: 'Current model: gpt-5.4',
     });
+  });
+
+  it('executes auth login through the shared core auth command service', async () => {
+    const login = vi.spyOn(ProviderCredentialCommandService, 'loginProviderWithOAuth')
+      .mockResolvedValue('Stored OpenAI OAuth credential.');
+    const { caller } = createControlPlaneCaller();
+    const session = await caller.sessionCreate({ name: 'Auth slash command session' });
+
+    await expect(caller.slashCommandExecute({
+      sessionId: session.id,
+      command: '/auth login openai',
+    })).resolves.toEqual({
+      handled: true,
+      kind: 'message',
+      message: 'Stored OpenAI OAuth credential.',
+    });
+    expect(login).toHaveBeenCalledWith('openai', { storePath: undefined });
   });
 
   it('returns selected-session runtime context for commands and status surfaces', async () => {

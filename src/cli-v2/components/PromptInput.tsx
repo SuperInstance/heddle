@@ -39,6 +39,8 @@ export function PromptInput({
   onSubmit,
   onComplete,
   onHistory,
+  onUndo,
+  onRedo,
   onSpecialKey,
 }: {
   disabled: boolean;
@@ -50,6 +52,8 @@ export function PromptInput({
   onSubmit: (value: string) => void;
   onComplete?: (value: string) => string | undefined;
   onHistory?: (direction: ClientSharedPromptHistoryDirection) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onSpecialKey?: (input: string, key: PromptInputKey) => boolean;
 }) {
   const { stdout } = useStdout();
@@ -118,6 +122,16 @@ export function PromptInput({
       if (ClientSharedPromptInputService.canNavigateHistory(command.direction, current)) {
         onHistory?.(command.direction);
       }
+      return;
+    }
+
+    if (command.kind === 'undo') {
+      onUndo?.();
+      return;
+    }
+
+    if (command.kind === 'redo') {
+      onRedo?.();
       return;
     }
 

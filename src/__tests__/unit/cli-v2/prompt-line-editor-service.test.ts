@@ -17,6 +17,15 @@ describe('CliV2PromptLineEditorService', () => {
       kind: 'move',
       direction: 'end',
     });
+    expect(CliV2PromptLineEditorService.resolveCommand('z', { ctrl: true })).toEqual({
+      kind: 'undo',
+    });
+    expect(CliV2PromptLineEditorService.resolveCommand('Z', { ctrl: true, shift: true })).toEqual({
+      kind: 'redo',
+    });
+    expect(CliV2PromptLineEditorService.resolveCommand('y', { ctrl: true })).toEqual({
+      kind: 'redo',
+    });
   });
 
   it('applies cursor-aware editing commands', () => {
