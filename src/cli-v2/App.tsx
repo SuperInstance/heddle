@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { ApprovalPanel } from './components/ApprovalPanel.js';
 import { CommandResultPanel } from './components/CommandResultPanel.js';
@@ -11,11 +11,10 @@ import { RuntimeStatusBar } from './components/RuntimeStatusBar.js';
 import { SessionPickerPanel } from './components/SessionPickerPanel.js';
 import { SlashCommandHintPanel } from './components/SlashCommandHintPanel.js';
 import { useControlPlaneSessionStore } from './hooks/useControlPlaneSessionStore.js';
+import { usePromptPickers } from './hooks/usePromptPickers.js';
 import { usePromptDraft } from './hooks/usePromptDraft.js';
 import { PromptActivityService } from './services/activities/prompt-activity-service.js';
-import { CliV2PickerService } from './services/pickers/index.js';
 import type { ControlPlaneApprovalDecision } from '@/client-shared/api/types.js';
-import type { PromptInputKey } from './components/PromptInput.js';
 import type {
   ControlPlaneSessionStore,
   ControlPlaneSessionStoreStartInput,
@@ -34,22 +33,20 @@ export function App({
   const submitDisabled = snapshot.loading || snapshot.submitting || snapshot.running;
   const inputDisabled = snapshot.loading;
   const slashCommandHints = store.getSlashCommandHints(draft);
-  const [modelPickerIndex, setModelPickerIndex] = useState(0);
-  const [reasoningPickerIndex, setReasoningPickerIndex] = useState(0);
-  const [sessionPickerIndex, setSessionPickerIndex] = useState(0);
-  const modelPickerQuery = CliV2PickerService.modelQuery(draft);
-  const reasoningPickerQuery = CliV2PickerService.reasoningQuery(draft);
-  const sessionPickerQuery = CliV2PickerService.sessionQuery(draft);
-  const modelPickerItems = CliV2PickerService.filterModels(snapshot.modelOptions, modelPickerQuery);
-  const reasoningPickerItems = CliV2PickerService.filterReasoningOptions(snapshot.runtimeContext, reasoningPickerQuery);
-  const sessionPickerItems = CliV2PickerService.filterSessions(snapshot.sessions, sessionPickerQuery);
-  const safeModelPickerIndex = CliV2PickerService.clampIndex(modelPickerIndex, modelPickerItems.length);
-  const safeReasoningPickerIndex = CliV2PickerService.clampIndex(reasoningPickerIndex, reasoningPickerItems.length);
-  const safeSessionPickerIndex = CliV2PickerService.clampIndex(sessionPickerIndex, sessionPickerItems.length);
-  const highlightedModel = modelPickerItems[safeModelPickerIndex];
-  const highlightedReasoning = reasoningPickerItems[safeReasoningPickerIndex];
-  const highlightedSession = sessionPickerItems[safeSessionPickerIndex];
-  const pickerVisible = modelPickerQuery !== undefined || reasoningPickerQuery !== undefined || sessionPickerQuery !== undefined;
+  const pickers = usePromptPickers({
+    draft,
+    snapshot,
+    clearDraft,
+    onSelectModel: (model) => {
+      void store.selectModelFromPicker(model);
+    },
+    onSelectReasoning: (reasoningEffort) => {
+      void store.selectReasoningFromPicker(reasoningEffort);
+    },
+    onSelectSession: (sessionId) => {
+      void store.selectSessionFromPicker(sessionId);
+    },
+  });
 
   useEffect(() => {
     if (startedRef.current) {
@@ -63,18 +60,6 @@ export function App({
     };
   }, [initialSelection, store]);
 
-  useEffect(() => {
-    setModelPickerIndex(0);
-  }, [modelPickerQuery]);
-
-  useEffect(() => {
-    setReasoningPickerIndex(0);
-  }, [reasoningPickerQuery]);
-
-  useEffect(() => {
-    setSessionPickerIndex(0);
-  }, [sessionPickerQuery]);
-
   const submitPrompt = useCallback((value: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -85,32 +70,7 @@ export function App({
       return;
     }
 
-    if (modelPickerQuery !== undefined && highlightedModel) {
-      if (highlightedModel.disabled) {
-        return;
-      }
-
-      clearDraft();
-      setModelPickerIndex(0);
-      void store.selectModelFromPicker(highlightedModel.id);
-      return;
-    }
-
-    if (reasoningPickerQuery !== undefined && highlightedReasoning) {
-      if (highlightedReasoning.disabled) {
-        return;
-      }
-
-      clearDraft();
-      setReasoningPickerIndex(0);
-      void store.selectReasoningFromPicker(highlightedReasoning.id);
-      return;
-    }
-
-    if (sessionPickerQuery !== undefined && highlightedSession) {
-      clearDraft();
-      setSessionPickerIndex(0);
-      void store.selectSessionFromPicker(highlightedSession.id);
+    if (pickers.submitSelection()) {
       return;
     }
 
@@ -118,80 +78,9 @@ export function App({
     void store.submitPrompt(value);
   }, [
     clearDraft,
-    highlightedModel,
-    highlightedReasoning,
-    highlightedSession,
-    modelPickerQuery,
-    reasoningPickerQuery,
-    sessionPickerQuery,
+    pickers,
     store,
     submitDisabled,
-  ]);
-
-  const handleSpecialKey = useCallback((_input: string, key: PromptInputKey) => {
-    if (modelPickerQuery !== undefined) {
-      if ((key.upArrow || key.leftArrow) && modelPickerItems.length > 0) {
-        setModelPickerIndex((current) => CliV2PickerService.previousIndex(current, modelPickerItems.length));
-        return true;
-      }
-
-      if ((key.downArrow || key.rightArrow || key.tab) && modelPickerItems.length > 0) {
-        setModelPickerIndex((current) => CliV2PickerService.nextIndex(current, modelPickerItems.length));
-        return true;
-      }
-
-      if (key.escape) {
-        clearDraft();
-        setModelPickerIndex(0);
-        return true;
-      }
-    }
-
-    if (reasoningPickerQuery !== undefined) {
-      if ((key.upArrow || key.leftArrow) && reasoningPickerItems.length > 0) {
-        setReasoningPickerIndex((current) => CliV2PickerService.previousIndex(current, reasoningPickerItems.length));
-        return true;
-      }
-
-      if ((key.downArrow || key.rightArrow || key.tab) && reasoningPickerItems.length > 0) {
-        setReasoningPickerIndex((current) => CliV2PickerService.nextIndex(current, reasoningPickerItems.length));
-        return true;
-      }
-
-      if (key.escape) {
-        clearDraft();
-        setReasoningPickerIndex(0);
-        return true;
-      }
-    }
-
-    if (sessionPickerQuery !== undefined) {
-      if ((key.upArrow || key.leftArrow) && sessionPickerItems.length > 0) {
-        setSessionPickerIndex((current) => CliV2PickerService.previousIndex(current, sessionPickerItems.length));
-        return true;
-      }
-
-      if ((key.downArrow || key.rightArrow || key.tab) && sessionPickerItems.length > 0) {
-        setSessionPickerIndex((current) => CliV2PickerService.nextIndex(current, sessionPickerItems.length));
-        return true;
-      }
-
-      if (key.escape) {
-        clearDraft();
-        setSessionPickerIndex(0);
-        return true;
-      }
-    }
-
-    return false;
-  }, [
-    clearDraft,
-    modelPickerItems.length,
-    modelPickerQuery,
-    reasoningPickerItems.length,
-    reasoningPickerQuery,
-    sessionPickerItems.length,
-    sessionPickerQuery,
   ]);
 
   const resolveApproval = useCallback((decision: ControlPlaneApprovalDecision) => {
@@ -226,31 +115,31 @@ export function App({
         cancelling={snapshot.cancelling}
         onCancel={cancelRun}
       />
-      {modelPickerQuery !== undefined ? (
+      {pickers.model.query !== undefined ? (
         <ModelPickerPanel
-          query={modelPickerQuery}
-          models={modelPickerItems}
+          query={pickers.model.query}
+          models={pickers.model.items}
           activeModel={snapshot.runtimeContext?.model}
-          highlightedIndex={safeModelPickerIndex}
+          highlightedIndex={pickers.model.highlightedIndex}
         />
       ) : null}
-      {reasoningPickerQuery !== undefined ? (
+      {pickers.reasoning.query !== undefined ? (
         <ReasoningEffortPickerPanel
-          query={reasoningPickerQuery}
-          options={reasoningPickerItems}
+          query={pickers.reasoning.query}
+          options={pickers.reasoning.items}
           activeReasoningEffort={snapshot.runtimeContext?.reasoningEffort}
-          highlightedIndex={safeReasoningPickerIndex}
+          highlightedIndex={pickers.reasoning.highlightedIndex}
         />
       ) : null}
-      {sessionPickerQuery !== undefined ? (
+      {pickers.session.query !== undefined ? (
         <SessionPickerPanel
-          query={sessionPickerQuery}
-          sessions={sessionPickerItems}
+          query={pickers.session.query}
+          sessions={pickers.session.items}
           activeSessionId={snapshot.activeSessionId}
-          highlightedIndex={safeSessionPickerIndex}
+          highlightedIndex={pickers.session.highlightedIndex}
         />
       ) : null}
-      {!pickerVisible ? <SlashCommandHintPanel hints={slashCommandHints} /> : null}
+      {!pickers.visible ? <SlashCommandHintPanel hints={slashCommandHints} /> : null}
       <PromptInput
         activity={PromptActivityService.build(snapshot)}
         disabled={inputDisabled}
@@ -264,7 +153,7 @@ export function App({
         onChange={setDraft}
         onSubmit={submitPrompt}
         onComplete={(value) => store.completeSlashCommandDraft(value)}
-        onSpecialKey={handleSpecialKey}
+        onSpecialKey={pickers.handleSpecialKey}
       />
       <RuntimeStatusBar snapshot={snapshot} />
     </Box>
