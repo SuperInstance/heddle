@@ -33,6 +33,24 @@
       "title": "語意漂移",
       "updating": "更新中"
     },
+    "directShell": {
+      "cancel": "取消",
+      "confirmDescription": "此命令可能會修改工作區，或執行尚未分類的 shell 操作。",
+      "confirmTitle": "確認 shell 命令",
+      "emptyCommand": "...",
+      "error": "錯誤",
+      "errorBlocked": "Direct shell 命令已被 shell policy 阻擋。",
+      "errorEmpty": "Direct shell 命令不能為空。",
+      "errorRunActive": "Direct shell 命令可在目前 agent turn 結束後執行。",
+      "modeLabel": "Direct shell",
+      "outcomeDone": "完成",
+      "outcomeError": "錯誤",
+      "resultTitle": "Shell 命令",
+      "runOnce": "執行一次",
+      "runs": "執行",
+      "stderr": "stderr",
+      "stdout": "stdout"
+    },
     "executionMenu": "執行設定",
     "fileMentions": {
       "empty": "找不到檔案：",
@@ -58,6 +76,11 @@
     "model": "模型",
     "placeholder": "送出後續訊息",
     "promptAriaLabel": "訊息",
+    "queueFollowUp": "排入後續訊息",
+    "queuedPromptAriaLabel": "已排入的後續訊息",
+    "queuedPromptEdit": "編輯已排入訊息",
+    "queuedPromptRemove": "移除已排入訊息",
+    "queuedPromptSave": "儲存已排入訊息",
     "reasoning": {
       "default": "預設",
       "high": "高",

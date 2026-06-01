@@ -5,6 +5,7 @@
  * contract for catalog and per-session JSON on disk.
  */
 import { z } from 'zod';
+import { ConversationDirectShellLineResultSchema } from '@/core/chat/engine/direct-shell/result-schema.js';
 
 const ReasoningEffortSchema = z.enum(['low', 'medium', 'high', 'ultrahigh']);
 const ChatSessionRetentionSchema = z.enum(['reusable', 'one_off']);
@@ -56,6 +57,7 @@ export const ConversationLineSchema = z.object({
   isPending: z.boolean()
     .describe('Whether this visible line represents an accepted but unfinished user/assistant update.')
     .optional(),
+  directShellResult: ConversationDirectShellLineResultSchema.optional(),
 });
 
 const ConversationLinesSchema = z.array(z.unknown())

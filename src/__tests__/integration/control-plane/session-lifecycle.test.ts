@@ -112,6 +112,68 @@ describe('control-plane session lifecycle API', () => {
     });
   });
 
+  it('runs direct shell through the control-plane session API', async () => {
+    const { caller, engine } = createControlPlaneCaller();
+    const session = engine.sessions.create({
+      id: 'direct-shell-api',
+      name: 'Direct shell API session',
+      apiKeyPresent: true,
+      workspaceId: DEFAULT_WORKSPACE_ID,
+    });
+
+    await expect(caller.sessionDirectShellAsync({
+      sessionId: session.id,
+      command: 'echo hello',
+    })).resolves.toMatchObject({
+      accepted: true,
+      sessionId: session.id,
+    });
+
+    await vi.waitFor(async () => {
+      await expect(caller.session({ id: session.id })).resolves.toMatchObject({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: 'user', text: '!echo hello' }),
+          expect.objectContaining({
+            role: 'assistant',
+            directShellResult: expect.objectContaining({
+              command: 'echo hello',
+              outcome: 'done',
+              stdout: 'hello',
+            }),
+          }),
+        ]),
+      });
+    });
+  });
+
+  it('preflights direct shell risk before interfaces ask for confirmation', async () => {
+    const { caller, engine } = createControlPlaneCaller();
+    const session = engine.sessions.create({
+      id: 'direct-shell-preflight-api',
+      name: 'Direct shell preflight API session',
+      apiKeyPresent: true,
+      workspaceId: DEFAULT_WORKSPACE_ID,
+    });
+
+    await expect(caller.sessionDirectShellPreflight({
+      sessionId: session.id,
+      command: 'echo hello',
+    })).resolves.toMatchObject({
+      command: 'echo hello',
+      risk: 'safe',
+      tool: 'run_shell_inspect',
+    });
+
+    await expect(caller.sessionDirectShellPreflight({
+      sessionId: session.id,
+      command: 'rm tmp.txt',
+    })).resolves.toMatchObject({
+      command: 'rm tmp.txt',
+      risk: 'confirmRequired',
+      tool: 'run_shell_mutate',
+    });
+  });
+
   it('blocks destructive lifecycle mutations while another client owns the session lease', async () => {
     const { caller, engine } = createControlPlaneCaller();
     const session = engine.sessions.create({

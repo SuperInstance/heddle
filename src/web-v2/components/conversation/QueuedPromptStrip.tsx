@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
 import type { ControlPlaneSessionDetail } from '@web/api/client';
 import { Button } from '@web/components/ui/button';
+import { useI18n } from '@web/i18n';
 
 type QueuedPromptStripProps = {
   queuedPrompts: NonNullable<ControlPlaneSessionDetail>['queuedPrompts'];
@@ -16,6 +17,7 @@ export function QueuedPromptStrip({
   onUpdateQueuedPrompt,
   onDeleteQueuedPrompt,
 }: QueuedPromptStripProps) {
+  const { t } = useI18n();
   const [editingId, setEditingId] = useState<string | undefined>();
   const [editingPrompt, setEditingPrompt] = useState('');
 
@@ -43,7 +45,7 @@ export function QueuedPromptStrip({
   };
 
   return (
-    <div className="v2-queued-prompt-strip" aria-label="Queued follow-up prompts">
+    <div className="v2-queued-prompt-strip" aria-label={t('composer.queuedPromptAriaLabel')}>
       {queuedPrompts.map((item, index) => {
         const editing = editingId === item.id;
         return (
@@ -76,7 +78,7 @@ export function QueuedPromptStrip({
                 variant="ghost"
                 size="none"
                 className="v2-queued-prompt-action"
-                aria-label="Save queued prompt"
+                aria-label={t('composer.queuedPromptSave')}
                 disabled={updating || !editingPrompt.trim()}
                 onClick={() => void saveEditingPrompt()}
               >
@@ -88,7 +90,7 @@ export function QueuedPromptStrip({
                 variant="ghost"
                 size="none"
                 className="v2-queued-prompt-action"
-                aria-label="Edit queued prompt"
+                aria-label={t('composer.queuedPromptEdit')}
                 disabled={updating || !onUpdateQueuedPrompt}
                 onClick={() => {
                   setEditingId(item.id);
@@ -103,7 +105,7 @@ export function QueuedPromptStrip({
               variant="ghost"
               size="none"
               className="v2-queued-prompt-action"
-              aria-label="Remove queued prompt"
+              aria-label={t('composer.queuedPromptRemove')}
               disabled={updating || !onDeleteQueuedPrompt}
               onClick={() => void onDeleteQueuedPrompt?.(item.id)}
             >

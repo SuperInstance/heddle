@@ -7,6 +7,8 @@ import type {
 export type ControlPlaneSessionCreateInput = Exclude<NonNullable<RouterInputs['controlPlane']['sessionCreate']>, void>;
 type SessionSendPromptInput = RouterInputs['controlPlane']['sessionSendPrompt'];
 type SessionSendPromptAsyncInput = RouterInputs['controlPlane']['sessionSendPromptAsync'];
+type SessionDirectShellPreflightInput = RouterInputs['controlPlane']['sessionDirectShellPreflight'];
+type SessionDirectShellAsyncInput = RouterInputs['controlPlane']['sessionDirectShellAsync'];
 type SlashCommandExecuteInput = RouterInputs['controlPlane']['slashCommandExecute'];
 type WorkspaceFileSearchInput = RouterInputs['controlPlane']['workspaceFileSearch'];
 
@@ -110,6 +112,19 @@ export class ControlPlaneSessionApiService {
       ...input,
       maxSteps: this.defaults.maxSteps,
       searchIgnoreDirs: this.defaults.searchIgnoreDirs,
+      apiKey: this.defaults.apiKey,
+      preferApiKey: this.defaults.preferApiKey,
+      systemContext: this.defaults.systemContext,
+    });
+  }
+
+  async preflightDirectShell(input: Pick<SessionDirectShellPreflightInput, 'workspaceId' | 'sessionId' | 'command'>) {
+    return this.client.controlPlane.sessionDirectShellPreflight.query(input);
+  }
+
+  async runDirectShellAsync(input: Pick<SessionDirectShellAsyncInput, 'workspaceId' | 'sessionId' | 'command' | 'riskAccepted'>) {
+    return this.client.controlPlane.sessionDirectShellAsync.mutate({
+      ...input,
       apiKey: this.defaults.apiKey,
       preferApiKey: this.defaults.preferApiKey,
       systemContext: this.defaults.systemContext,

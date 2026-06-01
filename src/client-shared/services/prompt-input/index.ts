@@ -1,5 +1,6 @@
 export {
   ClientSharedPromptInputService,
+  type ClientSharedDirectShellDraft,
   type ClientSharedPromptDraftState,
   type ClientSharedPromptHistoryDirection,
   type ClientSharedPromptHistoryState,

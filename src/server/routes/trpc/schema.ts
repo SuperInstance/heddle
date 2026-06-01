@@ -51,6 +51,22 @@ export const sessionMessageInputSchema = z.object({
   memoryMaintenanceMode: z.enum(['background', 'inline', 'none']).optional(),
 });
 
+export const sessionDirectShellInputSchema = z.object({
+  workspaceId: z.string().min(1).optional(),
+  sessionId: z.string().min(1),
+  command: z.string().min(1),
+  riskAccepted: z.boolean().optional(),
+  apiKey: z.string().min(1).optional(),
+  preferApiKey: z.boolean().optional(),
+  systemContext: z.string().min(1).optional(),
+});
+
+export const sessionDirectShellPreflightInputSchema = z.object({
+  workspaceId: z.string().min(1).optional(),
+  sessionId: z.string().min(1),
+  command: z.string().min(1),
+});
+
 export const sessionQueuedPromptInputSchema = z.object({
   workspaceId: z.string().min(1).optional(),
   sessionId: z.string().min(1),

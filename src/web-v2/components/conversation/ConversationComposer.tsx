@@ -21,8 +21,10 @@ import {
   ComposerExecutionMenu,
   type ComposerReasoningEffortSelection,
 } from './ComposerExecutionMenu';
+import { DirectShellModeStrip } from './DirectShellModeStrip';
 import { FileMentionMenu } from './FileMentionMenu';
 import type { SessionDriftLevel } from './SessionDriftControl';
+import { ClientSharedPromptInputService } from '@/client-shared/services/prompt-input';
 
 // ConversationComposer owns the prompt draft and submit lifecycle. Context,
 // execution settings, file mentions, and textarea sizing live in focused peers.
@@ -91,6 +93,7 @@ export function ConversationComposer({
   const effectiveDriftLevel = driftLevel ?? 'unknown';
   const effectiveReasoningEffort = reasoningEffort ?? 'medium';
   const imageUploadDisabled = controlsDisabled || imageUploading || !workspaceId || !sessionId;
+  const directShellDraft = ClientSharedPromptInputService.parseDirectShellDraft(draft);
   const handleUploadImages = useCallback((files: FileList | File[]) => {
     void uploadImages(files);
   }, [uploadImages]);
@@ -129,15 +132,17 @@ export function ConversationComposer({
   useComposerTextareaAutosize(textareaRef, draft);
 
   return (
-    <form
-      className="v2-composer-shell"
-      data-drag-active={imageDrop.dragActive ? 'true' : undefined}
-      {...imageDrop.dropZoneProps}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void handleSubmit();
-      }}
-    >
+    <div className="v2-composer-stack">
+      {directShellDraft ? <DirectShellModeStrip command={directShellDraft.command} /> : null}
+      <form
+        className="v2-composer-shell"
+        data-drag-active={imageDrop.dragActive ? 'true' : undefined}
+        {...imageDrop.dropZoneProps}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSubmit();
+        }}
+      >
       <Textarea
         ref={fileMentions.textareaRef}
         aria-label={t('composer.promptAriaLabel')}
@@ -214,7 +219,7 @@ export function ConversationComposer({
               type="submit"
               size="none"
               className="v2-composer-send-button size-8 min-w-8 max-w-8 rounded-full p-0"
-              aria-label={running ? 'Queue follow-up' : t('composer.send')}
+              aria-label={running ? t('composer.queueFollowUp') : t('composer.send')}
               disabled={sendDisabled}
             >
               <ArrowUp aria-hidden="true" data-icon="inline-start" />
@@ -223,6 +228,7 @@ export function ConversationComposer({
         </div>
       </div>
       {settingsError ? <p className="v2-composer-error text-pretty">{settingsError}</p> : null}
-    </form>
+      </form>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
-import type { ChatSession } from '@/core/chat/types.js';
+import type { ChatSession, ConversationDirectShellLineResult } from '@/core/chat/types.js';
 import type { ReasoningEffort } from '@/core/llm/types.js';
+import { ConversationDirectShellLineResultSchema } from '@/core/chat/engine/direct-shell/result-schema.js';
 import type {
   ChatSessionDetail,
   ChatSessionMessage,
@@ -17,6 +18,14 @@ import {
 
 type ChatSessionContextView = NonNullable<ChatSessionView['context']>;
 
+// Compatibility presenter for legacy session records. Avoid adding or growing
+// this layer: downstream clients should consume the same domain-owned shape
+// whenever the shape can be unified, optionally guarded by a shared Zod schema.
+// Only remap fields when two domains truly need different vocabulary or
+// domain-specific fields that cannot be composed into a shared upstream object.
+// For long or nested payloads, prefer composing shared sub-objects over
+// reassigning every field; converters should not hide the real behavior or
+// policy owner behind meaningless formatter/presenter/mapper code.
 export class ControlPlaneChatSessionPresenter {
   static projectView(raw: unknown | ChatSession): ChatSessionView[] {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -189,7 +198,13 @@ export class ControlPlaneChatSessionPresenter {
       text,
       isStreaming: readBoolean(candidate.isStreaming),
       isPending: readBoolean(candidate.isPending),
+      directShellResult: ControlPlaneChatSessionPresenter.projectDirectShellResult(candidate.directShellResult),
     }];
+  }
+
+  private static projectDirectShellResult(raw: unknown): ConversationDirectShellLineResult | undefined {
+    const directShellResult = ConversationDirectShellLineResultSchema.safeParse(raw);
+    return directShellResult.success ? directShellResult.data : undefined;
   }
 
   private static projectTurnView(raw: unknown): ChatTurnView[] {

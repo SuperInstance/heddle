@@ -59,6 +59,45 @@ describe('ClientSharedSessionActivityService', () => {
     expect(effects).toEqual(['finished:Run finished: done', 'workspace changed']);
   });
 
+  it('applies run effects for direct shell activities', () => {
+    const effects: string[] = [];
+
+    ClientSharedSessionActivityService.applyActivity({
+      type: 'direct_shell.started',
+      source: 'direct-shell',
+      runId: 'run-1',
+      command: 'echo hello',
+      tool: 'run_shell_inspect',
+      timestamp: '2026-06-01T00:00:00.000Z',
+    } as ControlPlaneSessionActivity, {
+      onRunStarted: (_activity, liveStatus) => effects.push(`started:${liveStatus}`),
+      onCurrentActivityChanged: (activity) => effects.push(activity?.label ?? 'cleared'),
+    });
+
+    ClientSharedSessionActivityService.applyActivity({
+      type: 'direct_shell.completed',
+      source: 'direct-shell',
+      runId: 'run-1',
+      command: 'echo hello',
+      tool: 'run_shell_inspect',
+      result: { ok: true },
+      durationMs: 12,
+      timestamp: '2026-06-01T00:00:01.000Z',
+    } as ControlPlaneSessionActivity, {
+      onRunFinished: (_activity, liveStatus) => effects.push(`finished:${liveStatus}`),
+      onCurrentActivityChanged: (activity) => effects.push(activity?.label ?? 'cleared'),
+      onWorkspaceChanged: () => effects.push('workspace changed'),
+    });
+
+    expect(effects).toEqual([
+      'Running shell',
+      'started:Running direct shell command...',
+      'cleared',
+      'finished:Direct shell finished in 12ms',
+      'workspace changed',
+    ]);
+  });
+
   it('applies plan update effects without changing live status', () => {
     const effects: string[] = [];
 
