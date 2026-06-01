@@ -24,6 +24,7 @@ import {
 } from '@/core/approvals/index.js';
 import { createConversationEngine } from '@/core/chat/engine/conversation-engine.js';
 import { ConversationCompactionService } from '@/core/chat/engine/compaction/index.js';
+import { ConversationDirectShellService } from '@/core/chat/engine/direct-shell/index.js';
 import { FileChatSessionRepository } from '@/core/chat/engine/sessions/repository/index.js';
 import type {
   ConversationEngine,
@@ -102,6 +103,16 @@ type SubmitChatPromptArgs = ControlPlaneSessionReadArgs & {
 };
 
 type ContinueChatPromptArgs = Omit<SubmitChatPromptArgs, 'prompt'>;
+
+type SubmitDirectShellArgs = ControlPlaneSessionReadArgs & ControlPlaneSessionAddress & {
+  command: string;
+  riskAccepted?: boolean;
+  systemContext?: string;
+  apiKey?: string;
+  preferApiKey?: boolean;
+  leaseOwner: ChatSessionLeaseOwner;
+  logger?: Pick<Logger, 'debug'>;
+};
 
 type ControlPlaneTurnPublisher = ReturnType<typeof ControlPlaneChatSessionEventsController.createSessionEventPublisher>;
 
@@ -247,6 +258,14 @@ export class ControlPlaneChatSessionsController {
     }
 
     return this.startPromptRun(args);
+  }
+
+  submitDirectShellAsync(args: SubmitDirectShellArgs): ControlPlaneAcceptedSessionRun {
+    return this.runService.start(this.buildDirectShellRun(args));
+  }
+
+  preflightDirectShell(command: string) {
+    return ConversationDirectShellService.preflight(command);
   }
 
   updateQueuedPrompt(args: UpdateQueuedChatPromptArgs): ChatSessionDetail {
@@ -531,6 +550,67 @@ export class ControlPlaneChatSessionsController {
       },
       onError: (error: unknown, run: ControlPlaneSessionRunContext) => {
         this.persistRunFailureMessage(args, run, error);
+      },
+    };
+  }
+
+  private buildDirectShellRun(args: SubmitDirectShellArgs) {
+    return {
+      address: args,
+      execute: async (run: ControlPlaneSessionRunContext) => {
+        const publisher = ControlPlaneChatSessionEventsController.createSessionEventPublisher({
+          eventBus: this.sessionEventBus,
+          workspaceId: args.workspaceId,
+          sessionId: args.sessionId,
+        });
+        const sessions = this.createEngine(args).sessions;
+        const session = sessions.require(args.sessionId);
+        this.assertNoLeaseConflict(sessions, args.sessionId, args.leaseOwner);
+        sessions.acquireLease(args.sessionId, args.leaseOwner);
+
+        try {
+          const result = await ConversationDirectShellService.execute({
+            sessionId: args.sessionId,
+            runId: run.runId,
+            command: args.command,
+            model: session.model ?? args.model ?? DEFAULT_OPENAI_MODEL,
+            workspaceRoot: args.workspaceRoot,
+            stateRoot: args.stateRoot,
+            systemContext: args.systemContext,
+            riskAccepted: args.riskAccepted,
+            credentialSource: RuntimeCredentialService.resolveCredentialSourceForModel(session.model ?? args.model ?? DEFAULT_OPENAI_MODEL, args),
+            sessions,
+            abortSignal: run.controller.signal,
+            onActivity: publisher.publishActivity,
+            onCompactionStatus: publisher.publishActivity,
+          });
+
+          if (result.outcome === 'done') {
+            this.scheduleAutoRenameAfterFirstUserMessage({
+              ...args,
+              prompt: result.shellDisplay,
+            }, {
+              responseText: result.summary,
+              sessionModel: session.model,
+            });
+          }
+
+          return {
+            outcome: result.outcome,
+            summary: result.summary,
+            session: ControlPlaneChatSessionPresenter.projectDetail(sessions.require(args.sessionId))[0] ?? null,
+          };
+        } finally {
+          sessions.releaseLease(args.sessionId, args.leaseOwner);
+        }
+      },
+      onError: (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.createEngine(args).sessions.appendMessage(args.sessionId, {
+          id: `direct-shell-error-${Date.now()}`,
+          role: 'assistant',
+          text: `Direct shell execution failed:\n${message}`,
+        });
       },
     };
   }

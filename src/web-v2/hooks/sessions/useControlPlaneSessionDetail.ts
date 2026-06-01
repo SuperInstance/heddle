@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ControlPlaneSessionDetail, ControlPlaneSessionRuntimeContext } from '@web/api/client';
+import type {
+  ControlPlaneSessionDetail,
+  ControlPlaneSessionDirectShellPreflight,
+  ControlPlaneSessionRuntimeContext,
+} from '@web/api/client';
 import {
   type ClientSharedAgentActivityStatus,
   type ClientSharedSessionLatestUpdate,
@@ -14,7 +18,12 @@ import { useControlPlaneSessionRuntimeContext } from './useControlPlaneSessionRu
 import { useControlPlaneSessionSettings } from './useControlPlaneSessionSettings';
 import { useControlPlaneQueuedPrompts } from './useControlPlaneQueuedPrompts';
 
-export type { ControlPlaneApprovalDecision, ControlPlanePendingApproval, ControlPlaneSessionDetail } from '@web/api/client';
+export type {
+  ControlPlaneApprovalDecision,
+  ControlPlanePendingApproval,
+  ControlPlaneSessionDetail,
+  ControlPlaneSessionDirectShellPreflight,
+} from '@web/api/client';
 export type { ControlPlaneReasoningEffortSelection } from './useControlPlaneSessionSettings';
 
 type ControlPlaneSessionDetailState = {
@@ -37,7 +46,10 @@ type ControlPlaneSessionDetailState = {
   settingsUpdating: boolean;
   settingsError?: string;
   queueUpdating: boolean;
+  directShellConfirmation?: ControlPlaneSessionDirectShellPreflight;
   submitPrompt: (prompt: string) => Promise<void>;
+  confirmDirectShell: () => Promise<void>;
+  cancelDirectShellConfirmation: () => void;
   updateQueuedPrompt: ReturnType<typeof useControlPlaneQueuedPrompts>['updateQueuedPrompt'];
   deleteQueuedPrompt: ReturnType<typeof useControlPlaneQueuedPrompts>['deleteQueuedPrompt'];
   cancelRun: () => Promise<void>;
@@ -138,7 +150,10 @@ export function useControlPlaneSessionDetail({
     settingsUpdating: settings.settingsUpdating,
     settingsError: settings.settingsError,
     queueUpdating: queuedPrompts.queueUpdating,
+    directShellConfirmation: promptSubmit.directShellConfirmation,
     submitPrompt: promptSubmit.submitPrompt,
+    confirmDirectShell: promptSubmit.confirmDirectShell,
+    cancelDirectShellConfirmation: promptSubmit.cancelDirectShellConfirmation,
     updateQueuedPrompt: queuedPrompts.updateQueuedPrompt,
     deleteQueuedPrompt: queuedPrompts.deleteQueuedPrompt,
     cancelRun: runControl.cancelRun,
@@ -160,6 +175,9 @@ export function useControlPlaneSessionDetail({
     loader.session,
     promptSubmit.submitting,
     promptSubmit.submitPrompt,
+    promptSubmit.directShellConfirmation,
+    promptSubmit.confirmDirectShell,
+    promptSubmit.cancelDirectShellConfirmation,
     queuedPrompts.deleteQueuedPrompt,
     queuedPrompts.queueUpdating,
     queuedPrompts.updateQueuedPrompt,

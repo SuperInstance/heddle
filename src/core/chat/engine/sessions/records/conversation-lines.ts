@@ -6,7 +6,8 @@
  */
 import type { ChatMessage } from '@/core/llm/types.js';
 import { ConversationCompactionService } from '@/core/chat/engine/compaction/index.js';
-import type { ConversationLine } from '@/core/chat/types.js';
+import type { ConversationDirectShellLineResult, ConversationLine } from '@/core/chat/types.js';
+import { ConversationDirectShellLineResultSchema } from '@/core/chat/engine/direct-shell/result-schema.js';
 
 export class ConversationLines {
   static fromHistory(history: ChatMessage[]): ConversationLine[] {
@@ -28,6 +29,16 @@ export class ConversationLines {
           return [];
         }
 
+        const directShellResult = ConversationLines.readDirectShellResult(message.content);
+        if (directShellResult) {
+          return [{
+            id: `${message.role}-${index}-${directShellResult.command}`,
+            role: message.role,
+            text: ConversationLines.buildDirectShellFallbackText(directShellResult),
+            directShellResult,
+          }];
+        }
+
         return [{ id: `${message.role}-${index}-${message.content}`, role: message.role, text: message.content }];
       }
 
@@ -37,5 +48,21 @@ export class ConversationLines {
 
       return [];
     });
+  }
+
+  private static readDirectShellResult(content: string): ConversationDirectShellLineResult | undefined {
+    try {
+      const parsed = JSON.parse(content) as unknown;
+      const directShellResult = ConversationDirectShellLineResultSchema.safeParse(parsed);
+      return directShellResult.success ? directShellResult.data : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private static buildDirectShellFallbackText(result: ConversationDirectShellLineResult): string {
+    return result.outcome === 'done'
+      ? `Direct shell completed: ${result.command}`
+      : `Direct shell failed: ${result.command}`;
   }
 }

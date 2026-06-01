@@ -20,6 +20,56 @@
     box-shadow: 0 18px 42px hsl(235 18% 3% / 0.26);
   }
 
+  .v2-composer-stack {
+    margin-inline: auto;
+    display: flex;
+    width: min(100%, 48rem);
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .v2-composer-stack > .v2-composer-shell {
+    width: 100%;
+    margin-inline: 0;
+  }
+
+  .v2-direct-shell-mode-strip {
+    display: inline-flex;
+    width: calc(100% - 3rem);
+    max-width: none;
+    margin-inline: 1.5rem;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid color-mix(in oklab, #fbbf24 34%, transparent);
+    border-bottom: 0;
+    border-radius: 0.625rem 0.625rem 0 0;
+    background: color-mix(in oklab, #f59e0b 14%, var(--color-card));
+    padding: 0.1875rem 0.625rem 0.125rem;
+    color: #fde68a;
+    box-shadow: 0 -8px 22px hsl(235 18% 3% / 0.16);
+  }
+
+  .v2-direct-shell-result {
+    border-radius: 0.625rem;
+    border: 1px solid color-mix(in oklab, var(--color-border) 72%, transparent);
+    background: color-mix(in oklab, var(--color-card) 72%, var(--color-background));
+    padding: 0.75rem;
+  }
+
+  .v2-direct-shell-output {
+    max-height: 18rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--color-background) 86%, black);
+    padding: 0.625rem;
+    color: color-mix(in oklab, var(--color-foreground) 86%, var(--color-muted-foreground));
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
   .v2-composer-shell[data-drag-active="true"] {
     border-color: color-mix(in oklab, var(--color-ring) 78%, var(--color-border));
     background: color-mix(in oklab, var(--color-accent) 34%, var(--color-card));

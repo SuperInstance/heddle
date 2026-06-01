@@ -32,7 +32,7 @@ type SessionActivityLatestUpdateHandlers = {
 };
 type ActivityOf<ActivityType extends ClientSharedSessionActivity['type']> = Extract<ClientSharedSessionActivity, { type: ActivityType }>;
 type PendingApprovalActivity = ActivityOf<'tool.approval_requested'> | ActivityOf<'tool.approval_resolved'>;
-type WorkspaceChangedActivity = ActivityOf<'loop.finished'> | ActivityOf<'tool.completed'>;
+type WorkspaceChangedActivity = ActivityOf<'loop.finished'> | ActivityOf<'tool.completed'> | ActivityOf<'direct_shell.completed'>;
 export type ClientSharedSessionPlan = ActivityOf<'plan.updated'>;
 type SessionActivityEffectHandlers = {
   [ActivityType in ClientSharedSessionActivity['type']]?: (
@@ -43,8 +43,8 @@ type SessionActivityEffectHandlers = {
 
 export type ClientSharedSessionActivityEffects = {
   onAssistantStream?: (activity: ActivityOf<'assistant.stream'>, liveStatus: string | undefined) => void;
-  onRunStarted?: (activity: ActivityOf<'loop.started'>, liveStatus: string | undefined) => void;
-  onRunFinished?: (activity: ActivityOf<'loop.finished'>, liveStatus: string | undefined) => void;
+  onRunStarted?: (activity: ActivityOf<'loop.started'> | ActivityOf<'direct_shell.started'>, liveStatus: string | undefined) => void;
+  onRunFinished?: (activity: ActivityOf<'loop.finished'> | ActivityOf<'direct_shell.completed'>, liveStatus: string | undefined) => void;
   onPlanUpdated?: (activity: ClientSharedSessionPlan) => void;
   onPlanCleared?: () => void;
   onLiveStatus?: (activity: ClientSharedSessionActivity, liveStatus: string | undefined) => void;
@@ -123,6 +123,19 @@ export class ClientSharedSessionActivityService {
     'compaction.finished': (activity, effects) => {
       ClientSharedSessionActivityService.applyLiveStatus(activity, effects);
     },
+    'direct_shell.started': (activity, effects) => {
+      effects.onCurrentActivityChanged?.({
+        label: 'Running shell',
+        startedAt: activity.timestamp,
+        tone: activity.tool === 'run_shell_mutate' ? 'warning' : 'info',
+      });
+      effects.onRunStarted?.(activity, ClientSharedSessionActivityService.formatLiveStatus(activity));
+    },
+    'direct_shell.completed': (activity, effects) => {
+      effects.onCurrentActivityChanged?.(undefined);
+      effects.onRunFinished?.(activity, ClientSharedSessionActivityService.formatLiveStatus(activity));
+      effects.onWorkspaceChanged?.(activity);
+    },
   };
 
   // Formats legacy/live status strings from activity facts. These strings are
@@ -145,6 +158,8 @@ export class ClientSharedSessionActivityService {
     'compaction.finished': (activity) => (
       activity.summaryPath ? `Compaction finished. Summary: ${activity.summaryPath}` : 'Compaction finished.'
     ),
+    'direct_shell.started': () => 'Running direct shell command...',
+    'direct_shell.completed': (activity) => `Direct shell finished in ${Math.round(activity.durationMs)}ms`,
   };
 
   // Projects activity facts into the stable "latest activity" breadcrumb shown
@@ -201,6 +216,16 @@ export class ClientSharedSessionActivityService {
       label: 'Compaction finished',
       detail: activity.summaryPath,
       tone: 'success',
+    }),
+    'direct_shell.started': (activity) => ({
+      label: 'Running shell',
+      detail: activity.tool,
+      tone: activity.tool === 'run_shell_mutate' ? 'warning' : 'info',
+    }),
+    'direct_shell.completed': (activity) => ({
+      label: 'Direct shell completed',
+      detail: `${Math.round(activity.durationMs)}ms`,
+      tone: activity.result.ok ? 'success' : 'error',
     }),
   };
 

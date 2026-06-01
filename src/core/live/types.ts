@@ -171,7 +171,31 @@ export type ConversationCompactionActivity =
 
 export type ConversationCompactionStatus = ConversationCompactionActivity;
 
-export type ConversationActivity = ConversationAgentLoopActivity | ConversationCompactionActivity;
+export type ConversationDirectShellStartedActivity = {
+  source: 'direct-shell';
+  type: typeof HeddleEventType.directShellStarted;
+  runId: string;
+  command: string;
+  tool: 'run_shell_inspect' | 'run_shell_mutate';
+  timestamp: string;
+};
+
+export type ConversationDirectShellCompletedActivity = {
+  source: 'direct-shell';
+  type: typeof HeddleEventType.directShellCompleted;
+  runId: string;
+  command: string;
+  tool: 'run_shell_inspect' | 'run_shell_mutate';
+  result: ToolResult;
+  durationMs: number;
+  timestamp: string;
+};
+
+export type ConversationDirectShellActivity =
+  | ConversationDirectShellStartedActivity
+  | ConversationDirectShellCompletedActivity;
+
+export type ConversationActivity = ConversationAgentLoopActivity | ConversationCompactionActivity | ConversationDirectShellActivity;
 
 export type ConversationActivityOf<Type extends ConversationActivity['type']> = Extract<
   ConversationActivity,

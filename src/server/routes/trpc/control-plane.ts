@@ -37,6 +37,8 @@ import {
   memorySearchInputSchema,
   sessionApprovalDecisionSchema,
   sessionCompactInputSchema,
+  sessionDirectShellInputSchema,
+  sessionDirectShellPreflightInputSchema,
   sessionEventsInputSchema,
   sessionInputSchema,
   sessionMessageInputSchema,
@@ -232,6 +234,23 @@ export const controlPlaneRouter = router({
   }),
   sessionSendPromptAsync: controlPlaneWorkspaceProcedure.input(sessionMessageInputSchema).mutation(({ ctx, input }) => {
     return controlPlaneChatSessionsController.submitPromptAsync(buildSubmitPromptArgs(ctx, input));
+  }),
+  sessionDirectShellPreflight: controlPlaneWorkspaceProcedure.input(sessionDirectShellPreflightInputSchema).query(({ input }) => {
+    return controlPlaneChatSessionsController.preflightDirectShell(input.command);
+  }),
+  sessionDirectShellAsync: controlPlaneWorkspaceProcedure.input(sessionDirectShellInputSchema).mutation(({ ctx, input }) => {
+    const { workspace, sessionEngineArgs } = ctx.requestWorkspace;
+    return controlPlaneChatSessionsController.submitDirectShellAsync({
+      ...sessionEngineArgs,
+      workspaceId: workspace.id,
+      sessionId: input.sessionId,
+      command: input.command,
+      riskAccepted: input.riskAccepted,
+      apiKey: input.apiKey,
+      preferApiKey: input.preferApiKey ?? ctx.preferApiKey,
+      systemContext: input.systemContext,
+      leaseOwner: resolveControlPlaneLeaseOwner(ctx),
+    });
   }),
   sessionQueuedPromptUpdate: controlPlaneWorkspaceProcedure.input(sessionQueuedPromptUpdateInputSchema).mutation(({ ctx, input }) => {
     return controlPlaneChatSessionsController.updateQueuedPrompt({

@@ -33,6 +33,24 @@
       "title": "Semantic drift",
       "updating": "Updating"
     },
+    "directShell": {
+      "cancel": "Cancel",
+      "confirmDescription": "This command may modify the workspace or run an unclassified shell operation.",
+      "confirmTitle": "Confirm shell command",
+      "emptyCommand": "...",
+      "error": "error",
+      "errorBlocked": "Direct shell command is blocked by shell policy.",
+      "errorEmpty": "Direct shell command cannot be empty.",
+      "errorRunActive": "Direct shell commands can run after the current agent turn finishes.",
+      "modeLabel": "Direct shell",
+      "outcomeDone": "done",
+      "outcomeError": "error",
+      "resultTitle": "Shell command",
+      "runOnce": "Run once",
+      "runs": "runs",
+      "stderr": "stderr",
+      "stdout": "stdout"
+    },
     "executionMenu": "Execution settings",
     "fileMentions": {
       "empty": "No files found for",
@@ -58,6 +76,11 @@
     "model": "Model",
     "placeholder": "Send follow-up",
     "promptAriaLabel": "Message",
+    "queueFollowUp": "Queue follow-up",
+    "queuedPromptAriaLabel": "Queued follow-up prompts",
+    "queuedPromptEdit": "Edit queued prompt",
+    "queuedPromptRemove": "Remove queued prompt",
+    "queuedPromptSave": "Save queued prompt",
     "reasoning": {
       "default": "Default",
       "high": "High",

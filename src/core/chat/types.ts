@@ -19,6 +19,26 @@ export type ConversationLine = {
   text: string;
   isStreaming?: boolean;
   isPending?: boolean;
+  directShellResult?: ConversationDirectShellLineResult;
+};
+
+export type ConversationDirectShellLineResult = {
+  kind: 'direct_shell_result';
+  command: string;
+  tool: string;
+  outcome: 'done' | 'error';
+  exitCode?: number;
+  stdout?: string;
+  stderr?: string;
+  error?: string;
+  durationMs?: number;
+  policy?: {
+    binary?: string;
+    scope?: string;
+    risk?: string;
+    capability?: string;
+    reason?: string;
+  };
 };
 
 export type LiveEvent = {

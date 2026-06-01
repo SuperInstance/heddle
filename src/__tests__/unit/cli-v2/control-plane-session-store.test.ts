@@ -126,6 +126,68 @@ describe('ControlPlaneSessionStore', () => {
     store.dispose();
   });
 
+  it('routes direct shell drafts through the direct shell API', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    await store.submitPrompt('!echo hello');
+
+    expect(fixture.calls.sessionDirectShellAsyncMutate).toHaveBeenCalledWith({
+      workspaceId: 'workspace-1',
+      sessionId: 'session-1',
+      command: 'echo hello',
+      riskAccepted: undefined,
+      apiKey: undefined,
+      preferApiKey: undefined,
+      systemContext: undefined,
+    });
+    expect(fixture.calls.sessionSendPromptAsyncMutate).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('asks for local confirmation before confirmed-risk direct shell commands', async () => {
+    const fixture = createClientFixture({
+      directShellPreflight: {
+        command: 'rm tmp.txt',
+        risk: 'confirmRequired',
+        tool: 'run_shell_mutate',
+        reason: 'workspace file operation',
+      },
+    });
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    await store.submitPrompt('!rm tmp.txt');
+
+    expect(store.getSnapshot().pendingDirectShellConfirmation).toMatchObject({
+      command: 'rm tmp.txt',
+      risk: 'confirmRequired',
+    });
+    expect(fixture.calls.sessionDirectShellAsyncMutate).not.toHaveBeenCalled();
+
+    await store.resolveDirectShellConfirmation(true);
+
+    expect(fixture.calls.sessionDirectShellAsyncMutate).toHaveBeenCalledWith(expect.objectContaining({
+      command: 'rm tmp.txt',
+      riskAccepted: true,
+    }));
+    store.dispose();
+  });
+
+  it('does not submit an empty direct shell draft as an agent prompt', async () => {
+    const fixture = createClientFixture();
+    const store = new ControlPlaneSessionStore({ client: fixture.client });
+    await store.start();
+
+    await store.submitPrompt('!');
+
+    expect(fixture.calls.sessionDirectShellAsyncMutate).not.toHaveBeenCalled();
+    expect(fixture.calls.sessionSendPromptAsyncMutate).not.toHaveBeenCalled();
+    expect(store.getSnapshot().error).toBe('Direct shell command cannot be empty.');
+    store.dispose();
+  });
+
   it('filters slash command hints locally without querying the API per keystroke', async () => {
     const fixture = createClientFixture();
     const store = new ControlPlaneSessionStore({ client: fixture.client });
@@ -652,7 +714,14 @@ type SubscriptionOptions<T> = {
   onComplete?: () => void;
 };
 
-function createClientFixture() {
+function createClientFixture(options: {
+  directShellPreflight?: {
+    command: string;
+    risk: 'safe' | 'confirmRequired' | 'blocked';
+    tool?: 'run_shell_inspect' | 'run_shell_mutate';
+    reason?: string;
+  };
+} = {}) {
   const sessionView: ControlPlaneSessionView = {
     id: 'session-1',
     name: 'Session 1',
@@ -686,6 +755,13 @@ function createClientFixture() {
       summary: 'Done.',
     })),
     sessionSendPromptAsyncMutate: vi.fn(async () => createAcceptedResult()),
+    sessionDirectShellPreflightQuery: vi.fn(async () => options.directShellPreflight ?? ({
+      command: 'echo hello',
+      risk: 'safe',
+      tool: 'run_shell_inspect',
+      reason: 'simple shell inspection',
+    })),
+    sessionDirectShellAsyncMutate: vi.fn(async () => createAcceptedResult()),
     slashCommandCatalogQuery: vi.fn(async () => ({
       commands: [
         {
@@ -752,6 +828,8 @@ function createClientFixture() {
       sessionPendingApproval: { query: calls.sessionPendingApprovalQuery },
       sessionSendPrompt: { mutate: calls.sessionSendPromptMutate },
       sessionSendPromptAsync: { mutate: calls.sessionSendPromptAsyncMutate },
+      sessionDirectShellPreflight: { query: calls.sessionDirectShellPreflightQuery },
+      sessionDirectShellAsync: { mutate: calls.sessionDirectShellAsyncMutate },
       slashCommandCatalog: { query: calls.slashCommandCatalogQuery },
       slashCommandExecute: { mutate: calls.slashCommandExecuteMutate },
       workspaceFileSearch: { query: calls.workspaceFileSearchQuery },

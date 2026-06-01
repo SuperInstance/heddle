@@ -5,6 +5,7 @@ import type {
   ClientSharedSessionPlan,
 } from '@/client-shared/services/session-activities/index.js';
 import { ClientSharedSessionMessageService } from '@/client-shared/services/session-messages/index.js';
+import { ClientSharedPromptInputService } from '@/client-shared/services/prompt-input/index.js';
 import {
   SessionActivityService,
   type ControlPlaneSessionLatestUpdate,
@@ -27,6 +28,7 @@ import type {
   ControlPlaneApprovalDecision,
   ControlPlaneModelOptions,
   ControlPlanePendingApproval,
+  ControlPlaneSessionDirectShellPreflight,
   ControlPlaneSessionDetail,
   ControlPlaneSessionEventEnvelope,
   ControlPlaneSessionRuntimeContext,
@@ -63,6 +65,7 @@ export type ControlPlaneSessionStoreSnapshot = {
   runtimeContext?: ControlPlaneSessionRuntimeContext;
   modelOptions?: ControlPlaneModelOptions;
   pendingApproval: ControlPlanePendingApproval;
+  pendingDirectShellConfirmation?: ControlPlaneSessionDirectShellPreflight;
   loading: boolean;
   submitting: boolean;
   approvalResolving: boolean;
@@ -84,6 +87,7 @@ const INITIAL_SNAPSHOT: ControlPlaneSessionStoreSnapshot = {
   runtimeContext: undefined,
   modelOptions: undefined,
   pendingApproval: null,
+  pendingDirectShellConfirmation: undefined,
   loading: false,
   submitting: false,
   approvalResolving: false,
@@ -206,6 +210,7 @@ export class ControlPlaneSessionStore {
       activeSession: null,
       runtimeContext: undefined,
       pendingApproval: null,
+      pendingDirectShellConfirmation: undefined,
       liveStatus: undefined,
       currentActivity: undefined,
       activePlan: undefined,
@@ -240,6 +245,12 @@ export class ControlPlaneSessionStore {
 
     if (SlashCommandAutocompleteService.isSlashDraft(trimmed)) {
       await this.executeSlashCommand(trimmed);
+      return;
+    }
+
+    const directShell = ClientSharedPromptInputService.parseDirectShellDraft(trimmed);
+    if (directShell) {
+      await this.executeDirectShell(directShell.command);
       return;
     }
 
@@ -479,6 +490,125 @@ export class ControlPlaneSessionStore {
       this.setSnapshot({ error: formatError(error) });
     } finally {
       this.setSnapshot({ submitting: false });
+    }
+  }
+
+  private async executeDirectShell(command: string): Promise<void> {
+    if (!command.trim()) {
+      this.setSnapshot({
+        error: 'Direct shell command cannot be empty.',
+      });
+      return;
+    }
+
+    if (this.snapshotValue.running) {
+      this.setSnapshot({
+        error: undefined,
+        latestUpdate: {
+          label: 'Direct shell blocked',
+          detail: 'wait for the current run to finish',
+          tone: 'warning',
+        },
+      });
+      return;
+    }
+
+    const workspaceId = this.requireWorkspaceId();
+    const sessionId = this.requireActiveSessionId();
+    const preflight = await this.api.preflightDirectShell({ workspaceId, sessionId, command });
+    if (preflight.risk === 'blocked') {
+      this.setSnapshot({
+        error: preflight.reason ?? 'Direct shell command is blocked by shell policy.',
+      });
+      return;
+    }
+
+    if (preflight.risk === 'confirmRequired') {
+      this.setSnapshot({
+        pendingDirectShellConfirmation: preflight,
+        error: undefined,
+        latestUpdate: {
+          label: 'Confirm shell command',
+          detail: preflight.reason,
+          tone: 'warning',
+        },
+      });
+      return;
+    }
+
+    await this.startDirectShellRun(command);
+  }
+
+  async resolveDirectShellConfirmation(accepted: boolean): Promise<void> {
+    const pending = this.snapshotValue.pendingDirectShellConfirmation;
+    if (!pending) {
+      return;
+    }
+
+    this.setSnapshot({ pendingDirectShellConfirmation: undefined });
+    if (!accepted) {
+      this.setSnapshot({
+        latestUpdate: {
+          label: 'Direct shell cancelled',
+          detail: pending.command,
+          tone: 'info',
+        },
+      });
+      return;
+    }
+
+    await this.startDirectShellRun(pending.command, true);
+  }
+
+  private async startDirectShellRun(command: string, riskAccepted?: boolean): Promise<void> {
+    const workspaceId = this.requireWorkspaceId();
+    const sessionId = this.requireActiveSessionId();
+    this.setSnapshot((current) => ({
+      submitting: true,
+      running: true,
+      error: undefined,
+      pendingDirectShellConfirmation: undefined,
+      activePlan: undefined,
+      currentActivity: {
+        label: 'Running shell',
+        startedAt: new Date().toISOString(),
+        tone: 'info',
+      },
+      liveStatus: current.streamConnected
+        ? 'Running direct shell command...'
+        : 'Running direct shell command... reconnecting live stream if needed.',
+      latestUpdate: {
+        label: 'Direct shell accepted',
+        detail: command,
+        tone: 'info',
+      },
+    }));
+
+    try {
+      const result = await this.api.runDirectShellAsync({ workspaceId, sessionId, command, riskAccepted });
+      this.assistantStreamBuffer.reset();
+      this.setSnapshot({
+        submitting: false,
+        running: 'accepted' in result,
+        latestUpdate: {
+          label: 'Direct shell accepted',
+          detail: 'accepted' in result ? result.runId : undefined,
+          tone: 'info',
+        },
+      });
+      await this.refreshSession(sessionId, { silent: true });
+      await this.refreshSessions();
+      await this.refreshPendingApproval(sessionId);
+    } catch (error) {
+      this.setSnapshot({
+        error: formatError(error),
+        running: false,
+        submitting: false,
+        liveStatus: undefined,
+        currentActivity: undefined,
+      });
+      await this.refreshSession(sessionId, { silent: true }).catch(() => undefined);
+      this.assistantStreamBuffer.reset();
     }
   }
 

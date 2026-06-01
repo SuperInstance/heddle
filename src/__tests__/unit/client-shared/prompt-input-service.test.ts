@@ -89,4 +89,14 @@ describe('ClientSharedPromptInputService', () => {
       draft: edited,
     });
   });
+
+  it('parses direct shell drafts without treating them as normal prompts', () => {
+    expect(ClientSharedPromptInputService.parseDirectShellDraft(' ! git status ')).toEqual({
+      command: 'git status',
+    });
+    expect(ClientSharedPromptInputService.parseDirectShellDraft('!')).toEqual({
+      command: '',
+    });
+    expect(ClientSharedPromptInputService.parseDirectShellDraft('ask normally')).toBeUndefined();
+  });
 });

@@ -3,6 +3,7 @@ import type {
   ControlPlaneApprovalDecision,
   ControlPlaneReasoningEffortSelection,
   ControlPlanePendingApproval,
+  ControlPlaneSessionDirectShellPreflight,
   ControlPlaneSessionDetail,
 } from '@web/hooks/sessions/useControlPlaneSessionDetail';
 import type { ControlPlaneSessionRuntimeContext } from '@web/api/client';
@@ -18,6 +19,7 @@ import { ApprovalPanel } from './ApprovalPanel';
 import { ConversationComposer } from './ConversationComposer';
 import { ConversationMessage } from './ConversationMessage';
 import { ConversationWelcomePanel } from './ConversationWelcomePanel';
+import { DirectShellConfirmDialog } from './DirectShellConfirmDialog';
 import { QueuedPromptStrip } from './QueuedPromptStrip';
 import { Loader2 } from 'lucide-react';
 
@@ -40,8 +42,11 @@ interface ConversationThreadProps {
   settingsUpdating: boolean;
   settingsError?: string;
   queueUpdating: boolean;
+  directShellConfirmation?: ControlPlaneSessionDirectShellPreflight;
   emptyTitle: string;
   onSubmitPrompt: (prompt: string) => Promise<void>;
+  onConfirmDirectShell: () => Promise<void>;
+  onCancelDirectShellConfirmation: () => void;
   onUpdateQueuedPrompt: (queueItemId: string, prompt: string) => Promise<void>;
   onDeleteQueuedPrompt: (queueItemId: string) => Promise<void>;
   onCancelRun: () => Promise<void>;
@@ -71,8 +76,11 @@ export function ConversationThread({
   settingsUpdating,
   settingsError,
   queueUpdating,
+  directShellConfirmation,
   emptyTitle,
   onSubmitPrompt,
+  onConfirmDirectShell,
+  onCancelDirectShellConfirmation,
   onUpdateQueuedPrompt,
   onDeleteQueuedPrompt,
   onCancelRun,
@@ -162,6 +170,12 @@ export function ConversationThread({
         </div>
       ) : null}
       <div className="v2-composer-region">
+        <DirectShellConfirmDialog
+          confirmation={directShellConfirmation}
+          submitting={submitting}
+          onCancel={onCancelDirectShellConfirmation}
+          onConfirm={onConfirmDirectShell}
+        />
         <QueuedPromptStrip
           queuedPrompts={session.queuedPrompts}
           updating={queueUpdating}

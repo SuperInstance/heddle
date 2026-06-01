@@ -30,6 +30,8 @@ export const HeddleEventType = {
   compactionRunning: 'compaction.running',
   compactionFinished: 'compaction.finished',
   compactionFailed: 'compaction.failed',
+  directShellStarted: 'direct_shell.started',
+  directShellCompleted: 'direct_shell.completed',
 } as const;
 
 export type HeddleEventTypeValue = typeof HeddleEventType[keyof typeof HeddleEventType];

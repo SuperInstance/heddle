@@ -7,6 +7,8 @@ import { ApprovalPanel } from './components/ApprovalPanel.js';
 import { AgentPlanPanel } from './components/AgentPlanPanel.js';
 import { CommandResultPanel } from './components/CommandResultPanel.js';
 import { ConversationPanel } from './components/ConversationPanel.js';
+import { DirectShellConfirmationPanel } from './components/DirectShellConfirmationPanel.js';
+import { DirectShellModeHintPanel } from './components/DirectShellModeHintPanel.js';
 import { FileMentionPickerPanel } from './components/FileMentionPickerPanel.js';
 import { ModelPickerPanel } from './components/ModelPickerPanel.js';
 import { PromptInput } from './components/PromptInput.js';
@@ -22,6 +24,7 @@ import { useFileMentionPicker } from './hooks/useFileMentionPicker.js';
 import { usePromptPickers } from './hooks/usePromptPickers.js';
 import { usePromptDraft } from './hooks/usePromptDraft.js';
 import { PromptActivityService } from './services/activities/prompt-activity-service.js';
+import { ClientSharedPromptInputService } from '@/client-shared/services/prompt-input/index.js';
 import type { ControlPlaneApprovalDecision } from '@/client-shared/api/types.js';
 import type {
   ControlPlaneSessionStore,
@@ -48,9 +51,10 @@ export function App({
     undoPromptEdit,
     redoPromptEdit,
   } = usePromptDraft();
-  const submitDisabled = snapshot.loading || snapshot.submitting;
-  const inputDisabled = snapshot.loading;
+  const submitDisabled = snapshot.loading || snapshot.submitting || Boolean(snapshot.pendingDirectShellConfirmation);
+  const inputDisabled = snapshot.loading || Boolean(snapshot.pendingDirectShellConfirmation);
   const slashCommandHints = store.getSlashCommandHints(draft);
+  const directShellDraft = ClientSharedPromptInputService.parseDirectShellDraft(draft);
   const pickers = usePromptPickers({
     draft,
     snapshot,
@@ -115,6 +119,10 @@ export function App({
     void store.resolvePendingApproval(decision);
   }, [store]);
 
+  const resolveDirectShellConfirmation = useCallback((accepted: boolean) => {
+    void store.resolveDirectShellConfirmation(accepted);
+  }, [store]);
+
   const cancelRun = useCallback(() => {
     void store.cancelRun();
   }, [store]);
@@ -136,6 +144,12 @@ export function App({
           approval={snapshot.pendingApproval}
           resolving={snapshot.approvalResolving}
           onResolve={resolveApproval}
+        />
+      ) : null}
+      {snapshot.pendingDirectShellConfirmation ? (
+        <DirectShellConfirmationPanel
+          confirmation={snapshot.pendingDirectShellConfirmation}
+          onResolve={resolveDirectShellConfirmation}
         />
       ) : null}
       <RunControls
@@ -183,6 +197,9 @@ export function App({
         latestActivity={PromptActivityService.build(snapshot)}
       />
       <QueuedPromptPanel session={snapshot.activeSession} />
+      {directShellDraft && !snapshot.pendingDirectShellConfirmation ? (
+        <DirectShellModeHintPanel command={directShellDraft.command} />
+      ) : null}
       <PromptInput
         disabled={inputDisabled}
         submitDisabled={submitDisabled}

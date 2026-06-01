@@ -16,6 +16,10 @@ export type ClientSharedPromptUndoRedoState = {
   redoStack: ClientSharedPromptDraftState[];
 };
 
+export type ClientSharedDirectShellDraft = {
+  command: string;
+};
+
 const DEFAULT_MAX_PROMPT_HISTORY_ENTRIES = 100;
 const DEFAULT_MAX_PROMPT_UNDO_STATES = 100;
 
@@ -28,6 +32,16 @@ const DEFAULT_MAX_PROMPT_UNDO_STATES = 100;
  * draft that was in progress before browsing history.
  */
 export class ClientSharedPromptInputService {
+  static parseDirectShellDraft(value: string): ClientSharedDirectShellDraft | undefined {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('!')) {
+      return undefined;
+    }
+
+    const command = trimmed.slice(1).trim();
+    return { command };
+  }
+
   static clampCursor(value: string, cursor: number): number {
     return Math.min(Math.max(0, cursor), value.length);
   }
