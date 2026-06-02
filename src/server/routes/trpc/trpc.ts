@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
-import { RuntimeDaemonRegistryService } from '@/core/runtime/daemon/index.js';
 import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 import { appRouter } from '../../router.js';
 import type { HeddleRuntimeHostDescriptor, HeddleServerContext } from '../../types.js';
@@ -19,14 +18,6 @@ export function createTrpcExpressRouter(options: CreateTrpcExpressRouterOptions)
         workspaceRoot: options.workspaceRoot,
         stateRoot: options.stateRoot,
       });
-      const workspaceOwner =
-        options.runtimeHost ?
-          RuntimeDaemonRegistryService.readWorkspaceRegistration(
-            options.runtimeHost.registryPath,
-            workspaceContext.activeWorkspaceId,
-            workspaceContext.activeWorkspace.stateRoot,
-          )?.owner ?? null
-        : null;
       return {
         workspaceRoot: options.workspaceRoot,
         stateRoot: options.stateRoot,
@@ -34,13 +25,7 @@ export function createTrpcExpressRouter(options: CreateTrpcExpressRouterOptions)
         activeWorkspaceId: workspaceContext.activeWorkspaceId,
         activeWorkspace: workspaceContext.activeWorkspace,
         workspaces: workspaceContext.workspaces,
-        runtimeHost:
-          options.runtimeHost ?
-            {
-              ...options.runtimeHost,
-              workspaceOwner,
-            }
-          : null,
+        runtimeHost: options.runtimeHost ?? null,
         logger: options.logger,
       };
     },

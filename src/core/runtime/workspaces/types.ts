@@ -1,4 +1,6 @@
-export const DEFAULT_WORKSPACE_ID = 'default';
+// Backward compatibility only: older workspace catalogs used this local id.
+// RuntimeWorkspaceService migrates it to a globally unique workspace id on read.
+export const LEGACY_DEFAULT_WORKSPACE_ID = 'default';
 
 export type WorkspaceDescriptor = {
   id: string;

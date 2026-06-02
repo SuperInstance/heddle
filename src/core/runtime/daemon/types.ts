@@ -1,40 +1,35 @@
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 
-export type DaemonOwnerRecord = {
-  ownerId: string;
-  mode: 'daemon';
+export type ControlPlaneServerRecord = {
+  serverId: string;
+  mode: 'daemon' | 'embedded-chat';
   host: string;
   port: number;
   pid: number;
   startedAt: string;
   lastSeenAt: string;
-  workspaceRoot: string;
-  stateRoot: string;
 };
 
 export type RegisteredWorkspaceRecord = {
   workspace: WorkspaceDescriptor;
-  owner?: DaemonOwnerRecord;
   updatedAt: string;
 };
 
 export type DaemonRegistry = {
   version: 1;
   updatedAt: string;
+  server?: ControlPlaneServerRecord;
   workspaces: RegisteredWorkspaceRecord[];
 };
 
-export type UpsertDaemonWorkspaceRegistrationInput = {
+export type RegisterControlPlaneServerInput = {
   registryPath: string;
-  workspaces: WorkspaceDescriptor[];
-  owner: Omit<DaemonOwnerRecord, 'lastSeenAt'> & { lastSeenAt?: string };
+  server: Omit<ControlPlaneServerRecord, 'lastSeenAt'> & { lastSeenAt?: string };
 };
 
-export type ClearDaemonWorkspaceRegistrationInput = {
+export type ClearControlPlaneServerInput = {
   registryPath: string;
-  workspaceIds: string[];
-  stateRoots?: string[];
-  ownerId: string;
+  serverId: string;
 };
 
 export type RegisterKnownWorkspacesInput = {
@@ -43,8 +38,6 @@ export type RegisterKnownWorkspacesInput = {
 };
 
 export type ResolveRuntimeHostInput = {
-  workspaceRoot: string;
-  stateRoot: string;
   registryPath?: string;
   now?: number;
   staleAfterMs?: number;
@@ -55,13 +48,12 @@ export type ResolvedRuntimeHost =
   | {
       kind: 'none';
       registryPath: string;
-      workspaceId: string;
     }
   | {
-      kind: 'daemon';
+      kind: 'server';
       registryPath: string;
-      workspaceId: string;
-      ownerId: string;
+      serverId: string;
+      mode: ControlPlaneServerRecord['mode'];
       endpoint: {
         host: string;
         port: number;

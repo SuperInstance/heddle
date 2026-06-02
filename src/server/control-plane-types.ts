@@ -1,4 +1,4 @@
-import type { DaemonOwnerRecord } from '@/core/runtime/daemon/index.js';
+import type { ControlPlaneServerRecord } from '@/core/runtime/daemon/index.js';
 import type { HeartbeatDecision, HeartbeatRunView, HeartbeatTaskStatus, HeartbeatTaskView } from '@/core/heartbeat/index.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import type { MemoryStatusView } from '@/core/memory/types.js';
@@ -296,15 +296,14 @@ export type ControlPlaneState = {
   workspaces: WorkspaceDescriptor[];
   knownWorkspaces: WorkspaceDescriptor[];
   runtimeHost: {
-    mode: 'daemon';
-    ownerId: string;
+    mode: ControlPlaneServerRecord['mode'];
+    serverId: string;
     registryPath: string;
     endpoint: {
       host: string;
       port: number;
     };
     startedAt: string;
-    workspaceOwner: DaemonOwnerRecord | null;
   } | null;
   sessions: ChatSessionView[];
   heartbeat: {

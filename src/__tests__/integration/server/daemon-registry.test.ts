@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -6,82 +6,70 @@ import { FileDaemonRegistryRepository, RuntimeDaemonRegistryService } from '@/co
 import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 
 describe('daemon registry', () => {
-  it('registers daemon ownership for workspace catalog entries', () => {
+  it('records a live control-plane server independently from known workspaces', () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-'));
     const stateRoot = join(workspaceRoot, '.heddle');
     const registryPath = FileDaemonRegistryRepository.resolvePath(mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-home-')));
     const catalog = RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
 
-    const registry = RuntimeDaemonRegistryService.upsertWorkspaceRegistration({
+    RuntimeDaemonRegistryService.registerKnownWorkspaces({ registryPath, workspaces: catalog.workspaces });
+    const registry = RuntimeDaemonRegistryService.registerLiveServer({
       registryPath,
-      workspaces: catalog.workspaces,
-      owner: {
-        ownerId: 'daemon-1',
+      server: {
+        serverId: 'server-1',
         mode: 'daemon',
         host: '127.0.0.1',
         port: 8765,
         pid: 1234,
         startedAt: '2026-04-21T00:00:00.000Z',
-        workspaceRoot,
-        stateRoot,
       },
     });
 
-    expect(registry.workspaces).toHaveLength(1);
-    expect(registry.workspaces[0]).toMatchObject({
-      workspace: {
-        id: 'default',
-        workspaceRoot,
-      },
-      owner: {
-        ownerId: 'daemon-1',
-        host: '127.0.0.1',
-        port: 8765,
-        workspaceRoot,
-        stateRoot,
-      },
+    expect(registry.server).toMatchObject({
+      serverId: 'server-1',
+      host: '127.0.0.1',
+      port: 8765,
     });
-
-    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, 'default')?.owner?.ownerId).toBe('daemon-1');
+    expect(registry.workspaces).toEqual([
+      expect.objectContaining({
+        workspace: expect.objectContaining({
+          id: catalog.activeWorkspaceId,
+          workspaceRoot,
+        }),
+      }),
+    ]);
+    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, catalog.activeWorkspaceId)?.workspace.workspaceRoot).toBe(workspaceRoot);
   });
 
-  it('clears ownership only for the matching daemon owner', () => {
-    const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-daemon-clear-'));
-    const stateRoot = join(workspaceRoot, '.heddle');
+  it('clears only the matching live control-plane server', () => {
     const registryPath = FileDaemonRegistryRepository.resolvePath(mkdtempSync(join(tmpdir(), 'heddle-daemon-clear-home-')));
-    const catalog = RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
 
-    RuntimeDaemonRegistryService.upsertWorkspaceRegistration({
+    RuntimeDaemonRegistryService.registerLiveServer({
       registryPath,
-      workspaces: catalog.workspaces,
-      owner: {
-        ownerId: 'daemon-1',
+      server: {
+        serverId: 'server-1',
         mode: 'daemon',
         host: '127.0.0.1',
         port: 8765,
         pid: 1234,
         startedAt: '2026-04-21T00:00:00.000Z',
-        workspaceRoot,
-        stateRoot,
       },
     });
 
-    RuntimeDaemonRegistryService.clearWorkspaceRegistration({
+    RuntimeDaemonRegistryService.clearLiveServer({
       registryPath,
-      workspaceIds: ['default'],
-      ownerId: 'daemon-2',
+      serverId: 'server-2',
     });
-    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, 'default')?.owner?.ownerId).toBe('daemon-1');
+    expect(RuntimeDaemonRegistryService.read(registryPath).server?.serverId).toBe('server-1');
 
-    RuntimeDaemonRegistryService.clearWorkspaceRegistration({
+    RuntimeDaemonRegistryService.clearLiveServer({
       registryPath,
-      workspaceIds: ['default'],
-      ownerId: 'daemon-1',
+      serverId: 'server-1',
     });
-    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, 'default')?.owner).toBeUndefined();
+    expect(RuntimeDaemonRegistryService.read(registryPath).server).toBeUndefined();
   });
 
-  it('keeps default-id workspaces distinct by state root', () => {
+  it('keeps generated workspace ids distinct across registered roots', () => {
     const firstRoot = mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-first-'));
     const secondRoot = mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-second-'));
     const registryPath = FileDaemonRegistryRepository.resolvePath(mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-global-home-')));
@@ -92,7 +80,43 @@ describe('daemon registry', () => {
     const registry = RuntimeDaemonRegistryService.registerKnownWorkspaces({ registryPath, workspaces: secondCatalog.workspaces });
 
     expect(registry.workspaces).toHaveLength(2);
-    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, 'default', join(firstRoot, '.heddle'))?.workspace.workspaceRoot).toBe(firstRoot);
-    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, 'default', join(secondRoot, '.heddle'))?.workspace.workspaceRoot).toBe(secondRoot);
+    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, firstCatalog.activeWorkspaceId)?.workspace.workspaceRoot).toBe(firstRoot);
+    expect(RuntimeDaemonRegistryService.readWorkspaceRegistration(registryPath, secondCatalog.activeWorkspaceId)?.workspace.workspaceRoot).toBe(secondRoot);
+  });
+
+  it('normalizes legacy workspace-owner records into a top-level live server', () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-legacy-'));
+    const stateRoot = join(workspaceRoot, '.heddle');
+    const registryPath = FileDaemonRegistryRepository.resolvePath(mkdtempSync(join(tmpdir(), 'heddle-daemon-registry-legacy-home-')));
+    const catalog = RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
+
+    writeFileSync(registryPath, `${JSON.stringify({
+      version: 1,
+      updatedAt: '2026-04-21T00:00:30.000Z',
+      workspaces: [{
+        workspace: catalog.workspaces[0],
+        owner: {
+          ownerId: 'legacy-owner',
+          mode: 'daemon',
+          host: '127.0.0.1',
+          port: 8765,
+          pid: 1234,
+          startedAt: '2026-04-21T00:00:00.000Z',
+          lastSeenAt: '2026-04-21T00:00:30.000Z',
+        },
+        updatedAt: '2026-04-21T00:00:30.000Z',
+      }],
+    }, null, 2)}\n`, 'utf8');
+
+    const registry = RuntimeDaemonRegistryService.read(registryPath);
+
+    expect(registry.server).toMatchObject({
+      serverId: 'legacy-owner',
+      mode: 'daemon',
+      host: '127.0.0.1',
+      port: 8765,
+    });
+    expect(readFileSync(registryPath, 'utf8')).toContain('owner');
+    expect(RuntimeDaemonRegistryService.registerKnownWorkspaces({ registryPath, workspaces: catalog.workspaces }).workspaces[0]).not.toHaveProperty('owner');
   });
 });

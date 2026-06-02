@@ -9,6 +9,7 @@ import { FileChatSessionRepository } from '../../../core/chat/engine/sessions/re
 import type { ChatSession } from '../../../core/chat/types.js';
 import * as agentLoopModule from '@/core/runtime/loop/index.js';
 import type { ResolvedRuntimeHost } from '@/core/runtime/daemon/index.js';
+import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 import type { RunResult } from '../../../index.js';
 import { createHeddleServerApp } from '../../../server/app.js';
 
@@ -108,7 +109,10 @@ describe('AskCliHost.run', () => {
     expect(session?.history).toEqual(result.transcript);
     expect(session?.turns).toHaveLength(1);
     expect(session?.lastContinuePrompt).toBe('inspect the repository');
-    expect(session?.workspaceId).toBe('default');
+    expect(session?.workspaceId).toBe(RuntimeWorkspaceService.resolveContext({
+      workspaceRoot,
+      stateRoot: join(workspaceRoot, '.heddle'),
+    }).activeWorkspace.id);
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining(`Session: ${catalog[0]!.id}`));
   });
 
@@ -329,10 +333,10 @@ describe('AskCliHost.run', () => {
     await onceListening(server);
     const address = server.address() as AddressInfo;
     const runtimeHost: ResolvedRuntimeHost = {
-      kind: 'daemon',
+      kind: 'server',
       registryPath: join(workspaceRoot, 'daemon-registry.json'),
-      workspaceId: 'default',
-      ownerId: 'daemon-owner',
+      serverId: 'daemon-owner',
+      mode: 'daemon',
       endpoint: { host: '127.0.0.1', port: address.port },
       startedAt: '2026-04-21T00:00:00.000Z',
       lastSeenAt: '2026-04-21T00:00:00.000Z',
@@ -391,10 +395,10 @@ describe('AskCliHost.run', () => {
     await onceListening(server);
     const address = server.address() as AddressInfo;
     const runtimeHost: ResolvedRuntimeHost = {
-      kind: 'daemon',
+      kind: 'server',
       registryPath: join(workspaceRoot, 'daemon-registry.json'),
-      workspaceId: 'default',
-      ownerId: 'daemon-owner',
+      serverId: 'daemon-owner',
+      mode: 'daemon',
       endpoint: { host: '127.0.0.1', port: address.port },
       startedAt: '2026-04-21T00:00:00.000Z',
       lastSeenAt: '2026-04-21T00:00:00.000Z',

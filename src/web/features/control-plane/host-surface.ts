@@ -1,16 +1,14 @@
 import type { ControlPlaneState } from '../../lib/api';
 
-const STALE_AFTER_MS = 45_000;
-
 export type RuntimeHostSurface = {
-  state: 'attached' | 'stale' | 'local';
+  state: 'attached' | 'local';
   label: string;
   badgeLabel: string;
   detail: string;
-  tone: 'secondary' | 'outline' | 'destructive';
+  tone: 'secondary' | 'outline';
   endpoint?: string;
-  ownerId?: string;
-  lastSeenAt?: string;
+  serverId?: string;
+  startedAt?: string;
 };
 
 export function projectRuntimeHostSurface(state?: ControlPlaneState): RuntimeHostSurface {
@@ -19,49 +17,21 @@ export function projectRuntimeHostSurface(state?: ControlPlaneState): RuntimeHos
       state: 'local',
       label: 'Local control plane',
       badgeLabel: 'Local',
-      detail: 'No daemon ownership metadata is loaded in this control-plane session.',
+      detail: 'No live server metadata is loaded in this control-plane session.',
       tone: 'outline',
     };
   }
 
-  const lastSeenAt = state.runtimeHost.workspaceOwner?.lastSeenAt;
-  const stale = isStale(lastSeenAt);
   const endpoint = `${state.runtimeHost.endpoint.host}:${state.runtimeHost.endpoint.port}`;
-
-  if (stale) {
-    return {
-      state: 'stale',
-      label: 'Daemon unreachable',
-      badgeLabel: 'Stale daemon',
-      detail: lastSeenAt ?
-        `The last daemon heartbeat is stale for ${state.workspace.name}. Refresh state or restart the daemon before trusting live runtime status.`
-      : `The daemon owner for ${state.workspace.name} is not reporting a recent heartbeat.`,
-      tone: 'destructive',
-      endpoint,
-      ownerId: state.runtimeHost.ownerId,
-      lastSeenAt,
-    };
-  }
 
   return {
     state: 'attached',
-    label: 'Attached to daemon',
-    badgeLabel: 'Daemon',
-    detail: `Sessions and tasks are reading daemon-owned runtime state for ${state.workspace.name}.`,
+    label: 'Attached to control-plane server',
+    badgeLabel: 'Server',
+    detail: `Sessions and tasks are using the live control-plane server for ${state.workspace.name}.`,
     tone: 'secondary',
     endpoint,
-    ownerId: state.runtimeHost.ownerId,
-    lastSeenAt,
+    serverId: state.runtimeHost.serverId,
+    startedAt: state.runtimeHost.startedAt,
   };
-}
-
-function isStale(lastSeenAt: string | undefined): boolean {
-  if (!lastSeenAt) {
-    return false;
-  }
-  const parsed = Date.parse(lastSeenAt);
-  if (!Number.isFinite(parsed)) {
-    return false;
-  }
-  return Date.now() - parsed > STALE_AFTER_MS;
 }

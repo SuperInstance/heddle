@@ -65,8 +65,8 @@ export function OverviewScreen({
               <MetaRow label="Endpoint">
                 {state.runtimeHost.endpoint.host}:{state.runtimeHost.endpoint.port}
               </MetaRow>
-              <MetaRow label="Owner">{state.runtimeHost.ownerId}</MetaRow>
-              <MetaRow label="Last seen">{state.runtimeHost.workspaceOwner?.lastSeenAt ?? 'unknown'}</MetaRow>
+              <MetaRow label="Server">{state.runtimeHost.serverId}</MetaRow>
+              <MetaRow label="Started">{state.runtimeHost.startedAt}</MetaRow>
               <MetaRow label="Registry">{state.runtimeHost.registryPath}</MetaRow>
             </dl>
           : <p className="mt-4 text-sm text-muted-foreground">Daemon metadata is not loaded in this control-plane session.</p>}

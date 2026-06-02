@@ -5,7 +5,7 @@ import type { ResolvedRuntimeHost } from '@/core/runtime/daemon/index.js';
 export function RuntimeHostInterstitial({
   runtimeHost,
 }: {
-  runtimeHost: Extract<ResolvedRuntimeHost, { kind: 'daemon' }>;
+  runtimeHost: Extract<ResolvedRuntimeHost, { kind: 'server' }>;
 }) {
   const { exit } = useApp();
   const endpoint = `http://${runtimeHost.endpoint.host}:${runtimeHost.endpoint.port}`;
@@ -29,15 +29,14 @@ export function RuntimeHostInterstitial({
 
   return (
     <Box flexDirection="column" paddingX={1} paddingY={1}>
-      <Text bold>Workspace owned by daemon</Text>
+      <Text bold>Control-plane server is already running</Text>
       <Box marginTop={1} flexDirection="column">
-        <Text>This workspace already has a live Heddle daemon owner.</Text>
-        <Text>Interactive chat stays blocked here so one workspace does not get two competing runtime owners.</Text>
+        <Text>Heddle already has a live local control-plane server.</Text>
+        <Text>Interactive chat stays blocked here so this process does not create a competing runtime owner.</Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
-        <Text>workspace={runtimeHost.workspaceId}</Text>
-        <Text>daemon={endpoint}</Text>
-        <Text>owner={runtimeHost.ownerId}</Text>
+        <Text>server={endpoint}</Text>
+        <Text>serverId={runtimeHost.serverId}</Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
         <Text bold>Actions</Text>

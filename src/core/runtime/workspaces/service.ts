@@ -5,11 +5,12 @@
  * normalization, active workspace selection, creation, and renaming. Host code
  * should call this service instead of touching workspace catalog files.
  */
+import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
 import { FileWorkspaceRepository } from './repository.js';
 import { WorkspaceCatalogReadSchema } from './schemas.js';
 import {
-  DEFAULT_WORKSPACE_ID,
+  LEGACY_DEFAULT_WORKSPACE_ID,
   type CreateWorkspaceDescriptorInput,
   type RenameWorkspaceDescriptorInput,
   type ResolvedWorkspaceContext,
@@ -113,7 +114,7 @@ export class RuntimeWorkspaceService {
         input.repoRoots.map((root) => resolve(root))
       : [workspaceRoot];
     const nextWorkspace: WorkspaceDescriptor = {
-      id: input.nextId ?? `workspace-${Date.now()}`,
+      id: input.nextId ?? RuntimeWorkspaceService.createWorkspaceId(),
       name: input.name.trim() || RuntimeWorkspaceService.deriveDefaultWorkspaceName(workspaceRoot),
       workspaceRoot,
       repoRoots,
@@ -144,12 +145,13 @@ export class RuntimeWorkspaceService {
 
   private static createDefaultCatalog(config: WorkspaceRootConfig): WorkspaceCatalog {
     const now = new Date().toISOString();
+    const workspaceId = RuntimeWorkspaceService.createWorkspaceId(config.stateRoot);
     return {
       version: 1,
-      activeWorkspaceId: DEFAULT_WORKSPACE_ID,
+      activeWorkspaceId: workspaceId,
       workspaces: [
         {
-          id: DEFAULT_WORKSPACE_ID,
+          id: workspaceId,
           name: RuntimeWorkspaceService.deriveDefaultWorkspaceName(config.workspaceRoot),
           workspaceRoot: config.workspaceRoot,
           repoRoots: [config.workspaceRoot],
@@ -180,7 +182,10 @@ export class RuntimeWorkspaceService {
     const workspaces =
       parsed.data.workspaces && parsed.data.workspaces.length > 0 ?
         parsed.data.workspaces.map((workspace, index) => RuntimeWorkspaceService.normalizeDescriptor(workspace, {
-          fallbackId: index === 0 ? DEFAULT_WORKSPACE_ID : `workspace-${index + 1}`,
+          fallbackId:
+            index === 0 ?
+              RuntimeWorkspaceService.createWorkspaceId(args.stateRoot)
+            : RuntimeWorkspaceService.createWorkspaceId(workspace.stateRoot ?? `${args.stateRoot}:${index}`),
           workspaceRoot: args.workspaceRoot,
           stateRoot: args.stateRoot,
         }))
@@ -188,7 +193,7 @@ export class RuntimeWorkspaceService {
     const activeWorkspaceId =
       parsed.data.activeWorkspaceId && workspaces.some((workspace) => workspace.id === parsed.data.activeWorkspaceId) ?
         parsed.data.activeWorkspaceId
-      : workspaces[0]?.id ?? DEFAULT_WORKSPACE_ID;
+      : workspaces[0]?.id ?? fallback.activeWorkspaceId;
 
     return {
       version: 1,
@@ -217,7 +222,7 @@ export class RuntimeWorkspaceService {
       : [workspaceRoot];
 
     return {
-      id: workspace.id?.trim() || options.fallbackId,
+      id: RuntimeWorkspaceService.normalizeWorkspaceId(workspace.id, options.fallbackId, stateRoot),
       name: workspace.name?.trim() || RuntimeWorkspaceService.deriveDefaultWorkspaceName(workspaceRoot),
       workspaceRoot,
       repoRoots,
@@ -225,5 +230,22 @@ export class RuntimeWorkspaceService {
       createdAt: workspace.createdAt ?? now,
       updatedAt: workspace.updatedAt ?? now,
     };
+  }
+
+  private static normalizeWorkspaceId(id: string | undefined, fallbackId: string, stateRoot: string): string {
+    const trimmed = id?.trim();
+    if (!trimmed || trimmed === LEGACY_DEFAULT_WORKSPACE_ID) {
+      // Backward compatibility only: migrate old local `default` ids into stable,
+      // state-root-derived ids so one daemon can safely serve multiple workspaces.
+      return fallbackId || RuntimeWorkspaceService.createWorkspaceId(stateRoot);
+    }
+    return trimmed;
+  }
+
+  private static createWorkspaceId(seed?: string): string {
+    if (!seed) {
+      return `workspace-${randomUUID()}`;
+    }
+    return `workspace-${createHash('sha256').update(resolve(seed)).digest('hex').slice(0, 16)}`;
   }
 }

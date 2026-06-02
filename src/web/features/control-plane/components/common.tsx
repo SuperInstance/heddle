@@ -118,11 +118,11 @@ export function RuntimeHostStrip({
         </div>
         {onRefresh ? <Button type="button" variant="outline" size="sm" onClick={onRefresh}>Refresh state</Button> : null}
       </div>
-      {host.endpoint || host.ownerId || host.lastSeenAt ?
+      {host.endpoint || host.serverId || host.startedAt ?
         <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {host.endpoint ? <span>endpoint={host.endpoint}</span> : null}
-          {host.ownerId ? <span>owner={host.ownerId}</span> : null}
-          {host.lastSeenAt ? <span>last seen={new Date(host.lastSeenAt).toLocaleTimeString()}</span> : null}
+          {host.serverId ? <span>server={host.serverId}</span> : null}
+          {host.startedAt ? <span>started={new Date(host.startedAt).toLocaleTimeString()}</span> : null}
         </div>
       : null}
     </section>
@@ -135,8 +135,8 @@ function RuntimeHostInfoContent({ host }: { host: RuntimeHostSurface }) {
       <strong>{host.label}</strong>
       <p>{host.detail}</p>
       {host.endpoint ? <p>endpoint={host.endpoint}</p> : null}
-      {host.ownerId ? <p>owner={host.ownerId}</p> : null}
-      {host.lastSeenAt ? <p>last seen={new Date(host.lastSeenAt).toLocaleTimeString()}</p> : null}
+      {host.serverId ? <p>server={host.serverId}</p> : null}
+      {host.startedAt ? <p>started={new Date(host.startedAt).toLocaleTimeString()}</p> : null}
     </div>
   );
 }

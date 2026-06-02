@@ -1,5 +1,5 @@
 import type { Logger } from 'pino';
-import type { DaemonOwnerRecord } from '@/core/runtime/daemon/index.js';
+import type { ControlPlaneServerRecord } from '@/core/runtime/daemon/index.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 
 export type HeddleServerOptions = {
@@ -19,8 +19,8 @@ export type HeddleServerListenOptions = HeddleServerOptions & {
 };
 
 export type HeddleRuntimeHostDescriptor = {
-  mode: 'daemon';
-  ownerId: string;
+  mode: ControlPlaneServerRecord['mode'];
+  serverId: string;
   registryPath: string;
   endpoint: {
     host: string;
@@ -29,9 +29,7 @@ export type HeddleRuntimeHostDescriptor = {
   startedAt: string;
 };
 
-export type HeddleRuntimeHostInfo = HeddleRuntimeHostDescriptor & {
-  workspaceOwner: DaemonOwnerRecord | null;
-};
+export type HeddleRuntimeHostInfo = HeddleRuntimeHostDescriptor;
 
 export type HeddleServerContext = {
   workspaceRoot: string;

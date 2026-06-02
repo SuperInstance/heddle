@@ -8,7 +8,7 @@ import { ConversationCompactionService } from '@/core/chat/engine/compaction/ind
 import { createConversationEngine } from '@/core/chat/engine/conversation-engine.js';
 import type { ChatSessionLeaseOwner } from '@/core/chat/engine/sessions/leases/index.js';
 import { AgentLoopRuntimeService } from '@/core/runtime/loop/index.js';
-import { DEFAULT_WORKSPACE_ID, RuntimeWorkspaceService, type WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
+import { RuntimeWorkspaceService, type WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import { controlPlaneRouter } from '@/server/routes/trpc/control-plane.js';
 import type { HeddleServerContext } from '@/server/types.js';
 
@@ -41,14 +41,14 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('scopes lifecycle mutations to the requested workspace', async () => {
-    const { caller, secondaryWorkspace, createEngineForWorkspace } = createControlPlaneCaller();
-    const defaultEngine = createEngineForWorkspace(DEFAULT_WORKSPACE_ID);
+    const { caller, activeWorkspace, secondaryWorkspace, createEngineForWorkspace } = createControlPlaneCaller();
+    const defaultEngine = createEngineForWorkspace(activeWorkspace.id);
     const secondaryEngine = createEngineForWorkspace(secondaryWorkspace.id);
     defaultEngine.sessions.create({
       id: 'same-session-id',
       name: 'Default workspace session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
     secondaryEngine.sessions.create({
       id: 'same-session-id',
@@ -63,7 +63,7 @@ describe('control-plane session lifecycle API', () => {
       name: 'Renamed secondary session',
     });
 
-    await expect(caller.session({ workspaceId: DEFAULT_WORKSPACE_ID, id: 'same-session-id' })).resolves.toMatchObject({
+    await expect(caller.session({ workspaceId: activeWorkspace.id, id: 'same-session-id' })).resolves.toMatchObject({
       id: 'same-session-id',
       name: 'Default workspace session',
     });
@@ -87,12 +87,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('resets session transcript state through the API', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'session-reset-api',
       name: 'Reset API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
     engine.sessions.appendMessage(session.id, {
       id: 'local-user-message',
@@ -113,12 +113,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('runs direct shell through the control-plane session API', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'direct-shell-api',
       name: 'Direct shell API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
 
     await expect(caller.sessionDirectShellAsync({
@@ -147,12 +147,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('preflights direct shell risk before interfaces ask for confirmation', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'direct-shell-preflight-api',
       name: 'Direct shell preflight API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
 
     await expect(caller.sessionDirectShellPreflight({
@@ -175,12 +175,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('blocks destructive lifecycle mutations while another client owns the session lease', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'leased-session-api',
       name: 'Leased API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
     engine.sessions.acquireLease(session.id, EXTERNAL_TUI_LEASE_OWNER);
 
@@ -199,12 +199,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('compacts a session through the API without requiring clients to call compaction services', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'session-compact-api',
       name: 'Compact API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
     engine.sessions.update(session.id, (current) => ({
       ...current,
@@ -227,12 +227,12 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('restores prior compaction state when manual compaction fails', async () => {
-    const { caller, engine } = createControlPlaneCaller();
+    const { caller, engine, activeWorkspace } = createControlPlaneCaller();
     const session = engine.sessions.create({
       id: 'session-compact-failure-api',
       name: 'Compact failure API session',
       apiKeyPresent: true,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
     });
     const priorContext = {
       estimatedHistoryTokens: 42,
@@ -324,7 +324,7 @@ describe('control-plane session lifecycle API', () => {
   });
 
   it('returns selected-session runtime context for commands and status surfaces', async () => {
-    const { caller } = createControlPlaneCaller();
+    const { caller, activeWorkspace } = createControlPlaneCaller();
     const session = await caller.sessionCreate({ name: 'Runtime context session', model: 'gpt-5.4' });
     await caller.sessionSettingsUpdate({
       id: session.id,
@@ -335,7 +335,7 @@ describe('control-plane session lifecycle API', () => {
     await expect(caller.sessionRuntimeContext({
       sessionId: session.id,
     })).resolves.toMatchObject({
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
       sessionId: session.id,
       sessionName: 'Runtime context session',
       model: 'gpt-5.4',
@@ -385,7 +385,7 @@ describe('control-plane session lifecycle API', () => {
     vi.useFakeTimers();
     vi.stubEnv('HEDDLE_BROWSER_INTEGRATION_FAKE_AGENT', '1');
     try {
-      const { caller } = createControlPlaneCaller();
+      const { caller, activeWorkspace } = createControlPlaneCaller();
       const session = await caller.sessionCreate({ name: 'Async submit session' });
 
       const accepted = await caller.sessionSendPromptAsync({
@@ -396,7 +396,7 @@ describe('control-plane session lifecycle API', () => {
       expect(accepted).toMatchObject({
         accepted: true,
         sessionId: session.id,
-        workspaceId: DEFAULT_WORKSPACE_ID,
+        workspaceId: activeWorkspace.id,
       });
       await expect(caller.sessionRunState({ id: session.id })).resolves.toMatchObject({
         running: true,
@@ -553,10 +553,10 @@ function createControlPlaneCaller() {
     name: 'Secondary workspace',
     setActive: false,
   });
-  const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === DEFAULT_WORKSPACE_ID);
+  const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === resolved.activeWorkspaceId);
   const secondaryWorkspace = resolved.workspaces.find((workspace) => workspace.id === 'workspace-secondary');
   if (!activeWorkspace) {
-    throw new Error('expected default workspace');
+    throw new Error('expected active workspace');
   }
   if (!secondaryWorkspace) {
     throw new Error('expected secondary workspace');
@@ -584,6 +584,7 @@ function createControlPlaneCaller() {
   return {
     caller: controlPlaneRouter.createCaller(context),
     engine: createEngineForWorkspace(activeWorkspace.id),
+    activeWorkspace,
     secondaryWorkspace,
     createEngineForWorkspace,
   };

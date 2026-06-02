@@ -556,7 +556,7 @@ function buildSubmitPromptArgs(ctx: ControlPlaneWorkspaceContext, input: Session
 function resolveControlPlaneLeaseOwner(ctx: Pick<HeddleServerContext, 'runtimeHost'>): ChatSessionLeaseOwner {
   return {
     ownerKind: 'daemon',
-    ownerId: ctx.runtimeHost?.ownerId ?? `daemon-${process.pid}`,
+    ownerId: ctx.runtimeHost?.serverId ?? `daemon-${process.pid}`,
     clientLabel: 'control plane',
   };
 }

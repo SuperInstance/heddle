@@ -1,53 +1,46 @@
 /**
  * Runtime host resolver.
  *
- * Resolves whether the current workspace has a live daemon owner. This is
- * daemon-discovery policy, not CLI/web presentation.
+ * Resolves whether this machine already has a live local control-plane server.
+ * This is server-discovery policy, not workspace selection or presentation.
  */
+import dayjs from 'dayjs';
 import { FileDaemonRegistryRepository } from './registry-repository.js';
 import { RuntimeDaemonRegistryService } from './registry-service.js';
 import type { ResolvedRuntimeHost, ResolveRuntimeHostInput } from './types.js';
-import { RuntimeWorkspaceService } from '@/core/runtime/workspaces/index.js';
 
 const DEFAULT_STALE_AFTER_MS = 45_000;
 
 export class RuntimeHostResolver {
-  static resolveWorkspaceHost(input: ResolveRuntimeHostInput): ResolvedRuntimeHost {
-    const workspace = RuntimeWorkspaceService.resolveContext(input).activeWorkspace;
+  static resolveLiveServer(input: ResolveRuntimeHostInput = {}): ResolvedRuntimeHost {
     const registryPath = input.registryPath ?? FileDaemonRegistryRepository.resolvePath();
-    const registration = RuntimeDaemonRegistryService.readWorkspaceRegistration(
-      registryPath,
-      workspace.id,
-      workspace.stateRoot,
-    );
-    const owner = registration?.owner;
+    const server = RuntimeDaemonRegistryService.read(registryPath).server;
 
-    if (!owner) {
+    if (!server) {
       return {
         kind: 'none',
         registryPath,
-        workspaceId: workspace.id,
       };
     }
 
-    const now = input.now ?? Date.now();
-    const lastSeenAt = Date.parse(owner.lastSeenAt);
-    const ageMs = Number.isFinite(lastSeenAt) ? Math.max(0, now - lastSeenAt) : Number.POSITIVE_INFINITY;
+    const now = dayjs(input.now);
+    const lastSeenAt = dayjs(server.lastSeenAt);
+    const ageMs = lastSeenAt.isValid() ? Math.max(0, now.diff(lastSeenAt)) : Number.POSITIVE_INFINITY;
     const staleByAge = ageMs > (input.staleAfterMs ?? DEFAULT_STALE_AFTER_MS);
-    const pidAlive = owner.pid > 0 ? (input.isPidAlive ?? RuntimeHostResolver.isPidAlive)(owner.pid) : true;
+    const pidAlive = server.pid > 0 ? (input.isPidAlive ?? RuntimeHostResolver.isPidAlive)(server.pid) : true;
     const stale = staleByAge || !pidAlive;
 
     return {
-      kind: 'daemon',
+      kind: 'server',
       registryPath,
-      workspaceId: workspace.id,
-      ownerId: owner.ownerId,
+      serverId: server.serverId,
+      mode: server.mode,
       endpoint: {
-        host: owner.host,
-        port: owner.port,
+        host: server.host,
+        port: server.port,
       },
-      startedAt: owner.startedAt,
-      lastSeenAt: owner.lastSeenAt,
+      startedAt: server.startedAt,
+      lastSeenAt: server.lastSeenAt,
       stale,
       ageMs,
     };

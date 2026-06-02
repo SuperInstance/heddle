@@ -209,11 +209,10 @@ function createControlPlaneState(): ControlPlaneState {
     ],
     runtimeHost: {
       mode: 'daemon',
-      ownerId: 'owner-1',
+      serverId: 'server-1',
       registryPath: '/Users/example/.heddle/daemon.json',
       endpoint: { host: '127.0.0.1', port: 4873 },
       startedAt: '2026-04-02T00:00:00.000Z',
-      workspaceOwner: { ownerId: 'owner-1', workspaceRoot: '/Users/example/primary', stateRoot: '/Users/example/primary/.heddle', lastSeenAt: '2026-04-02T00:10:00.000Z' },
     },
     sessions: [
       createSession('session-one', 'gpt-5.4', 3),
