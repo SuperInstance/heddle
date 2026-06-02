@@ -87,8 +87,8 @@ export function useChatStatusSummary(args: {
       : args.isMemoryUpdating ? 'Memory maintenance is running in the background • Enter sends • Ctrl+C exits'
       : 'Enter sends • Tab completes slash commands • /help shows commands • !command runs shell • Ctrl+C exits';
     const runtimeHostWarning =
-      args.runtimeHostWarningSource?.kind === 'daemon' && !args.runtimeHostWarningSource.stale ?
-        `Daemon is also attached to this workspace at http://${args.runtimeHostWarningSource.endpoint.host}:${args.runtimeHostWarningSource.endpoint.port}. Different sessions are fine; avoid writing to the same session from multiple clients.`
+      args.runtimeHostWarningSource?.kind === 'server' && !args.runtimeHostWarningSource.stale ?
+        `Control-plane server is running at http://${args.runtimeHostWarningSource.endpoint.host}:${args.runtimeHostWarningSource.endpoint.port}. Different sessions are fine; avoid writing to the same session from multiple clients.`
       : undefined;
     const activityLines = args.liveEvents
       .slice(-4)

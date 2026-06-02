@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import pino from 'pino';
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_WORKSPACE_ID,
   FileWorkspaceRepository,
   RuntimeWorkspaceService,
 } from '@/core/runtime/workspaces/index.js';
@@ -23,18 +22,19 @@ describe('workspace catalog', () => {
     expect(existsSync(catalogPath)).toBe(true);
     expect(catalog).toMatchObject({
       version: 1,
-      activeWorkspaceId: DEFAULT_WORKSPACE_ID,
+      activeWorkspaceId: catalog.workspaces[0]?.id,
     });
+    expect(catalog.activeWorkspaceId).toMatch(/^workspace-/);
     expect(catalog.workspaces).toHaveLength(1);
     expect(catalog.workspaces[0]).toMatchObject({
-      id: DEFAULT_WORKSPACE_ID,
+      id: catalog.activeWorkspaceId,
       workspaceRoot,
       repoRoots: [workspaceRoot],
       stateRoot,
     });
 
     const saved = JSON.parse(readFileSync(catalogPath, 'utf8')) as typeof catalog;
-    expect(saved.activeWorkspaceId).toBe(DEFAULT_WORKSPACE_ID);
+    expect(saved.activeWorkspaceId).toBe(catalog.activeWorkspaceId);
     expect(saved.workspaces[0]?.workspaceRoot).toBe(workspaceRoot);
   });
 
@@ -56,19 +56,18 @@ describe('workspace catalog', () => {
       workspaces: catalog.workspaces,
       runtimeHost: {
         mode: 'daemon',
-        ownerId: 'embedded-test',
+        serverId: 'embedded-test',
         registryPath,
         endpoint: { host: '127.0.0.1', port: 0 },
         startedAt: '2026-04-26T00:00:00.000Z',
-        workspaceOwner: null,
       },
       logger: pino({ level: 'silent' }),
     });
 
     const state = await caller.state();
-    expect(state.activeWorkspaceId).toBe(DEFAULT_WORKSPACE_ID);
+    expect(state.activeWorkspaceId).toBe(activeWorkspace.id);
     expect(state.workspace).toMatchObject({
-      id: DEFAULT_WORKSPACE_ID,
+      id: activeWorkspace.id,
       workspaceRoot,
       stateRoot,
     });
@@ -102,7 +101,7 @@ describe('workspace catalog', () => {
     });
 
     expect(created.workspaces).toHaveLength(2);
-    expect(created.activeWorkspaceId).toBe(DEFAULT_WORKSPACE_ID);
+    expect(created.activeWorkspaceId).toBe(created.workspaces[0]?.id);
 
     const switched = RuntimeWorkspaceService.setActive({
       workspaceRoot,
@@ -122,12 +121,16 @@ describe('workspace catalog', () => {
   it('can rename a workspace', () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-workspace-rename-'));
     const stateRoot = join(workspaceRoot, '.heddle');
-    RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
+    const catalog = RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
+    const activeWorkspace = catalog.workspaces[0];
+    if (!activeWorkspace) {
+      throw new Error('expected active workspace');
+    }
 
     const renamed = RuntimeWorkspaceService.rename({
       workspaceRoot,
       stateRoot,
-      workspaceId: DEFAULT_WORKSPACE_ID,
+      workspaceId: activeWorkspace.id,
       name: 'Primary workspace',
     });
 
@@ -153,11 +156,10 @@ describe('workspace catalog', () => {
       workspaces: catalog.workspaces,
       runtimeHost: {
         mode: 'daemon',
-        ownerId: 'daemon-test',
+        serverId: 'daemon-test',
         registryPath,
         endpoint: { host: '127.0.0.1', port: 8765 },
         startedAt: '2026-04-26T00:00:00.000Z',
-        workspaceOwner: null,
       },
       logger: pino({ level: 'silent' }),
     });
@@ -167,18 +169,18 @@ describe('workspace catalog', () => {
       workspaceRoot: join(workspaceRoot, 'second'),
       setActive: true,
     });
-    expect(created.activeWorkspaceId).not.toBe(DEFAULT_WORKSPACE_ID);
+    expect(created.activeWorkspaceId).not.toBe(activeWorkspace.id);
     expect(created.workspace).toMatchObject({
       name: 'Second workspace',
       workspaceRoot: join(workspaceRoot, 'second'),
       stateRoot: join(workspaceRoot, 'second', '.heddle'),
     });
 
-    const switched = await caller.workspaceSetActive({ workspaceId: DEFAULT_WORKSPACE_ID });
-    expect(switched.activeWorkspaceId).toBe(DEFAULT_WORKSPACE_ID);
-    expect(switched.workspace.id).toBe(DEFAULT_WORKSPACE_ID);
+    const switched = await caller.workspaceSetActive({ workspaceId: activeWorkspace.id });
+    expect(switched.activeWorkspaceId).toBe(activeWorkspace.id);
+    expect(switched.workspace.id).toBe(activeWorkspace.id);
 
-    const renamed = await caller.workspaceRename({ workspaceId: DEFAULT_WORKSPACE_ID, name: 'Renamed default' });
+    const renamed = await caller.workspaceRename({ workspaceId: activeWorkspace.id, name: 'Renamed default' });
     expect(renamed.workspace.name).toBe('Renamed default');
 
     const registeredStateRoots = RuntimeDaemonRegistryService.read(registryPath).workspaces.map((record) => record.workspace.stateRoot);
@@ -189,6 +191,7 @@ describe('workspace catalog', () => {
   it('routes session APIs through the requested workspace state root without switching active workspace', async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-workspace-session-routing-'));
     const stateRoot = join(workspaceRoot, '.heddle');
+    const registryPath = FileDaemonRegistryRepository.resolvePath(mkdtempSync(join(tmpdir(), 'heddle-workspace-session-routing-home-')));
     RuntimeWorkspaceService.ensureCatalog({ workspaceRoot, stateRoot });
     const resolved = RuntimeWorkspaceService.createDescriptor({
       workspaceRoot,
@@ -198,7 +201,7 @@ describe('workspace catalog', () => {
       setActive: false,
       nextId: 'workspace-2',
     });
-    const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === DEFAULT_WORKSPACE_ID);
+    const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === resolved.activeWorkspaceId);
     const secondWorkspace = resolved.workspaces.find((workspace) => workspace.id === 'workspace-2');
     if (!activeWorkspace || !secondWorkspace) {
       throw new Error('expected both workspaces');
@@ -225,7 +228,13 @@ describe('workspace catalog', () => {
       activeWorkspaceId: activeWorkspace.id,
       activeWorkspace,
       workspaces: resolved.workspaces,
-      runtimeHost: null,
+      runtimeHost: {
+        mode: 'daemon',
+        serverId: 'daemon-test',
+        registryPath,
+        endpoint: { host: '127.0.0.1', port: 8765 },
+        startedAt: '2026-04-26T00:00:00.000Z',
+      },
       logger: pino({ level: 'silent' }),
     });
 
@@ -281,7 +290,7 @@ describe('workspace catalog', () => {
       setActive: false,
       nextId: 'workspace-2',
     });
-    const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === DEFAULT_WORKSPACE_ID);
+    const activeWorkspace = resolved.workspaces.find((workspace) => workspace.id === resolved.activeWorkspaceId);
     const secondWorkspace = resolved.workspaces.find((workspace) => workspace.id === 'workspace-2');
     if (!activeWorkspace || !secondWorkspace) {
       throw new Error('expected both workspaces');
@@ -329,7 +338,7 @@ describe('workspace catalog', () => {
       activeWorkspaceId: 'workspace-2',
       workspaces: [
         {
-          id: DEFAULT_WORKSPACE_ID,
+          id: 'default',
           name: 'Default workspace',
           workspaceRoot,
           repoRoots: [workspaceRoot],
@@ -407,11 +416,10 @@ describe('workspace catalog', () => {
       workspaces: catalog.workspaces,
       runtimeHost: {
         mode: 'daemon',
-        ownerId: 'daemon-test',
+        serverId: 'daemon-test',
         registryPath,
         endpoint: { host: '127.0.0.1', port: 8765 },
         startedAt: '2026-04-26T00:00:00.000Z',
-        workspaceOwner: null,
       },
       logger: pino({ level: 'silent' }),
     });

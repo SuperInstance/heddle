@@ -9,4 +9,3 @@ export type {
   WorkspaceDescriptor,
   WorkspaceRootConfig,
 } from './types.js';
-export { DEFAULT_WORKSPACE_ID } from './types.js';

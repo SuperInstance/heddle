@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import type { Logger } from 'pino';
+import { FileDaemonRegistryRepository, RuntimeDaemonRegistryService } from '@/core/runtime/daemon/index.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 import { getWorkspaceOperationLogger } from '@/server/logging/workspace-operation-logger.js';
 import type { HeddleServerContext } from '@/server/types.js';
@@ -85,7 +86,12 @@ function resolveWorkspaceDescriptor(ctx: HeddleServerContext, workspaceId: strin
     return ctx.activeWorkspace;
   }
 
-  const workspace = ctx.workspaces.find((candidate) => candidate.id === workspaceId);
+  const workspace =
+    ctx.workspaces.find((candidate) => candidate.id === workspaceId)
+    ?? RuntimeDaemonRegistryService.readWorkspaceRegistration(
+      ctx.runtimeHost?.registryPath ?? FileDaemonRegistryRepository.resolvePath(),
+      workspaceId,
+    )?.workspace;
   if (!workspace) {
     throw new Error(`Workspace not found: ${workspaceId}`);
   }

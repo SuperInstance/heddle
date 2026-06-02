@@ -42,6 +42,7 @@ type HeddleProjectConfig = {
 
 type ResolvedCliOptions = {
   workspaceRoot: string;
+  activeWorkspaceId: string;
   model?: string;
   maxSteps?: number;
   preferApiKey: boolean;
@@ -87,13 +88,13 @@ async function main() {
     .action(async () => {
       const resolved = resolveCliOptions(program.opts<RootCliOptions>());
       chdir(resolved.workspaceRoot);
-      if (resolved.runtimeHost.kind !== 'daemon' || resolved.forceOwnerConflict) {
+      if (resolved.runtimeHost.kind !== 'server' || resolved.forceOwnerConflict) {
         throw new Error('chat-v2 requires a running Heddle daemon because it only consumes the shared control-plane API.');
       }
       writeRuntimeHostNotice('chat-v2', resolved.runtimeHost);
       startChatCliV2({
         trpcUrl: `http://${resolved.runtimeHost.endpoint.host}:${resolved.runtimeHost.endpoint.port}/trpc`,
-        workspaceId: resolved.runtimeHost.workspaceId,
+        workspaceId: resolved.activeWorkspaceId,
         model: resolved.model,
         maxSteps: resolved.maxSteps,
         searchIgnoreDirs: resolved.searchIgnoreDirs,
@@ -509,6 +510,7 @@ function resolveCliOptions(flags: RootCliOptions): ResolvedCliOptions {
   });
   return {
     workspaceRoot,
+    activeWorkspaceId: workspaceContext.activeWorkspaceId,
     model: flags.model ?? projectConfig.model,
     maxSteps: parsePositiveInt(flags.maxSteps) ?? projectConfig.maxSteps,
     preferApiKey: Boolean(flags.preferApiKey),
@@ -519,10 +521,7 @@ function resolveCliOptions(flags: RootCliOptions): ResolvedCliOptions {
       workspaceRoot,
       resolveAgentContextPaths(workspaceRoot, projectConfig.agentContextPaths)
     ),
-    runtimeHost: RuntimeHostResolver.resolveWorkspaceHost({
-      workspaceRoot,
-      stateRoot,
-    }),
+    runtimeHost: RuntimeHostResolver.resolveLiveServer(),
     forceOwnerConflict: Boolean(flags.forceOwnerConflict),
   };
 }

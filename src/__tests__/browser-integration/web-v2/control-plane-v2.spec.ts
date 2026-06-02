@@ -96,7 +96,8 @@ test('navigates primary and settings routes without hash routing', async ({ page
 });
 
 test('shows task run workbench and run details', async ({ page }) => {
-  await trpc.controlPlane.workspaceSetActive.mutate({ workspaceId: 'default' });
+  const state = await trpc.controlPlane.state.query();
+  await trpc.controlPlane.workspaceSetActive.mutate({ workspaceId: state.activeWorkspaceId });
   await page.goto('/tasks');
   const taskList = page.getByRole('region', { name: 'Tasks' });
 

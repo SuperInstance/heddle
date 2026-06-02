@@ -1,8 +1,14 @@
 # Runtime Daemon
 
-Owns runtime-host discovery through the daemon registry. The registry service
-records known workspaces and live daemon ownership; the host resolver turns that
-registry state into the active runtime-owner view used by CLI and server hosts.
+Owns local control-plane server discovery through the global daemon registry.
+The registry service records two distinct facts:
+
+- the one live local control-plane server, when one is registered
+- known workspace descriptors that clients may target by request
+
+Workspace records are catalog/identity facts. They must not imply server
+ownership. Server liveness is top-level process state so TUI, web, daemon, and
+future embedded hosts can all discover the same machine-level control plane.
 
 Call `RuntimeDaemonRegistryService`, `RuntimeHostResolver`, and
 `RuntimeHostMessages` directly. File I/O stays inside

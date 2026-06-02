@@ -29,43 +29,38 @@ export async function listenHeddleDaemon(options: HeddleServerListenOptions): Pr
   }
   const logger = options.logger ?? createServerLogger({ stateRoot: options.stateRoot });
   const registryPath = options.daemonRegistryPath ?? FileDaemonRegistryRepository.resolvePath();
-  const ownerId = `daemon-${process.pid}-${Date.now()}`;
+  const serverId = `daemon-${process.pid}-${Date.now()}`;
   const startedAt = new Date().toISOString();
-  const registerDaemon = (lastSeenAt?: string) => {
+  const registerDaemonServer = (lastSeenAt?: string) => {
     const workspaceContext = RuntimeWorkspaceService.resolveContext({
       workspaceRoot: options.workspaceRoot,
       stateRoot: options.stateRoot,
     });
-    RuntimeDaemonRegistryService.upsertWorkspaceRegistration({
+    RuntimeDaemonRegistryService.registerKnownWorkspaces({
       registryPath,
       workspaces: workspaceContext.workspaces,
-      owner: {
-        ownerId,
+    });
+    RuntimeDaemonRegistryService.registerLiveServer({
+      registryPath,
+      server: {
+        serverId,
         mode: 'daemon',
         host: options.host,
         port: options.port,
         pid: process.pid,
         startedAt,
         lastSeenAt,
-        workspaceRoot: options.workspaceRoot,
-        stateRoot: options.stateRoot,
       },
     });
   };
   const unregisterDaemon = () => {
-    const workspaceContext = RuntimeWorkspaceService.resolveContext({
-      workspaceRoot: options.workspaceRoot,
-      stateRoot: options.stateRoot,
-    });
-    RuntimeDaemonRegistryService.clearWorkspaceRegistration({
+    RuntimeDaemonRegistryService.clearLiveServer({
       registryPath,
-      workspaceIds: workspaceContext.workspaces.map((workspace) => workspace.id),
-      stateRoots: workspaceContext.workspaces.map((workspace) => workspace.stateRoot),
-      ownerId,
+      serverId,
     });
   };
 
-  registerDaemon(startedAt);
+  registerDaemonServer(startedAt);
   const heartbeatSchedulerHost = new HeddleHeartbeatSchedulerHost({
     workspaceRoot: options.workspaceRoot,
     stateRoot: options.stateRoot,
@@ -90,7 +85,7 @@ export async function listenHeddleDaemon(options: HeddleServerListenOptions): Pr
     logger,
     runtimeHost: {
       mode: 'daemon',
-      ownerId,
+      serverId,
       registryPath,
       endpoint: {
         host: options.host,
@@ -112,7 +107,7 @@ export async function listenHeddleDaemon(options: HeddleServerListenOptions): Pr
 
   const heartbeat = setInterval(() => {
     try {
-      registerDaemon();
+      registerDaemonServer();
       heartbeatSchedulerHost.sync();
     } catch (error) {
       logger.warn({ error }, 'Failed to refresh daemon registry heartbeat');
@@ -165,7 +160,7 @@ export async function listenHeddleDaemon(options: HeddleServerListenOptions): Pr
         assetsDir,
         serveAssets,
         registryPath,
-        ownerId,
+        serverId,
       }, 'Heddle server started');
       process.stdout.write(`Heddle server listening at http://${options.host}:${options.port}\n`);
       process.stdout.write(`workspace=${options.workspaceRoot}\n`);

@@ -1,19 +1,21 @@
 /**
  * Runtime daemon registry service.
  *
- * Owns the domain behavior for recording known workspaces, claiming daemon
- * ownership, clearing daemon ownership, and resolving workspace registrations.
+ * Owns the domain behavior for recording known workspaces and the one live
+ * local control-plane server. Workspace records are identity/catalog facts;
+ * server liveness is top-level process state and must not be stored as
+ * workspace ownership.
  */
 import { resolve } from 'node:path';
 import { DaemonRegistryReadSchema } from './schemas.js';
 import { FileDaemonRegistryRepository } from './registry-repository.js';
 import type {
-  ClearDaemonWorkspaceRegistrationInput,
-  DaemonOwnerRecord,
+  ClearControlPlaneServerInput,
+  ControlPlaneServerRecord,
   DaemonRegistry,
+  RegisterControlPlaneServerInput,
   RegisteredWorkspaceRecord,
   RegisterKnownWorkspacesInput,
-  UpsertDaemonWorkspaceRegistrationInput,
 } from './types.js';
 import type { WorkspaceDescriptor } from '@/core/runtime/workspaces/index.js';
 
@@ -23,52 +25,31 @@ export class RuntimeDaemonRegistryService {
     return RuntimeDaemonRegistryService.normalizeRegistry(repository.readRaw());
   }
 
-  static upsertWorkspaceRegistration(input: UpsertDaemonWorkspaceRegistrationInput): DaemonRegistry {
+  static registerLiveServer(input: RegisterControlPlaneServerInput): DaemonRegistry {
     const registry = RuntimeDaemonRegistryService.read(input.registryPath);
-    const now = input.owner.lastSeenAt ?? new Date().toISOString();
-    const nextRecords = RuntimeDaemonRegistryService.toRecordMap(registry.workspaces);
-
-    for (const workspace of input.workspaces) {
-      nextRecords.set(RuntimeDaemonRegistryService.workspaceRecordKey(workspace), {
-        workspace,
-        owner: {
-          ...input.owner,
-          lastSeenAt: now,
-        },
-        updatedAt: now,
-      });
-    }
+    const now = input.server.lastSeenAt ?? new Date().toISOString();
 
     return RuntimeDaemonRegistryService.saveNext(input.registryPath, {
       version: 1,
       updatedAt: now,
-      workspaces: Array.from(nextRecords.values()),
+      server: {
+        ...input.server,
+        lastSeenAt: now,
+      },
+      workspaces: registry.workspaces,
     });
   }
 
-  static clearWorkspaceRegistration(input: ClearDaemonWorkspaceRegistrationInput): DaemonRegistry {
+  static clearLiveServer(input: ClearControlPlaneServerInput): DaemonRegistry {
     const registry = RuntimeDaemonRegistryService.read(input.registryPath);
-    const targetIds = new Set(input.workspaceIds);
-    const targetStateRoots = new Set((input.stateRoots ?? []).map((stateRoot) => resolve(stateRoot)));
     const now = new Date().toISOString();
+    const server = registry.server?.serverId === input.serverId ? undefined : registry.server;
 
     return RuntimeDaemonRegistryService.saveNext(input.registryPath, {
       version: 1,
       updatedAt: now,
-      workspaces: registry.workspaces.map((record) => {
-        const matchesWorkspace =
-          targetIds.has(record.workspace.id)
-          || targetStateRoots.has(resolve(record.workspace.stateRoot));
-        if (!matchesWorkspace || record.owner?.ownerId !== input.ownerId) {
-          return record;
-        }
-
-        return {
-          ...record,
-          owner: undefined,
-          updatedAt: now,
-        };
-      }),
+      server,
+      workspaces: registry.workspaces,
     });
   }
 
@@ -93,10 +74,8 @@ export class RuntimeDaemonRegistryService {
     const nextRecords = RuntimeDaemonRegistryService.toRecordMap(registry.workspaces);
 
     for (const workspace of input.workspaces) {
-      const existing = nextRecords.get(RuntimeDaemonRegistryService.workspaceRecordKey(workspace));
       nextRecords.set(RuntimeDaemonRegistryService.workspaceRecordKey(workspace), {
         workspace,
-        owner: existing?.owner,
         updatedAt: now,
       });
     }
@@ -104,6 +83,7 @@ export class RuntimeDaemonRegistryService {
     return RuntimeDaemonRegistryService.saveNext(registryPath, {
       version: 1,
       updatedAt: now,
+      server: registry.server,
       workspaces: Array.from(nextRecords.values()),
     });
   }
@@ -134,6 +114,8 @@ export class RuntimeDaemonRegistryService {
     return {
       version: 1,
       updatedAt: parsed.data.updatedAt?.trim() || new Date().toISOString(),
+      server: RuntimeDaemonRegistryService.normalizeServer(parsed.data.server)
+        ?? RuntimeDaemonRegistryService.normalizeLegacyServer(parsed.data.workspaces ?? []),
       workspaces: (parsed.data.workspaces ?? []).flatMap((record) => (
         record.workspace ? [RuntimeDaemonRegistryService.normalizeWorkspaceRecord(record)] : []
       )),
@@ -142,32 +124,54 @@ export class RuntimeDaemonRegistryService {
 
   private static normalizeWorkspaceRecord(record: {
     workspace?: Partial<WorkspaceDescriptor>;
-    owner?: Partial<DaemonOwnerRecord>;
     updatedAt?: string;
   }): RegisteredWorkspaceRecord {
     return {
       workspace: record.workspace as WorkspaceDescriptor,
-      owner: RuntimeDaemonRegistryService.normalizeOwner(record.owner),
       updatedAt: record.updatedAt?.trim() || new Date().toISOString(),
     };
   }
 
-  private static normalizeOwner(owner: Partial<DaemonOwnerRecord> | undefined): DaemonOwnerRecord | undefined {
-    if (!owner?.ownerId || !owner.host || typeof owner.port !== 'number' || !owner.startedAt || !owner.lastSeenAt) {
+  private static normalizeServer(server: Partial<ControlPlaneServerRecord> | undefined): ControlPlaneServerRecord | undefined {
+    if (!server?.serverId || !server.mode || !server.host || typeof server.port !== 'number' || !server.startedAt || !server.lastSeenAt) {
       return undefined;
     }
 
     return {
-      ownerId: owner.ownerId,
-      mode: 'daemon',
-      host: owner.host,
-      port: owner.port,
-      pid: typeof owner.pid === 'number' ? owner.pid : 0,
-      startedAt: owner.startedAt,
-      lastSeenAt: owner.lastSeenAt,
-      workspaceRoot: owner.workspaceRoot ?? '',
-      stateRoot: owner.stateRoot ?? '',
+      serverId: server.serverId,
+      mode: server.mode,
+      host: server.host,
+      port: server.port,
+      pid: typeof server.pid === 'number' ? server.pid : 0,
+      startedAt: server.startedAt,
+      lastSeenAt: server.lastSeenAt,
     };
+  }
+
+  private static normalizeLegacyServer(records: Array<{
+    owner?: {
+      ownerId?: string;
+      mode?: 'daemon';
+      host?: string;
+      port?: number;
+      pid?: number;
+      startedAt?: string;
+      lastSeenAt?: string;
+    };
+  }>): ControlPlaneServerRecord | undefined {
+    return records
+      .map((record) => record.owner)
+      .filter((owner): owner is NonNullable<typeof owner> => Boolean(owner))
+      .sort((left, right) => (right.lastSeenAt ?? '').localeCompare(left.lastSeenAt ?? ''))
+      .flatMap((owner) => RuntimeDaemonRegistryService.normalizeServer({
+        serverId: owner.ownerId,
+        mode: 'daemon',
+        host: owner.host,
+        port: owner.port,
+        pid: owner.pid,
+        startedAt: owner.startedAt,
+        lastSeenAt: owner.lastSeenAt,
+      }) ?? [])[0];
   }
 
   private static toRecordMap(records: RegisteredWorkspaceRecord[]): Map<string, RegisteredWorkspaceRecord> {

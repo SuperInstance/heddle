@@ -12,6 +12,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import dayjs from 'dayjs';
 import {
   DEFAULT_OPENAI_MODEL,
   type ToolCall,
@@ -56,7 +57,8 @@ type RunDaemonBackedAskOptions = {
   targetSessionId?: string;
   latestSession?: boolean;
   createSessionName?: string;
-  runtimeHost: Extract<ResolvedRuntimeHost, { kind: 'daemon' }>;
+  workspaceId: string;
+  runtimeHost: Extract<ResolvedRuntimeHost, { kind: 'server' }>;
 };
 
 export class AskCliHost {
@@ -82,8 +84,14 @@ export class AskCliHost {
     if (sessionModeCount > 1) {
       throw new Error('Choose only one of --session, --latest, or --new-session for heddle ask.');
     }
+    // v1 compatibility only: daemon-backed `heddle ask` has no interactive workspace picker,
+    // so it must send the cwd-derived workspace id explicitly until v1 commands are removed.
+    const activeWorkspace = RuntimeWorkspaceService.resolveContext({
+      workspaceRoot,
+      stateRoot,
+    }).activeWorkspace;
 
-    if (options.runtimeHost?.kind === 'daemon' && !options.runtimeHost.stale) {
+    if (options.runtimeHost?.kind === 'server' && !options.runtimeHost.stale) {
       await AskCliHost.runDaemonBackedAsk({
         goal,
         model,
@@ -95,6 +103,7 @@ export class AskCliHost {
         targetSessionId: options.sessionId,
         latestSession: options.latestSession,
         createSessionName: options.createSessionName,
+        workspaceId: activeWorkspace.id,
         runtimeHost: options.runtimeHost,
       });
       return;
@@ -183,9 +192,10 @@ export class AskCliHost {
 
     const sessionId =
       options.targetSessionId
-      ?? (options.latestSession ? await AskCliHost.resolveLatestRemoteSessionId(client) : undefined)
+      ?? (options.latestSession ? await AskCliHost.resolveLatestRemoteSessionId(client, options.workspaceId) : undefined)
       ?? await AskCliHost.createRemoteSession(client, {
-        name: options.createSessionName?.trim() || `Ask ${new Date().toISOString()}`,
+        workspaceId: options.workspaceId,
+        name: options.createSessionName?.trim() || `Ask ${dayjs().toISOString()}`,
         model: options.model,
         retention: options.createSessionName === undefined ? 'one_off' : 'reusable',
         apiKeyPresent: RuntimeCredentialService.hasCredentialForModel(options.model, {
@@ -196,6 +206,7 @@ export class AskCliHost {
       });
 
     const result = await client.controlPlane.sessionSendPrompt.mutate({
+      workspaceId: options.workspaceId,
       sessionId,
       prompt: options.goal,
       maxSteps: options.maxSteps,
@@ -216,8 +227,8 @@ export class AskCliHost {
     });
   }
 
-  private static async resolveLatestRemoteSessionId(client: ReturnType<typeof createDaemonControlPlaneClient>): Promise<string> {
-    const result = await client.controlPlane.sessions.query();
+  private static async resolveLatestRemoteSessionId(client: ReturnType<typeof createDaemonControlPlaneClient>, workspaceId: string): Promise<string> {
+    const result = await client.controlPlane.sessions.query({ workspaceId });
     const latest = result.sessions[0];
     if (!latest) {
       throw new Error('No saved chat sessions are available yet. Use --new-session to create one first.');
@@ -227,9 +238,10 @@ export class AskCliHost {
 
   private static async createRemoteSession(
     client: ReturnType<typeof createDaemonControlPlaneClient>,
-    input: { name?: string; model: string; retention?: ChatSessionRetention; apiKeyPresent: boolean },
+    input: { workspaceId: string; name?: string; model: string; retention?: ChatSessionRetention; apiKeyPresent: boolean },
   ): Promise<string> {
     const created = await client.controlPlane.sessionCreate.mutate({
+      workspaceId: input.workspaceId,
       name: input.name,
       model: input.model,
       retention: input.retention,
