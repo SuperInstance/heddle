@@ -18,6 +18,12 @@ export type HeddleControlPlaneServerOptions = Omit<HeddleServerOptions, 'runtime
   port: number;
   daemonRegistryPath?: string;
   serverId?: string;
+  heartbeatScheduler?: HeddleHeartbeatSchedulerSettings;
+};
+
+export type HeddleHeartbeatSchedulerSettings = {
+  enabled?: boolean;
+  pollIntervalMs?: number;
 };
 
 export type HeddleRuntimeHostDescriptor = {
