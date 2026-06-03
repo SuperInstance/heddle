@@ -40,44 +40,17 @@ export class MemoryCliV2CommandEdgeService {
     flags: MemoryCliCommandFlags = {},
   ): Promise<void> {
     const context = MemoryCliV2CommandEdgeService.createContext(options);
+    const handlers: Record<MemoryCliCommand, () => Promise<void> | void> = {
+      init: () => MemoryCliV2CommandEdgeService.runInit(context),
+      status: () => MemoryCliV2CommandEdgeService.runStatus(context),
+      list: () => MemoryCliV2CommandEdgeService.runList(context, flags),
+      read: () => MemoryCliV2CommandEdgeService.runRead(context, flags),
+      search: () => MemoryCliV2CommandEdgeService.runSearch(context, flags),
+      validate: () => MemoryCliV2CommandEdgeService.runValidate(context, flags),
+      maintain: () => MemoryCliV2CommandEdgeService.runMaintain(context, options, flags),
+    };
 
-    if (command === 'init') {
-      MemoryCliV2CommandEdgeService.runInit(context);
-      return;
-    }
-
-    if (command === 'status') {
-      await MemoryCliV2CommandEdgeService.runStatus(context);
-      return;
-    }
-
-    if (command === 'list') {
-      await MemoryCliV2CommandEdgeService.runList(context, flags);
-      return;
-    }
-
-    if (command === 'read') {
-      await MemoryCliV2CommandEdgeService.runRead(context, flags);
-      return;
-    }
-
-    if (command === 'search') {
-      await MemoryCliV2CommandEdgeService.runSearch(context, flags);
-      return;
-    }
-
-    if (command === 'validate') {
-      await MemoryCliV2CommandEdgeService.runValidate(context, flags);
-      return;
-    }
-
-    if (command === 'maintain') {
-      await MemoryCliV2CommandEdgeService.runMaintain(context, options, flags);
-      return;
-    }
-
-    const exhaustive: never = command;
-    throw new Error(`Unsupported memory command: ${exhaustive}`);
+    await handlers[command]();
   }
 
   private static createContext(options: CliV2CommandEdgeOptions) {
