@@ -77,6 +77,8 @@ export class AskCliV2CommandEdgeService {
         workspaceId,
         sessionId,
         prompt,
+        includePlanTool: false,
+        memoryMaintenanceMode: 'inline',
       });
 
       AskCliV2CommandEdgeService.writeResult({

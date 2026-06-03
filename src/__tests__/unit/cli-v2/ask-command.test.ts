@@ -66,6 +66,8 @@ describe('AskCliV2CommandEdgeService', () => {
         searchIgnoreDirs: ['node_modules'],
         systemContext: 'agent context',
         preferApiKey: true,
+        includePlanTool: false,
+        memoryMaintenanceMode: 'inline',
       }));
       expect(stdout).toHaveBeenCalledWith(expect.stringContaining('Session: session-ask'));
       expect(stdout).toHaveBeenCalledWith(expect.stringContaining('Trace: /repo/.heddle/traces/turn-1.json'));
