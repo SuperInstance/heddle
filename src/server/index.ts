@@ -1,5 +1,6 @@
 export type {
   HeddleControlPlaneServerHandle,
+  HeddleHeartbeatSchedulerSettings,
   HeddleControlPlaneServerOptions,
   HeddleServerOptions,
 } from './types.js';

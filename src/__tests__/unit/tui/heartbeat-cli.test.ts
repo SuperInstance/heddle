@@ -117,13 +117,114 @@ describe('heartbeat CLI helpers', () => {
           registryPath: '/registry.json',
         },
       });
+      expect(resolve).toHaveBeenCalledWith(expect.objectContaining({
+        heartbeatScheduler: {
+          enabled: false,
+        },
+      }));
+      expect(query).toHaveBeenCalledWith({ workspaceId: 'workspace-1' });
+      expect(runtime.close).toHaveBeenCalledTimes(1);
     } finally {
       resolve.mockRestore();
       createClient.mockRestore();
       stdout.mockRestore();
     }
+  });
 
-    expect(query).toHaveBeenCalledWith({ workspaceId: 'workspace-1' });
-    expect(runtime.close).toHaveBeenCalledTimes(1);
+  it('passes embedded scheduler config for heartbeat start', async () => {
+    const runtime = {
+      kind: 'attached' as const,
+      trpcUrl: 'http://127.0.0.1:8765/trpc',
+      endpoint: {
+        host: '127.0.0.1',
+        port: 8765,
+      },
+      serverId: 'server-1',
+      close: vi.fn(async () => undefined),
+    };
+    const resolve = vi.spyOn(ControlPlaneCommandRuntimeService, 'resolve').mockResolvedValue(runtime);
+    const createClient = vi.spyOn(ClientSharedProxyApiService, 'createClient').mockReturnValue({
+      controlPlane: {
+        heartbeatTasks: {
+          query: vi.fn(async () => ({ tasks: [] })),
+        },
+        heartbeatTaskCreate: {
+          mutate: vi.fn(async () => ({ task: { taskId: 'repo-gardener', state: { status: 'idle' } } })),
+        },
+      },
+    } as never);
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      await runHeartbeatCli(['start', '--id', 'repo-gardener', '--task', 'Maintain the repo', '--poll', '5s'], {
+        workspaceRoot: '/repo',
+        activeWorkspaceId: 'workspace-1',
+        stateDir: '.heddle',
+        preferApiKey: true,
+        runtimeHost: {
+          kind: 'none',
+          registryPath: '/registry.json',
+        },
+      }).catch(() => undefined);
+      expect(resolve).toHaveBeenCalledWith(expect.objectContaining({
+        heartbeatScheduler: {
+          enabled: true,
+          pollIntervalMs: 5_000,
+        },
+      }));
+    } finally {
+      resolve.mockRestore();
+      createClient.mockRestore();
+      stdout.mockRestore();
+    }
+  });
+
+  it('rejects --poll when heartbeat start attaches to a live server', async () => {
+    const runtime = {
+      kind: 'attached' as const,
+      trpcUrl: 'http://127.0.0.1:8765/trpc',
+      endpoint: {
+        host: '127.0.0.1',
+        port: 8765,
+      },
+      serverId: 'server-1',
+      close: vi.fn(async () => undefined),
+    };
+    const resolve = vi.spyOn(ControlPlaneCommandRuntimeService, 'resolve').mockResolvedValue(runtime);
+    const createClient = vi.spyOn(ClientSharedProxyApiService, 'createClient');
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      await expect(runHeartbeatCli(['start', '--poll', '5s'], {
+        workspaceRoot: '/repo',
+        activeWorkspaceId: 'workspace-1',
+        stateDir: '.heddle',
+        preferApiKey: true,
+        runtimeHost: freshRuntimeHost(),
+      })).rejects.toThrow('--poll only applies when heartbeat start launches an embedded control-plane server.');
+      expect(createClient).not.toHaveBeenCalled();
+      expect(runtime.close).toHaveBeenCalledTimes(1);
+    } finally {
+      resolve.mockRestore();
+      createClient.mockRestore();
+      stdout.mockRestore();
+    }
   });
 });
+
+function freshRuntimeHost() {
+  return {
+    kind: 'server' as const,
+    registryPath: '/registry.json',
+    serverId: 'server-1',
+    mode: 'daemon' as const,
+    endpoint: {
+      host: '127.0.0.1',
+      port: 8765,
+    },
+    startedAt: '2026-06-02T00:00:00.000Z',
+    lastSeenAt: '2026-06-02T00:00:01.000Z',
+    stale: false,
+    ageMs: 100,
+  };
+}

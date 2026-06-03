@@ -45,7 +45,6 @@ export async function startHeartbeatCli(
 ) {
   const id = stringFlag(parsed.flags, 'id') ?? parsed.subcommand ?? DEFAULT_HEARTBEAT_TASK_ID;
   const intervalMs = parseDurationMs(stringFlag(parsed.flags, 'every') ?? stringFlag(parsed.flags, 'interval') ?? '30m');
-  const pollIntervalMs = parseDurationMs(stringFlag(parsed.flags, 'poll') ?? '60s');
   const existing = await findExistingTask(context, id);
   const taskText = stringFlag(parsed.flags, 'task') ?? stringFlag(parsed.flags, 'goal') ?? existing?.task ?? DEFAULT_HEARTBEAT_TASK;
   const task =
@@ -89,9 +88,10 @@ export async function startHeartbeatCli(
     return;
   }
 
+  const poll = stringFlag(parsed.flags, 'poll');
   process.stdout.write([
     `Heartbeat scheduler is server-backed for workspace ${context.workspaceId}.`,
-    `task=${task.taskId} status=${task.state.status} every=${formatDurationMs(intervalMs)} poll=${formatDurationMs(pollIntervalMs)}`,
+    `task=${task.taskId} status=${task.state.status} every=${formatDurationMs(intervalMs)}${poll ? ` poll=${poll}` : ''}`,
     'Use `heddle daemon` for a standalone long-running server, or keep this embedded command running.',
   ].join('\n') + '\n');
 }

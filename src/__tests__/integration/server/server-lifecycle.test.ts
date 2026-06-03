@@ -1,8 +1,9 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FileDaemonRegistryRepository, RuntimeDaemonRegistryService } from '@/core/runtime/daemon/index.js';
+import { HeddleHeartbeatSchedulerHost } from '@/server/heartbeat-scheduler-host.js';
 import { createServerLogger, startHeddleControlPlaneServer } from '@/server/index.js';
 
 describe('control-plane server lifecycle', () => {
@@ -58,6 +59,39 @@ describe('control-plane server lifecycle', () => {
     } finally {
       await server.close();
     }
+  });
+
+  it('can start an embedded server without starting the heartbeat scheduler host', async () => {
+    const paths = createTestPaths('heddle-server-lifecycle-no-scheduler-');
+    const startScheduler = vi.spyOn(HeddleHeartbeatSchedulerHost.prototype, 'start');
+    const syncScheduler = vi.spyOn(HeddleHeartbeatSchedulerHost.prototype, 'sync');
+    const stopScheduler = vi.spyOn(HeddleHeartbeatSchedulerHost.prototype, 'stop');
+    const server = await startHeddleControlPlaneServer({
+      mode: 'embedded-chat',
+      serverId: 'embedded-no-scheduler',
+      host: '127.0.0.1',
+      port: 0,
+      workspaceRoot: paths.workspaceRoot,
+      stateRoot: paths.stateRoot,
+      daemonRegistryPath: paths.registryPath,
+      heartbeatScheduler: {
+        enabled: false,
+      },
+      serveAssets: false,
+      logger: createTestLogger(paths.stateRoot),
+    });
+
+    try {
+      expect(startScheduler).not.toHaveBeenCalled();
+      expect(syncScheduler).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+
+    expect(stopScheduler).not.toHaveBeenCalled();
+    startScheduler.mockRestore();
+    syncScheduler.mockRestore();
+    stopScheduler.mockRestore();
   });
 
   it('does not clear a newer live server record when an older lifecycle shuts down', async () => {

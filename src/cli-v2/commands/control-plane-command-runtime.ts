@@ -1,6 +1,10 @@
 import { resolve } from 'node:path';
 import type { ResolvedRuntimeHost } from '@/core/runtime/daemon/index.js';
-import type { HeddleControlPlaneServerHandle, HeddleControlPlaneServerOptions } from '@/server/index.js';
+import type {
+  HeddleControlPlaneServerHandle,
+  HeddleControlPlaneServerOptions,
+  HeddleHeartbeatSchedulerSettings,
+} from '@/server/index.js';
 import { createServerLogger, startHeddleControlPlaneServer } from '@/server/index.js';
 
 const DEFAULT_CONTROL_PLANE_HOST = '127.0.0.1';
@@ -12,6 +16,7 @@ export type ControlPlaneCommandRuntimeInput = {
   preferApiKey: boolean;
   runtimeHost: ResolvedRuntimeHost;
   forceOwnerConflict: boolean;
+  heartbeatScheduler?: HeddleHeartbeatSchedulerSettings;
 };
 
 export type ControlPlaneCommandRuntime = {
@@ -63,6 +68,7 @@ export class ControlPlaneCommandRuntimeService {
       workspaceRoot: input.workspaceRoot,
       stateRoot,
       preferApiKey: input.preferApiKey,
+      heartbeatScheduler: input.heartbeatScheduler,
       host: DEFAULT_CONTROL_PLANE_HOST,
       port: DEFAULT_CONTROL_PLANE_PORT,
       logger,

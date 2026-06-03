@@ -1,5 +1,6 @@
-import { parseHeartbeatArgs } from './heartbeat/args.js';
-import { printHeartbeatHelp } from './heartbeat/output.js';
+import type { ParsedHeartbeatArgs } from './heartbeat/args.js';
+import { buildHeartbeatCommand, parseHeartbeatArgs, stringFlag } from './heartbeat/args.js';
+import { parseDurationMs } from './heartbeat/duration.js';
 import { runHeartbeatRunsCli } from './heartbeat/run-commands.js';
 import { runHeartbeatTaskCli } from './heartbeat/task-commands.js';
 import { runHeartbeatWorkerCli, startHeartbeatCli } from './heartbeat/worker.js';
@@ -15,28 +16,34 @@ export async function runHeartbeatCli(args: string[], options: HeartbeatCliOptio
   const parsed = parseHeartbeatArgs(args);
 
   if (!parsed.command || parsed.command === 'help' || parsed.command === '--help' || parsed.command === '-h') {
-    printHeartbeatHelp();
+    process.stdout.write(`${buildHeartbeatCommand().helpInformation()}\n`);
     return;
   }
 
+  const heartbeatScheduler = resolveHeartbeatScheduler(parsed);
   const runtime = await ControlPlaneCommandRuntimeService.resolve({
     workspaceRoot: options.workspaceRoot ?? process.cwd(),
     stateDir: options.stateDir ?? '.heddle',
     preferApiKey: Boolean(options.preferApiKey),
     runtimeHost: options.runtimeHost ?? { kind: 'none', registryPath: '' },
     forceOwnerConflict: Boolean(options.forceOwnerConflict),
+    heartbeatScheduler,
   });
-  process.stdout.write(`${ControlPlaneCommandRuntimeService.formatNotice(runtime, 'heartbeat')}\n`);
-  const context = {
-    client: ClientSharedProxyApiService.createClient({ url: runtime.trpcUrl }),
-    workspaceId: options.activeWorkspaceId ?? 'default',
-    options,
-  };
-
   const uninstallRuntimeShutdown =
     runtime.kind === 'embedded' ? ControlPlaneCommandRuntimeService.installEmbeddedShutdown(runtime, 'heartbeat') : () => undefined;
 
   try {
+    process.stdout.write(`${ControlPlaneCommandRuntimeService.formatNotice(runtime, 'heartbeat')}\n`);
+    if (runtime.kind === 'attached' && heartbeatScheduler.enabled && stringFlag(parsed.flags, 'poll')) {
+      throw new Error('--poll only applies when heartbeat start launches an embedded control-plane server.');
+    }
+
+    const context = {
+      client: ClientSharedProxyApiService.createClient({ url: runtime.trpcUrl }),
+      workspaceId: options.activeWorkspaceId ?? 'default',
+      options,
+    };
+
     if (parsed.command === 'task') {
       await runHeartbeatTaskCli(parsed, context);
       return;
@@ -66,4 +73,19 @@ export async function runHeartbeatCli(args: string[], options: HeartbeatCliOptio
     uninstallRuntimeShutdown();
     await runtime.close();
   }
+}
+
+function resolveHeartbeatScheduler(parsed: ParsedHeartbeatArgs): {
+  enabled?: boolean;
+  pollIntervalMs?: number;
+} {
+  if (parsed.command !== 'start' || parsed.flags.once) {
+    return { enabled: false };
+  }
+
+  const poll = stringFlag(parsed.flags, 'poll');
+  return {
+    enabled: true,
+    pollIntervalMs: poll ? parseDurationMs(poll) : undefined,
+  };
 }

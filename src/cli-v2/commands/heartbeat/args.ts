@@ -7,6 +7,71 @@ export type ParsedHeartbeatArgs = {
   flags: Record<string, string | boolean>;
 };
 
+export function buildHeartbeatCommand(onParsed?: (parsed: ParsedHeartbeatArgs) => void): Command {
+  const root = new Command();
+  root
+    .exitOverride()
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .name('heddle heartbeat')
+    .description('Manage and run heartbeat tasks')
+    .addHelpText('after', ['', 'Duration examples:', '  30s, 15m, 1h, 2d', ''].join('\n'));
+
+  root
+    .command('task [subcommand] [rest...]')
+    .description('manage heartbeat tasks')
+    .allowUnknownOption(true)
+    .action((subcommand: string | undefined, rest: string[] = [], command: Command) => {
+      onParsed?.({
+        command: 'task',
+        subcommand,
+        rest,
+        flags: collectUnknownFlags(command),
+      });
+    });
+
+  root
+    .command('run [rest...]')
+    .description('ask the server to run due tasks or one task now')
+    .allowUnknownOption(true)
+    .action((rest: string[] = [], command: Command) => {
+      onParsed?.({
+        command: 'run',
+        subcommand: undefined,
+        rest,
+        flags: collectUnknownFlags(command),
+      });
+    });
+
+  root
+    .command('runs [subcommand] [rest...]')
+    .description('inspect heartbeat run records')
+    .allowUnknownOption(true)
+    .action((subcommand: string | undefined, rest: string[] = [], command: Command) => {
+      onParsed?.({
+        command: 'runs',
+        subcommand,
+        rest,
+        flags: collectUnknownFlags(command),
+      });
+    });
+
+  root
+    .command('start [rest...]')
+    .description('create or update a task and keep the server-backed scheduler running')
+    .allowUnknownOption(true)
+    .action((rest: string[] = [], command: Command) => {
+      onParsed?.({
+        command: 'start',
+        subcommand: undefined,
+        rest,
+        flags: collectUnknownFlags(command),
+      });
+    });
+
+  return root;
+}
+
 export function parseHeartbeatArgs(args: string[]): ParsedHeartbeatArgs {
   if (args[0] === 'help' || args[0] === '--help' || args[0] === '-h') {
     return {
@@ -17,68 +82,15 @@ export function parseHeartbeatArgs(args: string[]): ParsedHeartbeatArgs {
     };
   }
 
-  const root = new Command();
-  root
-    .exitOverride()
-    .allowUnknownOption(true)
-    .allowExcessArguments(true)
-    .name('heddle heartbeat')
-    .addHelpText('after', ['', 'Duration examples:', '  30s, 15m, 1h, 2d', ''].join('\n'));
-
   let parsed: ParsedHeartbeatArgs = {
     command: undefined,
     subcommand: undefined,
     rest: [],
     flags: {},
   };
-
-  root
-    .command('task [subcommand] [rest...]')
-    .allowUnknownOption(true)
-    .action((subcommand: string | undefined, rest: string[] = [], command: Command) => {
-      parsed = {
-        command: 'task',
-        subcommand,
-        rest,
-        flags: collectUnknownFlags(command),
-      };
-    });
-
-  root
-    .command('run [rest...]')
-    .allowUnknownOption(true)
-    .action((rest: string[] = [], command: Command) => {
-      parsed = {
-        command: 'run',
-        subcommand: undefined,
-        rest,
-        flags: collectUnknownFlags(command),
-      };
-    });
-
-  root
-    .command('runs [subcommand] [rest...]')
-    .allowUnknownOption(true)
-    .action((subcommand: string | undefined, rest: string[] = [], command: Command) => {
-      parsed = {
-        command: 'runs',
-        subcommand,
-        rest,
-        flags: collectUnknownFlags(command),
-      };
-    });
-
-  root
-    .command('start [rest...]')
-    .allowUnknownOption(true)
-    .action((rest: string[] = [], command: Command) => {
-      parsed = {
-        command: 'start',
-        subcommand: undefined,
-        rest,
-        flags: collectUnknownFlags(command),
-      };
-    });
+  const root = buildHeartbeatCommand((next) => {
+    parsed = next;
+  });
 
   try {
     root.parse(['node', 'heddle-heartbeat', ...args], { from: 'node' });

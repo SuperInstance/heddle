@@ -38,7 +38,9 @@ export async function startHeddleControlPlaneServer(
   const registryPath = options.daemonRegistryPath ?? FileDaemonRegistryRepository.resolvePath();
   const serverId = options.serverId ?? `${options.mode}-${process.pid}-${Date.now()}`;
   const startedAt = dayjs().toISOString();
-  const heartbeatSchedulerHost = createHeartbeatSchedulerHost(options);
+  const heartbeatSchedulerSettings = options.heartbeatScheduler ?? {};
+  const heartbeatSchedulerEnabled = heartbeatSchedulerSettings.enabled !== false;
+  const heartbeatSchedulerHost = heartbeatSchedulerEnabled ? createHeartbeatSchedulerHost(options) : null;
 
   const endpoint = {
     host: options.host,
@@ -92,7 +94,7 @@ export async function startHeddleControlPlaneServer(
     if (lifecycleTimers.heartbeat) {
       clearInterval(lifecycleTimers.heartbeat);
     }
-    heartbeatSchedulerHost.stop();
+    heartbeatSchedulerHost?.stop();
     RuntimeDaemonRegistryService.clearLiveServer({
       registryPath,
       serverId,
@@ -108,7 +110,7 @@ export async function startHeddleControlPlaneServer(
 
   try {
     registerServer(startedAt);
-    heartbeatSchedulerHost.start();
+    heartbeatSchedulerHost?.start();
   } catch (error) {
     await closeServer(server).catch((closeError) => {
       logger.error({ error: closeError, serverId }, 'Failed to close Heddle server after startup error');
@@ -119,7 +121,7 @@ export async function startHeddleControlPlaneServer(
   lifecycleTimers.heartbeat = setInterval(() => {
     try {
       registerServer();
-      heartbeatSchedulerHost.sync();
+      heartbeatSchedulerHost?.sync();
     } catch (error) {
       logger.warn({ error }, 'Failed to refresh Heddle server registry heartbeat');
     }
@@ -144,6 +146,8 @@ export async function startHeddleControlPlaneServer(
     registryPath,
     serverId,
     mode: options.mode,
+    heartbeatSchedulerEnabled,
+    heartbeatSchedulerPollIntervalMs: heartbeatSchedulerSettings.pollIntervalMs,
   }, 'Heddle server started');
 
   return {
@@ -165,6 +169,7 @@ function createHeartbeatSchedulerHost(options: HeddleControlPlaneServerOptions):
     workspaceRoot: options.workspaceRoot,
     stateRoot: options.stateRoot,
     preferApiKey: options.preferApiKey,
+    pollIntervalMs: options.heartbeatScheduler?.pollIntervalMs,
     onEvent: (workspace, event) => {
       logHeartbeatSchedulerEvent(getWorkspaceOperationLogger(workspace.stateRoot), workspace, event);
       controlPlaneHeartbeatEventsController.publish({
