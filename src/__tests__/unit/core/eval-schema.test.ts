@@ -38,7 +38,7 @@ describe('eval case schema', () => {
         intent: 'Complete a bounded refactor milestone.',
         requiredOutcomes: ['core runtime owns shared behavior'],
         allowedScope: ['src/core/chat'],
-        outOfScope: ['src/web/styles.css'],
+        outOfScope: ['src/web-v2/tailwind.css'],
         humanQuestions: ['Did it stop after a substep?'],
       },
     });
@@ -47,7 +47,7 @@ describe('eval case schema', () => {
       milestone: 'Shared runtime slice',
       requiredOutcomes: ['core runtime owns shared behavior'],
       allowedScope: ['src/core/chat'],
-      outOfScope: ['src/web/styles.css'],
+      outOfScope: ['src/web-v2/tailwind.css'],
       humanQuestions: ['Did it stop after a substep?'],
     });
   });

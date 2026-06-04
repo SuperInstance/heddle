@@ -78,8 +78,7 @@ tooling, approval policy, memory, situation awareness, traces, and evaluation.
 - `src/cli-v2/` owns terminal and TUI host surfaces, including the public
   command bootstrap.
 - `src/server/` owns the daemon/control-plane API.
-- `src/web-v2/` owns the default browser control plane.
-- `src/web/` owns the legacy v1 browser control plane while it remains available as an opt-in fallback.
+- `src/web-v2/` owns the browser control plane.
 - `src/__tests__/unit/` and `src/__tests__/integration/` hold behavior locks
   for touched paths.
 - `docs/` is the public contributor source of truth.
@@ -135,8 +134,7 @@ scope.
   `src/core/approvals/`.
 - Terminal UI and command edges: `src/cli-v2/`.
 - Control plane: `src/server/routes/`, `src/server/controllers/`,
-  `src/server/services/`, `src/web/features/control-plane/`, and
-  `src/web-v2/`.
+  `src/server/services/`, and `src/web-v2/`.
 - Memory: `src/core/tools/toolkits/knowledge/`, `src/core/memory/`.
 - Architecture boundaries: `docs/architecture/core-layering.md`,
   `docs/architecture/chat-layering.md`.

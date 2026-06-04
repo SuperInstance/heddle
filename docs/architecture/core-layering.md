@@ -17,7 +17,7 @@ make the dependency explicit through a public service contract.
 
 ```text
 Layer 5: Interface adapters
-src/cli, src/server, src/web
+src/cli-v2, src/server, src/web-v2
 
 Layer 4: Product/domain workflows
 src/core/chat/engine, src/core/heartbeat, src/core/memory, src/core/awareness,

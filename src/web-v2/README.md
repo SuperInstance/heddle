@@ -1,8 +1,7 @@
 # Heddle Web V2
 
-`src/web-v2` is the default browser control plane served by `heddle daemon`.
-It owns current frontend work while `src/web` remains available as the legacy
-v1 opt-in surface.
+`src/web-v2` is the browser control plane served by `heddle daemon`.
+It owns all active browser UI work.
 
 ## Boundary
 
@@ -10,9 +9,6 @@ v1 opt-in surface.
   modules.
 - Browser code must not import `src/core` directly. Shared behavior belongs
   behind server APIs or in browser-safe contracts.
-- Browser code must not import from `src/web`. If v2 needs a shadcn primitive
-  or helper, copy it into `src/web-v2` so the old browser surface can be deleted
-  cleanly later.
 - Use the `@web/*` path alias for cross-folder v2 imports. Keep `./` imports
   for files in the same feature folder.
 - Reuse tRPC-inferred server types from `AppRouter`. Do not redeclare DTOs in
@@ -55,5 +51,6 @@ v1 opt-in surface.
 - `layout/`: app frame and shell-level placement.
 - `views/`: route-level workflow surfaces.
 
-V2 should borrow from v1 only when the source module already respects the API
-boundary and does not carry legacy control-plane assumptions.
+Browser-only behavior should stay in this folder. Shared behavior that must
+also apply to terminal or future clients belongs in `src/client-shared`,
+`src/server`, or the owning core domain.

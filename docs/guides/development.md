@@ -119,8 +119,6 @@ The daemon-backed backend runs on `127.0.0.1:8765` and the Vite client runs on `
 
 `yarn daemon:dev` uses the real daemon path, including live server registry refreshes and built default control-plane static assets from `dist/src/web-v2`. This is the closest development path to the shipped `heddle daemon` behavior.
 
-`yarn client:dev:v1` remains available for the legacy v1 control plane and defaults to `127.0.0.1:5174`.
-
 Because it serves built assets, run `yarn build` after frontend changes before relying on `yarn daemon:dev` for UI validation.
 
 `yarn server:dev` remains a lighter backend-only path for server work. It starts the Express/tRPC app directly for API development rather than running the full daemon command wrapper.
@@ -153,8 +151,7 @@ High-level areas:
 
 - `src/cli-v2/`: CLI entrypoints, command edges, and interactive chat flows
 - `src/server/`: daemon server and control-plane backend
-- `src/web-v2/`: default browser control plane frontend
-- `src/web/`: legacy v1 browser control plane frontend, available through explicit v1 scripts
+- `src/web-v2/`: browser control plane frontend
 - `src/__tests__/unit/`: fast unit suites organized by product surface
 - `src/__tests__/integration/`: higher-level integration suites organized by product surface
 - `src/__tests__/browser-integration/`: Playwright browser suites that use a
@@ -169,15 +166,13 @@ During local use, Heddle writes runtime state under `.heddle/`, including sessio
 
 ## Web UI Styling
 
-The default browser control plane uses Tailwind CSS and shadcn-style source components under `src/web-v2/components/ui/`. The project is wired for Tailwind v4 through `@tailwindcss/vite`, with shared utility merging in `src/web-v2/lib/utils.ts`.
-
-The legacy v1 control plane still uses the older stylesheet in `src/web/features/control-plane/control-plane.css`.
+The browser control plane uses Tailwind CSS and shadcn-style source components under `src/web-v2/components/ui/`. The project is wired for Tailwind v4 through `@tailwindcss/vite`, with shared utility merging in `src/web-v2/lib/utils.ts`.
 
 Keep the styling boundary explicit:
 
-- use Tailwind/shadcn for new default control-plane components
-- leave legacy v1 components on the older CSS until v1 is intentionally removed
-- share data hooks, API types, and formatting helpers across both surfaces
+- use Tailwind/shadcn for new control-plane components
+- keep browser-only styling inside `src/web-v2`
+- share cross-interface data hooks, API types, and formatting helpers through `src/client-shared` or server contracts instead of duplicating browser policy
 
 Build output goes to `dist/`.
 
