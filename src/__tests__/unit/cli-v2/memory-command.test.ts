@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryCliV2CommandEdgeService } from '@/cli-v2/commands/memory-command.js';
 import type { CliV2CommandEdgeOptions } from '@/cli-v2/commands/types.js';
+import { LlmAdapterService } from '@/core/llm/index.js';
+import { MemoryMaintenanceService } from '@/core/memory/maintainer.js';
+import { RuntimeCredentialService } from '@/core/runtime/credentials/index.js';
 
 describe('MemoryCliV2CommandEdgeService', () => {
   afterEach(() => {
@@ -68,6 +71,49 @@ describe('MemoryCliV2CommandEdgeService', () => {
     const output = stdout.mock.calls.map(([message]) => message).join('');
     expect(output).toContain('Pending candidates: 1');
     expect(output).toContain('candidate-1: Remember the command-edge boundary.');
+  });
+
+  it('allows maintainer runs to use stored credentials when no provider API key is present', async () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), 'heddle-memory-command-stored-credential-'));
+    vi.spyOn(RuntimeCredentialService, 'resolveApiKeyForModel').mockReturnValue(undefined);
+    vi.spyOn(RuntimeCredentialService, 'hasCredentialForModel').mockReturnValue(true);
+    const createLlm = vi.spyOn(LlmAdapterService, 'create').mockReturnValue({} as ReturnType<typeof LlmAdapterService.create>);
+    vi.spyOn(MemoryMaintenanceService.prototype, 'readPendingCandidates').mockResolvedValue([
+      {
+        id: 'candidate-1',
+        recordedAt: '2026-06-04T00:00:00.000Z',
+        status: 'pending',
+        summary: 'Remember stored OAuth for memory maintenance.',
+        evidence: [],
+        categoryHint: 'architecture',
+        importance: 'high',
+        confidence: 'user-stated',
+        sourceRefs: [],
+      },
+    ]);
+    vi.spyOn(MemoryMaintenanceService.prototype, 'runBacklog').mockResolvedValue({
+      run: {
+        id: 'memory-run-test',
+        startedAt: '2026-06-04T00:00:00.000Z',
+        finishedAt: '2026-06-04T00:00:01.000Z',
+        source: 'heddle memory maintain',
+        outcome: 'done',
+        summary: 'Processed stored credential candidate.',
+        candidateIds: ['candidate-1'],
+        processedCandidateIds: ['candidate-1'],
+        failedCandidateIds: [],
+        catalogValid: true,
+        catalogMissing: [],
+      },
+    });
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await MemoryCliV2CommandEdgeService.run('maintain', commandOptions(workspaceRoot));
+
+    expect(createLlm).toHaveBeenCalledWith({ model: 'gpt-5.4', credentials: undefined });
+    const output = stdout.mock.calls.map(([message]) => message).join('');
+    expect(output).toContain('Outcome: done');
+    expect(output).toContain('Candidates: 1/1 processed');
   });
 });
 

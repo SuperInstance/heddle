@@ -186,14 +186,14 @@ export class MemoryCliV2CommandEdgeService {
 
     const model = options.model ?? process.env.OPENAI_MODEL ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_OPENAI_MODEL;
     const apiKey = RuntimeCredentialService.resolveApiKeyForModel(model);
-    if (!apiKey) {
-      throw new Error(`Missing provider API key for memory maintainer model: ${model}`);
+    if (!apiKey && !RuntimeCredentialService.hasCredentialForModel(model, { preferApiKey: options.preferApiKey })) {
+      throw new Error(RuntimeCredentialService.formatMissingCredentialMessage(model));
     }
 
     const result = await context.maintenance.runBacklog({
       llm: LlmAdapterService.create({
         model,
-        credentials: { apiKey },
+        credentials: apiKey ? { apiKey } : undefined,
       }),
       source: 'heddle memory maintain',
     });

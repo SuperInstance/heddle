@@ -191,7 +191,7 @@ async function main() {
     .description('process pending memory candidates into cataloged notes')
     .option('--dry-run', 'show pending candidates without running the maintainer')
     .option('--reconcile', 'repair safe catalog issues before maintenance and report validation after')
-    .addHelpText('after', ['', 'Examples:', '  heddle memory maintain --dry-run', '  heddle memory maintain --reconcile', ''].join('\n'))
+    .addHelpText('after', ['', 'Credential sources:', '  heddle auth login openai', '  OPENAI_API_KEY / ANTHROPIC_API_KEY', '', 'Examples:', '  heddle memory maintain --dry-run', '  heddle memory maintain --reconcile', ''].join('\n'))
     .action(async (options: { dryRun?: boolean; reconcile?: boolean }) => {
       const resolved = resolveCliOptions(program.opts<RootCliOptions>());
       await MemoryCliV2CommandEdgeService.run('maintain', resolved, {
