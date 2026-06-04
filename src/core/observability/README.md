@@ -34,7 +34,7 @@ Observability behavior currently exists in these places:
   activity handlers, and tool call/result activity summaries.
 - `src/client-shared/services/session-activities/` for shared host activity projection.
 - `src/cli-v2/services/activities/` for terminal-specific activity presentation.
-- `src/web/features/control-plane/hooks/sessions-screen/useSessionDetailSubscription.ts` for web activity rendering.
+- `src/web-v2/hooks/sessions/useControlPlaneSessionEvents.ts` for web activity rendering.
 - `src/server/controllers/trpc/control-plane/chat-session-events.ts`.
 
 ## Public Entry Points

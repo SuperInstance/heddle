@@ -2,15 +2,14 @@
 
 Heddle includes a local browser control plane for workspace oversight when you want a browser UI in addition to terminal chat.
 
-The control plane is the main place to inspect saved sessions, review current changes, workspace memory health, heartbeat tasks, run history, and local workspace switching. The packaged daemon serves the supported browser client from `src/web-v2`; the older `src/web` client is legacy v1 and is available only through explicit development scripts or `--assets-dir`.
+The control plane is the main place to inspect saved sessions, review current changes, workspace memory health, heartbeat tasks, run history, and local workspace switching. The packaged daemon serves the supported browser client from `src/web-v2`.
 
 ## What The Control Plane Includes
 
 Current stack:
 
 - `src/server`: Express-hosted tRPC server
-- `src/web-v2`: React/Vite default browser control plane
-- `src/web`: legacy React/Vite v1 client, kept as an explicit opt-in path
+- `src/web-v2`: React/Vite browser control plane
 - `src/server/routes`, `src/server/controllers`, and `src/server/services`: control-plane server API routes, request controllers, and domain services
 - pino logs written locally for debugging
 
@@ -35,12 +34,11 @@ The default control plane includes:
 
 Browser image uploads accept common image formats and keep the saved file path readable to the runtime. The browser sends those paths with the prompt instead of inventing a separate image-analysis path, so normal tool approval, trace, and `view_image` behavior still apply.
 
-Live session updates come from the daemon's per-session event stream. Web-v2
-uses the `controlPlane.sessionEvents` tRPC subscription for those updates; the
-legacy browser surface still has an SSE compatibility path. In both cases,
-streaming activity is separate from durable session refreshes: assistant/tool
-progress arrives as live activity, while saved-session changes tell the browser
-to refetch persisted session detail.
+Live session updates come from the daemon's per-session event stream. The
+browser uses the `controlPlane.sessionEvents` tRPC subscription for those
+updates. Streaming activity is separate from durable session refreshes:
+assistant/tool progress arrives as live activity, while saved-session changes
+tell the browser to refetch persisted session detail.
 
 ## Workspaces
 
@@ -158,7 +156,7 @@ yarn client:dev
 
 `yarn daemon:dev` starts the real daemon runtime at `127.0.0.1:8765`, including daemon ownership registration, registry heartbeats, and the built web-v2 app from `dist/src/web-v2`.
 
-`yarn client:dev` starts the default web-v2 Vite client at `127.0.0.1:5173` and proxies `/trpc` and `/control-plane` requests to the backend server. For the legacy v1 client, use `yarn client:dev:v1`, which defaults to `127.0.0.1:5174`.
+`yarn client:dev` starts the web-v2 Vite client at `127.0.0.1:5173` and proxies `/trpc` and `/control-plane` requests to the backend server.
 
 In other words:
 

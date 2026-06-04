@@ -1,10 +1,13 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SOURCE_ROOT = join(process.cwd(), 'src');
 const SCRIPT_ROOT = join(process.cwd(), 'scripts');
 const TEST_ROOT = join(process.cwd(), 'src', '__tests__');
+const ROOT_CONFIG_FILES = [
+  join(process.cwd(), 'playwright.config.ts'),
+];
 const ENGINE_ROOT = 'core/chat/engine/';
 const REMOVED_CHAT_PATH_PREFIXES = [
   'core/chat/session-submit',
@@ -77,6 +80,29 @@ describe('core import boundaries', () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it('does not reintroduce the retired web-v1 source tree or launch scripts', () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    const scripts = packageJson.scripts ?? {};
+    const scriptViolations = Object.entries(scripts)
+      .filter(([name, command]) => name.includes(':v1') || command.includes('src/web/') || command.includes('dist/src/web ') || command.includes('web-v1'))
+      .map(([name, command]) => `${name}: ${command}`);
+    const activeFileViolations = [...new Set([...sourceFiles, ...scriptFiles, ...testFiles, ...ROOT_CONFIG_FILES])]
+      .flatMap((file) => {
+        const normalized = relative(process.cwd(), file).split(sep).join('/');
+        if (normalized === 'src/__tests__/unit/core/import-boundaries.test.ts') {
+          return [];
+        }
+        const source = readFileSync(file, 'utf8');
+        return source.includes('src/web/') || source.includes('web-v1') ? [normalized] : [];
+      });
+
+    expect(existsSync(join(SOURCE_ROOT, 'web'))).toBe(false);
+    expect(scriptViolations).toEqual([]);
+    expect(activeFileViolations).toEqual([]);
   });
 
   it('keeps cli-v2 TUI/client code on the shared client API boundary', () => {

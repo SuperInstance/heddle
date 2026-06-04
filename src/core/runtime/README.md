@@ -57,7 +57,7 @@ coordination that sit around the lower-level agent loop.
 
 ## Notes For Coding Agents
 
-- Keep this domain UI-free. Do not import from `src/cli`, `src/web`, or
+- Keep this domain UI-free. Do not import from `src/cli-v2`, `src/web-v2`, or
   `src/server`.
 - `AgentLoopRuntimeService.run(...)` is the public single-run embedding API; do
   not couple it to chat sessions.

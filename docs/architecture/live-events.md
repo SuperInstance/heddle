@@ -18,7 +18,7 @@ The shared rule is:
 - server/control-plane code owns transport fanout;
 - interfaces own presentation state only.
 
-If the same live behavior is needed by TUI, web-v1, web-v2, or a future
+If the same live behavior is needed by TUI, web-v2, or a future
 programmatic host, the behavior should move toward the shared live event contract
 instead of being duplicated per interface.
 
@@ -91,10 +91,8 @@ flowchart TD
   Queue --> TRPC["tRPC subscription<br/>controlPlane.sessionEvents"]
   Bus --> SSE["SSE endpoint<br/>/control-plane/sessions/:id/events"]
   TRPC --> WebV2["web-v2 hook<br/>useControlPlaneSessionEvents"]
-  SSE --> WebV1["web-v1 subscription path"]
   Activity --> TUI["TUI host handling"]
   WebV2 --> UIState["Interface-local UI state<br/>streaming message, status line, refresh"]
-  WebV1 --> UIState
   TUI --> UIState
 ```
 

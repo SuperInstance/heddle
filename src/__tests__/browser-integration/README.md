@@ -3,10 +3,9 @@
 This folder contains Playwright tests that exercise the browser control plane
 against a real Vite client and fixture daemon.
 
-`web-v2/` covers the default browser control plane and is the suite run by CI.
-`web-v1/` is a legacy opt-in smoke suite for the old control plane.
+`web-v2/` covers the supported browser control plane and is the suite run by CI.
 
-The default web-v2 tests are intended to run on every PR. They verify browser behavior,
+The web-v2 tests are intended to run on every PR. They verify browser behavior,
 frontend/server wiring, and file-backed fixture state without calling live model
 providers. Agent execution is intentionally mocked by the fixture daemon.
 

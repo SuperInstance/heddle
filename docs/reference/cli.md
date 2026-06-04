@@ -88,7 +88,7 @@ Start the control plane:
 heddle daemon
 ```
 
-After the daemon starts, open the browser control plane to inspect sessions, review current Git workspace changes, manage local workspaces, inspect memory status, and use the heartbeat task workbench. The default browser UI is web-v2; the legacy v1 UI is available only when you explicitly serve v1 assets, for example with `yarn client:build:v1` and `heddle daemon --assets-dir dist/src/web` in a repository checkout. For one-off CLI usage against another project, keep using `--cwd`.
+After the daemon starts, open the browser control plane to inspect sessions, review current Git workspace changes, manage local workspaces, inspect memory status, and use the heartbeat task workbench. The supported browser UI is web-v2. For one-off CLI usage against another project, keep using `--cwd`.
 
 Start the server-backed heartbeat scheduler:
 
@@ -129,12 +129,9 @@ Inside this repository, common development commands include:
 yarn cli:dev
 yarn chat:dev
 yarn daemon:dev
-yarn daemon:dev:v1
 yarn server:dev
 yarn client:dev
-yarn client:dev:v1
 yarn build
-yarn client:build:v1
 yarn test
 yarn eslint
 yarn typecheck
