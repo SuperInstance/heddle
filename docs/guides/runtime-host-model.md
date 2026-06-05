@@ -127,6 +127,10 @@ Heddle records a lightweight session lease while a session is being mutated. If
 another client tries to continue that same session while the lease is fresh, the
 run is blocked with a warning about concurrent mutation risk.
 
+Active control-plane runs refresh that lease on a short heartbeat. If the owner
+process dies and the heartbeat stops, the lease becomes stale quickly and a new
+run can reclaim the session without manual state-file edits.
+
 ## What `heddle ask` Does
 
 `ask` is a one-shot terminal command. It still exits after one prompt, but the

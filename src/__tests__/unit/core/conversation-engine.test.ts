@@ -422,6 +422,9 @@ describe('createConversationEngine', () => {
       'Session session-1 is already active in terminal chat.',
     );
 
+    const refreshed = engine.sessions.refreshLease(session.id, owner);
+    expect(refreshed.lease?.ownerId).toBe('tui-test-client');
+
     const stillLeased = engine.sessions.releaseLease(session.id, { ownerId: 'daemon-1' });
     expect(stillLeased.lease?.ownerId).toBe('tui-test-client');
 
