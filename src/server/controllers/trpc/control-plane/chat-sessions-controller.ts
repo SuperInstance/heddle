@@ -181,6 +181,9 @@ export class ControlPlaneChatSessionsController {
   async compactSession(args: CompactControlPlaneChatSessionArgs): Promise<ChatSessionDetail> {
     return await this.runService.startAndWait({
       address: args,
+      onHeartbeat: () => {
+        this.createEngine(args).sessions.refreshLease(args.sessionId, args.leaseOwner);
+      },
       execute: async () => {
         const { sessionId, force = true, leaseOwner, ...engineInput } = args;
         const sessions = this.createEngine(engineInput).sessions;
@@ -495,6 +498,9 @@ export class ControlPlaneChatSessionsController {
           leaseOwner: args.leaseOwner,
         });
       },
+      onHeartbeat: () => {
+        this.createEngine(args).sessions.refreshLease(args.sessionId, args.leaseOwner);
+      },
       execute: async (run: ControlPlaneSessionRunContext) => {
         const result = process.env.HEDDLE_BROWSER_INTEGRATION_FAKE_AGENT === '1'
           ? await this.runFakeBrowserIntegrationSessionPrompt(args)
@@ -525,6 +531,9 @@ export class ControlPlaneChatSessionsController {
   private buildContinuePromptRun(args: ContinueChatPromptArgs) {
     return {
       address: args,
+      onHeartbeat: () => {
+        this.createEngine(args).sessions.refreshLease(args.sessionId, args.leaseOwner);
+      },
       execute: async (run: ControlPlaneSessionRunContext) => {
         if (process.env.HEDDLE_BROWSER_INTEGRATION_FAKE_AGENT === '1') {
           const session = this.createEngine(args).sessions.require(args.sessionId);
@@ -557,6 +566,9 @@ export class ControlPlaneChatSessionsController {
   private buildDirectShellRun(args: SubmitDirectShellArgs) {
     return {
       address: args,
+      onHeartbeat: () => {
+        this.createEngine(args).sessions.refreshLease(args.sessionId, args.leaseOwner);
+      },
       execute: async (run: ControlPlaneSessionRunContext) => {
         const publisher = ControlPlaneChatSessionEventsController.createSessionEventPublisher({
           eventBus: this.sessionEventBus,

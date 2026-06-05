@@ -84,6 +84,7 @@ export type ConversationSessionService = {
   // Leases
   getLeaseConflict(id: string, owner: ChatSessionLeaseOwner): string | undefined;
   acquireLease(id: string, owner: ChatSessionLeaseOwner): ChatSession;
+  refreshLease(id: string, owner: Pick<ChatSessionLeaseOwner, 'ownerId'>): ChatSession;
   releaseLease(id: string, owner: Pick<ChatSessionLeaseOwner, 'ownerId'>): ChatSession;
 };
 

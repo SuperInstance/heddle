@@ -322,6 +322,10 @@ export class FileConversationSessionService implements ConversationSessionServic
     });
   }
 
+  refreshLease(id: string, owner: Pick<ChatSessionLeaseOwner, 'ownerId'>): ChatSession {
+    return this.updateRequiredSession(id, (session) => ChatSessionLeases.refresh(session, owner));
+  }
+
   releaseLease(id: string, owner: Pick<ChatSessionLeaseOwner, 'ownerId'>): ChatSession {
     return this.updateRequiredSession(id, (session) => ChatSessionLeases.release(session, owner));
   }

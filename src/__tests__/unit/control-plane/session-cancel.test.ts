@@ -9,8 +9,9 @@ import type { ToolCall, ToolDefinition } from '@/core/types.js';
 import { ControlPlaneChatSessionsController } from '@/server/controllers/trpc/control-plane/chat-sessions-controller.js';
 import type {
   ControlPlaneSessionRunContext,
-  ControlPlaneSessionRunService,
 } from '@/server/services/control-plane/session-run-service.js';
+import { ControlPlaneSessionRunService } from '@/server/services/control-plane/session-run-service.js';
+import { SESSION_LEASE_REFRESH_INTERVAL_MS } from '@/core/chat/engine/sessions/leases/index.js';
 
 type ControllerInternals = {
   runService: ControlPlaneSessionRunService;
@@ -40,6 +41,78 @@ type ControllerInternals = {
 };
 
 describe('ControlPlaneChatSessionsController run cancellation', () => {
+  it('refreshes active runs until they settle', async () => {
+    vi.useFakeTimers();
+    const runService = new ControlPlaneSessionRunService();
+    const heartbeats: string[] = [];
+    let finishRun: (() => void) | undefined;
+
+    try {
+      const result = runService.startAndWait({
+        address: {
+          workspaceId: 'workspace-heartbeat',
+          sessionId: 'session-heartbeat',
+        },
+        onHeartbeat: (run) => {
+          heartbeats.push(run.runId);
+        },
+        execute: async () => await new Promise<void>((resolve) => {
+          finishRun = resolve;
+        }),
+      });
+
+      await vi.advanceTimersByTimeAsync(SESSION_LEASE_REFRESH_INTERVAL_MS - 1);
+      expect(heartbeats).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(heartbeats).toHaveLength(1);
+
+      await vi.advanceTimersByTimeAsync(SESSION_LEASE_REFRESH_INTERVAL_MS);
+      expect(heartbeats).toHaveLength(2);
+
+      finishRun?.();
+      await result;
+
+      await vi.advanceTimersByTimeAsync(SESSION_LEASE_REFRESH_INTERVAL_MS);
+      expect(heartbeats).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts active runs when heartbeat refresh fails', async () => {
+    vi.useFakeTimers();
+    const runService = new ControlPlaneSessionRunService();
+    let runAbortSignal: AbortSignal | undefined;
+    let finishRun: (() => void) | undefined;
+
+    try {
+      const result = runService.startAndWait({
+        address: {
+          workspaceId: 'workspace-heartbeat-failure',
+          sessionId: 'session-heartbeat-failure',
+        },
+        onHeartbeat: () => {
+          throw new Error('lease refresh failed');
+        },
+        execute: async (run) => {
+          runAbortSignal = run.controller.signal;
+          return await new Promise<void>((resolve) => {
+            finishRun = resolve;
+          });
+        },
+      });
+
+      await vi.advanceTimersByTimeAsync(SESSION_LEASE_REFRESH_INTERVAL_MS);
+      expect(runAbortSignal?.aborted).toBe(true);
+
+      finishRun?.();
+      await result;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('aborts the active run and resolves pending approval as denied', () => {
     const controller = new ControlPlaneChatSessionsController();
     const internals = controller as unknown as ControllerInternals;

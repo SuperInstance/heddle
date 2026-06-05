@@ -7,8 +7,10 @@
  */
 import type { ChatSession, ChatSessionLease } from '@/core/chat/types.js';
 import type { ChatSessionLeaseConflictOptions, ChatSessionLeaseOwner } from './types.js';
+import dayjs from 'dayjs';
 
-const DEFAULT_SESSION_LEASE_STALE_AFTER_MS = 15 * 60 * 1000;
+export const SESSION_LEASE_REFRESH_INTERVAL_MS = 5 * 1000;
+export const SESSION_LEASE_STALE_AFTER_MS = 20 * 1000;
 const LOCAL_PROCESS_LEASE_OWNER_PATTERN = /^(?:tui|ask|submit|daemon)-(\d+)(?:-\d+)?$/;
 
 export class ChatSessionLeases {
@@ -20,12 +22,12 @@ export class ChatSessionLeases {
       return false;
     }
 
-    const lastSeenAt = Date.parse(lease.lastSeenAt);
-    if (!Number.isFinite(lastSeenAt)) {
+    const lastSeenAt = dayjs(lease.lastSeenAt);
+    if (!lastSeenAt.isValid()) {
       return false;
     }
 
-    return (options?.now ?? Date.now()) - lastSeenAt <= (options?.staleAfterMs ?? DEFAULT_SESSION_LEASE_STALE_AFTER_MS);
+    return dayjs(options?.now ?? Date.now()).diff(lastSeenAt) <= (options?.staleAfterMs ?? SESSION_LEASE_STALE_AFTER_MS);
   }
 
   static isOwnedByDeadLocalProcess(
@@ -51,7 +53,7 @@ export class ChatSessionLeases {
     owner: ChatSessionLeaseOwner,
     options?: { now?: number },
   ): ChatSession {
-    const timestamp = new Date(options?.now ?? Date.now()).toISOString();
+    const timestamp = dayjs(options?.now ?? Date.now()).toISOString();
     return {
       ...session,
       lease: {
@@ -60,6 +62,24 @@ export class ChatSessionLeases {
         acquiredAt: session.lease?.ownerId === owner.ownerId ? session.lease.acquiredAt : timestamp,
         lastSeenAt: timestamp,
         clientLabel: owner.clientLabel,
+      },
+    };
+  }
+
+  static refresh(
+    session: ChatSession,
+    owner: Pick<ChatSessionLeaseOwner, 'ownerId'>,
+    options?: { now?: number },
+  ): ChatSession {
+    if (!session.lease || session.lease.ownerId !== owner.ownerId) {
+      return session;
+    }
+
+    return {
+      ...session,
+      lease: {
+        ...session.lease,
+        lastSeenAt: dayjs(options?.now ?? Date.now()).toISOString(),
       },
     };
   }

@@ -3,6 +3,7 @@ import type {
   ToolApprovalRequest,
   ToolApprovalUserDecision,
 } from '@/core/approvals/index.js';
+import { SESSION_LEASE_REFRESH_INTERVAL_MS } from '@/core/chat/engine/sessions/leases/index.js';
 import type { ControlPlaneAcceptedSessionRun } from '@/server/control-plane-types.js';
 
 export type ControlPlaneSessionRunAddress = {
@@ -24,6 +25,7 @@ export type ControlPlaneSessionRunContext = {
 type StartControlPlaneSessionRunInput<Result> = {
   address: ControlPlaneSessionRunAddress;
   onAccepted?: (run: ControlPlaneSessionRunContext) => void;
+  onHeartbeat?: (run: ControlPlaneSessionRunContext) => void | Promise<void>;
   execute: (run: ControlPlaneSessionRunContext) => Promise<Result>;
   onError?: (error: unknown, run: ControlPlaneSessionRunContext) => void | Promise<void>;
   onSettled?: (run: ControlPlaneSessionRunContext) => void | Promise<void>;
@@ -58,6 +60,7 @@ export class ControlPlaneSessionRunService {
 
     let accepted = false;
     let acceptanceError: unknown;
+    let stopHeartbeat: (() => void) | undefined;
 
     const result = Promise.resolve()
       .then(() => {
@@ -74,6 +77,7 @@ export class ControlPlaneSessionRunService {
         throw error;
       })
       .finally(() => {
+        stopHeartbeat?.();
         this.pendingApprovals.delete(key);
         this.inFlightRuns.delete(key);
         if (accepted) {
@@ -86,6 +90,7 @@ export class ControlPlaneSessionRunService {
 
     try {
       input.onAccepted?.(run);
+      stopHeartbeat = this.startHeartbeat(run, input.onHeartbeat);
       accepted = true;
     } catch (error) {
       acceptanceError = error;
@@ -172,5 +177,35 @@ export class ControlPlaneSessionRunService {
 
   private static addressKey(address: ControlPlaneSessionRunAddress): string {
     return `${address.workspaceId}:${address.sessionId}`;
+  }
+
+  private startHeartbeat(
+    run: ControlPlaneSessionRunContext,
+    onHeartbeat: StartControlPlaneSessionRunInput<unknown>['onHeartbeat'],
+  ): (() => void) | undefined {
+    if (!onHeartbeat) {
+      return undefined;
+    }
+
+    let refreshing = false;
+    const timer = setInterval(() => {
+      if (refreshing || run.controller.signal.aborted) {
+        return;
+      }
+
+      refreshing = true;
+      Promise.resolve()
+        .then(() => onHeartbeat(run))
+        .catch(() => {
+          run.controller.abort();
+        })
+        .finally(() => {
+          refreshing = false;
+        });
+    }, SESSION_LEASE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(timer);
+    };
   }
 }
