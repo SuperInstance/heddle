@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module';
 
-import type { chromium, BrowserContext, Locator, Page } from 'playwright';
+import type { chromium, BrowserContext, Locator, Page, Route } from 'playwright';
 
 import type {
   BrowserDriver,
+  BrowserDriverClickOptions,
   BrowserDriverFactory,
   BrowserDriverLaunchOptions,
   BrowserDriverSnapshotOptions,
@@ -93,14 +94,20 @@ class PlaywrightBrowserDriver implements BrowserDriver {
     };
   }
 
-  async click(ref: string): Promise<string> {
+  async click(ref: string, options: BrowserDriverClickOptions = {}): Promise<string> {
     const locator = this.refs.get(ref);
     if (!locator) {
       throw new Error(`Unknown browser snapshot ref: ${ref}`);
     }
 
-    await locator.click();
-    await this.page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    const routeHandler = this.createNavigationGuard(options);
+    await this.page.route('**/*', routeHandler);
+    try {
+      await locator.click();
+      await this.page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    } finally {
+      await this.page.unroute('**/*', routeHandler).catch(() => undefined);
+    }
     return this.page.url();
   }
 
@@ -114,6 +121,23 @@ class PlaywrightBrowserDriver implements BrowserDriver {
 
   currentUrl(): string | undefined {
     return this.page.url();
+  }
+
+  private createNavigationGuard(options: BrowserDriverClickOptions): (route: Route) => Promise<void> {
+    return async (route) => {
+      const request = route.request();
+      if (!request.isNavigationRequest() || !options.canNavigateTo) {
+        await route.continue();
+        return;
+      }
+
+      if (options.canNavigateTo(request.url())) {
+        await route.continue();
+        return;
+      }
+
+      await route.abort('blockedbyclient');
+    };
   }
 
   private async snapshotElement(locator: Locator, index: number): Promise<BrowserSnapshotElement | undefined> {
