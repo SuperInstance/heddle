@@ -38,11 +38,13 @@ export class ClientSharedApiLinkService {
     const requestLink = batch ? httpBatchLink({ url }) : httpLink({ url });
 
     return [
-      createControlPlaneRequestTimeoutLink({ defaultTimeoutMs: requestTimeoutMs }),
       splitLink({
         condition: (operation) => operation.type === 'subscription',
         true: httpSubscriptionLink({ url, EventSource: eventSource }),
-        false: requestLink,
+        false: [
+          createControlPlaneRequestTimeoutLink({ defaultTimeoutMs: requestTimeoutMs }),
+          requestLink,
+        ],
       }),
     ];
   }
@@ -64,6 +66,10 @@ export function createControlPlaneRequestTimeoutLink({
   defaultTimeoutMs?: number;
 } = {}): TRPCLink<AppRouter> {
   return () => ({ op, next }) => observable((observer) => {
+    if (op.type === 'subscription') {
+      return next(op).subscribe(observer);
+    }
+
     const timeoutMs = resolveControlPlaneRequestTimeoutMs(op, defaultTimeoutMs);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       return next(op).subscribe(observer);

@@ -76,6 +76,24 @@ describe('control-plane API links', () => {
     await vi.advanceTimersByTimeAsync(50);
     await assertion;
   });
+
+  it('does not time out subscription operations', async () => {
+    vi.useFakeTimers();
+    let error: unknown;
+    const subscription = createNeverCompletingOperation({
+      defaultTimeoutMs: 25,
+      context: {},
+      type: 'subscription',
+    }).subscribe({
+      error: (caught) => {
+        error = caught;
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(250);
+    expect(error).toBeUndefined();
+    subscription.unsubscribe();
+  });
 });
 
 function runNeverCompletingOperation({
@@ -85,16 +103,32 @@ function runNeverCompletingOperation({
   context: Record<string, unknown>;
   defaultTimeoutMs: number;
 }) {
+  return observableToPromise(createNeverCompletingOperation({
+    context,
+    defaultTimeoutMs,
+    type: 'query',
+  }));
+}
+
+function createNeverCompletingOperation({
+  context,
+  defaultTimeoutMs,
+  type,
+}: {
+  context: Record<string, unknown>;
+  defaultTimeoutMs: number;
+  type: 'query' | 'mutation' | 'subscription';
+}) {
   const link = createControlPlaneRequestTimeoutLink({ defaultTimeoutMs })({});
-  return observableToPromise(link({
+  return link({
     op: {
       id: 1,
-      type: 'query',
+      type,
       path: 'controlPlane.state',
       input: undefined,
       context,
       signal: undefined,
     },
     next: () => observable(() => undefined),
-  }));
+  });
 }
