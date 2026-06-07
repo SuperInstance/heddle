@@ -131,13 +131,24 @@ class PlaywrightBrowserDriver implements BrowserDriver {
         return;
       }
 
-      if (options.canNavigateTo(request.url())) {
-        await route.continue();
+      if (!options.canNavigateTo(request.url())) {
+        await route.abort('blockedbyclient');
         return;
       }
 
-      await route.abort('blockedbyclient');
+      const finalUrl = await this.resolveFinalNavigationUrl(route);
+      if (!options.canNavigateTo(finalUrl)) {
+        await route.abort('blockedbyclient');
+        return;
+      }
+
+      await route.continue();
     };
+  }
+
+  private async resolveFinalNavigationUrl(route: Route): Promise<string> {
+    const response = await route.fetch({ maxRedirects: 20 });
+    return response.url();
   }
 
   private async snapshotElement(locator: Locator, index: number): Promise<BrowserSnapshotElement | undefined> {
