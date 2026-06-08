@@ -194,7 +194,8 @@
     "strip-ansi": "^6.0.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -222,6 +223,7 @@
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.58.2",
     "vite": "8.0.3",
-    "vitest": "4.1.2"
+    "vitest": "4.1.2",
+    "@types/ws": "^8.5.10"
   }
 }
